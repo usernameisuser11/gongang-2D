@@ -139,7 +139,35 @@ presence.on('connection', (ws, map) => {
   ws.on('error', () => ws.terminate());
   ws.on('message', (data, binary) => {
     if (binary) return;
-    const state = validState(data.toString());
+    const raw = data.toString();
+    if (Buffer.byteLength(raw) > 1024) return;
+    let command = null;
+    try { command = JSON.parse(raw); } catch { return; }
+    if (command?.type === 'group_action') {
+      if (!peer.state || !['heart','wave','cheer'].includes(command.action)) return;
+      const now = Date.now();
+      if (now - (peer.lastGroupAt || 0) < 5800) return;
+      const members = [...room.values()].filter(other =>
+        other.state &&
+        Math.abs(other.state.x - peer.state.x) <= 250 &&
+        Math.abs(other.state.z - peer.state.z) <= 115
+      );
+      const need = command.action === 'cheer' ? 3 : 2;
+      if (members.length < need) {
+        send(ws, { type:'group_unavailable',need,nearby:members.length });
+        return;
+      }
+      peer.lastGroupAt = now;
+      const event = {
+        type: 'group_pose',
+        action: command.action,
+        participants: members.map(member => member.id).slice(0, MAX_PEERS),
+        expiresAt: now + 9000
+      };
+      for (const client of room.keys()) send(client, event);
+      return;
+    }
+    const state = validState(raw);
     if (!state) return;
     const now = Date.now();
     const actionChanged = peer.state && ['pose', 'gesture', 'signal'].some(k => state[k] !== peer.state[k]);
