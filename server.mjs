@@ -1,0 +1,176 @@
+import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { WebSocket, WebSocketServer } from 'ws';
+
+const ROOT = dirname(fileURLToPath(import.meta.url));
+const MAX_PEERS = 8;
+const MAPS = ['campus', 'river'];
+const rooms = Object.fromEntries(MAPS.map(m => [m, new Map()]));
+const port = Number(process.env.PORT || 3000);
+const dbURL = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+const dbKey = String(process.env.SUPABASE_ANON_KEY || '');
+const html = await readFile(join(ROOT, 'public', 'index.html'));
+let lastDbError = null;
+let dbWriteOk = false;
+
+async function saveVisit(map) {
+  if (!dbURL || !dbKey) {
+    lastDbError = 'Supabase environment not configured';
+    return;
+  }
+  try {
+    const result = await fetch(dbURL + '/rest/v1/gongang2d_visits', {
+      method: 'POST',
+      headers: {
+        apikey: dbKey,
+        Authorization: 'Bearer ' + dbKey,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal'
+      },
+      body: JSON.stringify({ visit_id: randomUUID(), map_id: map }),
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!result.ok) throw new Error('Supabase HTTP ' + result.status);
+    dbWriteOk = true;
+    lastDbError = null;
+  } catch (error) {
+    dbWriteOk = false;
+    lastDbError = String(error?.message || error);
+    console.error('Supabase visit log unavailable:', lastDbError);
+  }
+}
+
+const server = createServer((req, res) => {
+  let path;
+  try { path = new URL(req.url, 'http://localhost').pathname; }
+  catch { res.writeHead(400).end(); return; }
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('Cache-Control', 'no-store');
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405, { Allow: 'GET, HEAD' }).end(); return;
+  }
+  if (path === '/healthz') {
+    const body = JSON.stringify({
+      ok: true, mode: '2d', capacity: MAX_PEERS,
+      dbConfigured: Boolean(dbURL && dbKey), dbWriteOk,
+      rooms: Object.fromEntries(MAPS.map(m => [m, rooms[m].size]))
+    });
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(req.method === 'HEAD' ? undefined : body);
+    return;
+  }
+  if (path === '/' || path === '/index.html') {
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Content-Length': html.length,
+      'Content-Security-Policy': "default-src 'self' data: blob:; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+    });
+    if (req.method === 'HEAD') res.end();
+    else res.end(html);
+    return;
+  }
+  if (path === '/favicon.ico') { res.writeHead(204).end(); return; }
+  res.writeHead(404).end();
+});
+
+const presence = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: 1024 });
+function send(ws, msg) {
+  if (ws.readyState !== WebSocket.OPEN) return;
+  if (ws.bufferedAmount > 65536) { ws.terminate(); return; }
+  ws.send(typeof msg === 'string' ? msg : JSON.stringify(msg));
+}
+function validState(raw) {
+  if (typeof raw !== 'string' || Buffer.byteLength(raw) > 1024) return null;
+  let s;
+  try { s = JSON.parse(raw); } catch { return null; }
+  if (!s || s.type !== 'state' || !['idle', 'walk', 'sit', 'lie'].includes(s.pose)) return null;
+  const { x, z, yaw, gesture = 0, signal = 0, pose } = s;
+  if (![x, z, yaw].every(v => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= 10000)) return null;
+  if (![gesture, signal].every(v => Number.isSafeInteger(v) && v >= 0)) return null;
+  return { x, z, yaw, pose, gesture, signal };
+}
+const pending = new Map();
+function snapshot(map) {
+  pending.delete(map);
+  const players = [...rooms[map].values()].filter(peer => peer.state).map(peer => ({ id: peer.id, ...peer.state }));
+  const text = JSON.stringify({ type: 'snapshot', players });
+  for (const ws of rooms[map].keys()) send(ws, text);
+}
+function schedule(map) {
+  if (!pending.has(map)) pending.set(map, setTimeout(() => snapshot(map), 55));
+}
+server.on('upgrade', (req, socket, head) => {
+  let url;
+  try { url = new URL(req.url, 'http://localhost'); }
+  catch { socket.destroy(); return; }
+  if (url.pathname !== '/presence') {
+    socket.write('HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n'); socket.destroy(); return;
+  }
+  const origin = req.headers.origin;
+  let goodOrigin = false;
+  try {
+    const parsed = new URL(origin);
+    goodOrigin = ['https:', 'http:'].includes(parsed.protocol) && parsed.host === req.headers.host;
+  } catch { /* invalid origin */ }
+  if (!goodOrigin) {
+    socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); socket.destroy(); return;
+  }
+  const map = MAPS.includes(url.searchParams.get('map')) ? url.searchParams.get('map') : 'campus';
+  presence.handleUpgrade(req, socket, head, ws => presence.emit('connection', ws, map));
+});
+presence.on('connection', (ws, map) => {
+  const room = rooms[map];
+  if (room.size >= MAX_PEERS) {
+    send(ws, { type: 'full' });
+    ws.close(1013, 'Room full');
+    return;
+  }
+  const peer = { id: randomUUID(), state: null, lastSent: 0, alive: true };
+  room.set(ws, peer);
+  send(ws, { type: 'welcome', id: peer.id, capacity: MAX_PEERS });
+  const handshake = setTimeout(() => {
+    if (peer.state === null) ws.close(1008, 'State required');
+  }, 12000);
+  ws.on('pong', () => { peer.alive = true; });
+  ws.on('error', () => ws.terminate());
+  ws.on('message', (data, binary) => {
+    if (binary) return;
+    const state = validState(data.toString());
+    if (!state) return;
+    const now = Date.now();
+    const actionChanged = peer.state && ['pose', 'gesture', 'signal'].some(k => state[k] !== peer.state[k]);
+    if (!actionChanged && now - peer.lastSent < 40) return;
+    peer.lastSent = now;
+    if (peer.state && Object.keys(state).every(k => state[k] === peer.state[k])) return;
+    const first = peer.state === null;
+    peer.state = state;
+    if (first) {
+      clearTimeout(handshake);
+      void saveVisit(map);
+    }
+    schedule(map);
+  });
+  ws.on('close', () => {
+    clearTimeout(handshake);
+    room.delete(ws);
+    schedule(map);
+  });
+});
+const heartbeat = setInterval(() => {
+  for (const map of MAPS) for (const [ws, peer] of rooms[map]) {
+    if (!peer.alive) { ws.terminate(); continue; }
+    if (ws.readyState === WebSocket.OPEN) { peer.alive = false; ws.ping(); }
+  }
+}, 15000);
+function shutdown() {
+  clearInterval(heartbeat);
+  for (const map of MAPS) for (const ws of rooms[map].keys()) ws.terminate();
+  server.close();
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+server.listen(port, '0.0.0.0', () => console.log('Gongang 2D listening on ' + port));
