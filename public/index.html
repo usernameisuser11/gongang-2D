@@ -74,6 +74,36 @@
 }
 @media(orientation:landscape) and (max-height:390px){.photoDock{bottom:max(3px,env(safe-area-inset-bottom));padding:4px 7px}.gmActions button{min-height:36px}.uxShutter{min-height:40px}.photoTop>div{padding:4px 7px}}
 
+</style><style>
+
+/* Photo crop editor: finger-sized crop handles, touch-safe on iOS/Android. */
+.photoDock,.photoTop{z-index:22}
+#photoFrame.cropEditable{pointer-events:auto;touch-action:none;outline:1.5px solid #fff2d1;box-shadow:0 0 0 100vmax rgba(8,14,25,.43),inset 0 0 0 1px rgba(255,255,255,.14);z-index:11;cursor:move}
+#photoFrame.cropEditable::before{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(to right, transparent 33.15%,rgba(255,255,255,.24) 33.25%,rgba(255,255,255,.24) 33.45%,transparent 33.55%,transparent 66.45%,rgba(255,255,255,.24) 66.55%,rgba(255,255,255,.24) 66.75%,transparent 66.85%),linear-gradient(to bottom,transparent 33.15%,rgba(255,255,255,.24) 33.25%,rgba(255,255,255,.24) 33.45%,transparent 33.55%,transparent 66.45%,rgba(255,255,255,.24) 66.55%,rgba(255,255,255,.24) 66.75%,transparent 66.85%);opacity:.55}
+#photoFrame.cropEditable .corner{display:none}
+#photoFrame .cropHandle{position:absolute;z-index:4;border:0;padding:0;background:transparent;touch-action:none;user-select:none;-webkit-user-select:none;min-width:36px;min-height:36px;pointer-events:auto}
+#photoFrame .cropHandle::after{content:'';position:absolute;display:block;inset:0;margin:auto;width:14px;height:14px;border:solid #fff6df;filter:drop-shadow(0 1px 2px #192036)}
+#photoFrame .cropHandle[data-handle='nw']{left:-17px;top:-17px;cursor:nwse-resize}
+#photoFrame .cropHandle[data-handle='ne']{right:-17px;top:-17px;cursor:nesw-resize}
+#photoFrame .cropHandle[data-handle='sw']{left:-17px;bottom:-17px;cursor:nesw-resize}
+#photoFrame .cropHandle[data-handle='se']{right:-17px;bottom:-17px;cursor:nwse-resize}
+#photoFrame .cropHandle[data-handle='nw']::after{border-width:3px 0 0 3px;transform:translate(4px,4px)}
+#photoFrame .cropHandle[data-handle='ne']::after{border-width:3px 3px 0 0;transform:translate(-4px,4px)}
+#photoFrame .cropHandle[data-handle='sw']::after{border-width:0 0 3px 3px;transform:translate(4px,-4px)}
+#photoFrame .cropHandle[data-handle='se']::after{border-width:0 3px 3px 0;transform:translate(-4px,-4px)}
+#photoFrame .cropHandle[data-handle='n'],#photoFrame .cropHandle[data-handle='s']{left:50%;transform:translateX(-50%);width:66px;height:34px;min-height:34px;cursor:ns-resize}
+#photoFrame .cropHandle[data-handle='n']{top:-17px}#photoFrame .cropHandle[data-handle='s']{bottom:-17px}
+#photoFrame .cropHandle[data-handle='e'],#photoFrame .cropHandle[data-handle='w']{top:50%;transform:translateY(-50%);height:66px;width:34px;min-width:34px;cursor:ew-resize}
+#photoFrame .cropHandle[data-handle='e']{right:-17px}#photoFrame .cropHandle[data-handle='w']{left:-17px}
+#photoFrame .cropHandle[data-handle='n']::after,#photoFrame .cropHandle[data-handle='s']::after{width:31px;height:3px;border:0;border-radius:4px;background:#fff6df;box-shadow:0 0 0 1px #1c2939aa}
+#photoFrame .cropHandle[data-handle='e']::after,#photoFrame .cropHandle[data-handle='w']::after{width:3px;height:31px;border:0;border-radius:4px;background:#fff6df;box-shadow:0 0 0 1px #1c2939aa}
+#photoFrame .cropMoveHint{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);border-radius:999px;padding:3px 10px;font-size:10px;font-weight:650;color:#fff4dd;background:rgba(11,18,29,.52);white-space:nowrap;pointer-events:none;opacity:.84}
+.uxRatioMenu{position:absolute;z-index:20;bottom:calc(100% + 9px);left:6px;display:flex;gap:5px;padding:7px;border:1px solid rgba(255,255,255,.25);border-radius:13px;background:rgba(14,23,38,.96);box-shadow:0 12px 30px #09121e80;backdrop-filter:blur(15px)}.uxRatioMenu[hidden]{display:none!important}
+.uxRatioMenu button{border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);padding:10px 12px;border-radius:9px;color:#fff2dc;font-size:11px;font-weight:800;min-height:43px;white-space:nowrap}.uxRatioMenu button.active{background:#f3dec1;color:#25354e}
+.uxCropTip{font-size:10px;color:#f5e4c5;text-align:center;line-height:1.35;padding:1px 4px 8px;letter-spacing:-.02em;pointer-events:none}
+@media(orientation:landscape) and (max-height:600px){.uxCropTip{display:none}#photoFrame .cropMoveHint{font-size:9px;padding:3px 6px;bottom:4px}.uxRatioMenu{left:7px}}
+@media(max-width:365px){.uxCropTip{font-size:9px}}
+
 </style></head><body>
 <main id="app">
   <canvas id="game" aria-label="모바일 2D 산책 공간"></canvas>
@@ -347,6 +377,12 @@ tryConnect();
       <button type="button" id="uxReset">내 위치로 맞춤</button>
       <button type="button" id="uxPose">포즈: 서기</button>
     </div>
+    <div class="uxCropTip" id="uxCropTip">모서리·변을 당겨 자르기 · 안쪽을 끌어 영역 이동 · 바깥 풍경을 끌어 구도 변경</div>
+    <div class="uxRatioMenu" id="uxRatioMenu" hidden role="group" aria-label="사진 비율 선택">
+      <button type="button" data-crop-preset="4:5">세로 4:5</button>
+      <button type="button" data-crop-preset="1:1">정사각형</button>
+      <button type="button" data-crop-preset="16:9">가로 16:9</button>
+    </div>
     <div class="photoDockBottom">
       <button type="button" id="uxMinus" class="uxZoomBtn" aria-label="축소">−</button>
       <input id="uxZoom" type="range" min="0.55" max="1.45" step="0.01" value="0.72" aria-label="촬영 구도 확대 축소">
@@ -356,8 +392,8 @@ tryConnect();
   layer.appendChild(dock);
   const hint=document.createElement('div');
   hint.className='uxPhotoHint';
-  hint.textContent='화면을 드래그해 구도 조절 · 두 손가락으로 확대';
-  document.querySelector('.photoTop small').textContent='드래그로 이동 · 두 손가락 확대';
+  hint.textContent='테두리로 자유롭게 자르기 · 빈 배경 드래그로 구도 이동';
+  document.querySelector('.photoTop small').textContent='프레임 직접 자르기 · 가로 촬영도 바로 가능';
   layer.appendChild(hint);
   const preview=document.createElement('section');
   preview.className='uxPreview';
@@ -378,32 +414,150 @@ tryConnect();
   </div>`;
   app.appendChild(preview);
 
-  // The frame is sized from the actual space available AFTER reserving the
-  // controls. In landscape the dock becomes one short horizontal strip.
+  // Editable crop rectangle. Presets are only defaults; the user can freely
+  // resize and move the actual capture area without rotating the phone.
   const originalFrame=drawFrame;
+  const cropEl=$ux('photoFrame');
   const getLandscape=()=>innerWidth>innerHeight;
-  drawFrame=function(){
-    const old=originalFrame();
-    if(!old)return old;
+  const cropState={rect:null,bounds:null,manual:false,persist:null,active:null,pointers:new Map(),pinch:null};
+  const photoTop=$ux('photoLayer').querySelector('.photoTop');
+  cropEl.classList.add('cropEditable');
+  cropEl.setAttribute('role','group');
+  cropEl.setAttribute('aria-label','촬영 영역: 모서리나 변을 끌어서 자르고, 안쪽을 끌어서 위치를 옮겨요');
+  for(const handle of ['nw','n','ne','e','se','s','sw','w']){
+    const b=document.createElement('button');
+    b.type='button';b.className='cropHandle';b.dataset.handle=handle;
+    b.setAttribute('aria-label',({'nw':'왼쪽 위','n':'위쪽','ne':'오른쪽 위','e':'오른쪽','se':'오른쪽 아래','s':'아래쪽','sw':'왼쪽 아래','w':'왼쪽'}[handle])+' 자르기 범위 조절');
+    cropEl.appendChild(b);
+  }
+  const moveHint=document.createElement('div');moveHint.className='cropMoveHint';moveHint.textContent='손으로 이동';cropEl.appendChild(moveHint);
+  function safeBounds(){
     const landscape=getLandscape();
-    const dockHeight=dock.getBoundingClientRect().height||(landscape?76:140);
-    const dockBottom=Math.max(10,Number.parseFloat(getComputedStyle(dock).bottom)||10);
-    const top=landscape?52:95;
-    const bottom=Math.min(H*.48,dockHeight+dockBottom+(landscape?16:25));
-    const usable=Math.max(95,H-top-bottom);
-    const aspect=state.ratio==='4:5'?.8:state.ratio==='1:1'?1:16/9;
-    const width=Math.max(90,Math.min(W-(landscape?110:26),usable*aspect));
-    const height=width/aspect;
-    const frameY=landscape?top+Math.max(0,(usable-height)*.5):Math.max(top,H-bottom-12-height);
-    const rect={x:(W-width)/2,y:frameY,w:width,h:height};
-    Object.assign($ux('photoFrame').style,{
-      left:rect.x+'px',top:rect.y+'px',width:rect.w+'px',height:rect.h+'px'
-    });
+    const dockHeight=dock.getBoundingClientRect().height||(landscape?60:164);
+    const cssBottom=Number.parseFloat(getComputedStyle(dock).bottom)||10;
+    const top=landscape?Math.max(46,Number.parseFloat(getComputedStyle(photoTop).top)+41||46):Math.max(90,Number.parseFloat(getComputedStyle(photoTop).top)+74||90);
+    const bottom=H-dockHeight-cssBottom-12;
+    const x=landscape?55:20;
+    // Keep frame edges clear of photo buttons and iPhone safe areas.
+    return {x,y:top,w:Math.max(110,W-x*2),h:Math.max(98,bottom-top)};
+  }
+  function keepInBounds(rect,b){
+    const minW=Math.min(115,b.w),minH=Math.min(90,b.h);
+    rect.w=clamp(rect.w,minW,b.w);rect.h=clamp(rect.h,minH,b.h);
+    rect.x=clamp(rect.x,b.x,b.x+b.w-rect.w);
+    rect.y=clamp(rect.y,b.y,b.y+b.h-rect.h);
     return rect;
+  }
+  function presetRect(b,ratio){
+    const aspect=ratio==='4:5'?4/5:ratio==='1:1'?1:16/9;
+    const availableW=b.w*.96,availableH=b.h*.94;
+    let w=Math.min(availableW,availableH*aspect);
+    let h=w/aspect;
+    return keepInBounds({x:b.x+(b.w-w)/2,y:getLandscape()?b.y+(b.h-h)/2:b.y+b.h-h-12,w,h},b);
+  }
+  function setCropPreset(ratio){
+    cropState.manual=false;cropState.persist=null;
+    cropState.rect=null;
+    cropState.bounds=null;
+    if($ux('uxRatioMenu'))$ux('uxRatioMenu').hidden=true;
+    $ux('uxRatio').setAttribute('aria-expanded','false');
+    $ux('uxRatio').firstChild.textContent=ratio+' ';
+  }
+  function updateRatioBadge(){
+    if(cropState.manual)$ux('uxRatio').firstChild.textContent='자유 ';
+    $ux('uxRatioMenu').querySelectorAll('button').forEach(b=>b.classList.toggle('active',!cropState.manual&&state.ratio===b.dataset.cropPreset));
+  }
+  drawFrame=function(){
+    if(!state.photo)return originalFrame();
+    const b=safeBounds();
+    if(!cropState.rect){cropState.rect=presetRect(b,state.ratio)}
+    else if(cropState.bounds && (Math.abs(cropState.bounds.w-b.w)>.5||Math.abs(cropState.bounds.h-b.h)>.5||Math.abs(cropState.bounds.x-b.x)>.5||Math.abs(cropState.bounds.y-b.y)>.5)){
+      if(!cropState.manual)cropState.rect=presetRect(b,state.ratio);
+      else {
+        const old=cropState.bounds,box=cropState.rect;
+        const saved=cropState.persist || {
+          aspect:box.w/box.h,wFrac:box.w/old.w,
+          cx:(box.x+box.w/2-old.x)/old.w,cy:(box.y+box.h/2-old.y)/old.h
+        };
+        const w=Math.min(b.w*saved.wFrac,b.w,b.h*saved.aspect);
+        const h=w/saved.aspect;
+        cropState.rect=keepInBounds({x:b.x+saved.cx*b.w-w/2,y:b.y+saved.cy*b.h-h/2,w,h},b);
+      }
+    }
+    cropState.bounds=b;
+    keepInBounds(cropState.rect,b);
+    const r=cropState.rect;
+    Object.assign(cropEl.style,{left:r.x+'px',top:r.y+'px',width:r.w+'px',height:r.h+'px'});
+    updateRatioBadge();
+    return {...r};
   };
+  // Direct manipulation: handles resize (free crop), inside moves frame,
+  // outside the rectangle still pans the original camera canvas.
+  cropEl.addEventListener('pointerdown',e=>{
+    if(!state.photo || !preview.hidden)return;
+    e.preventDefault();e.stopPropagation();
+    const handle=e.target.closest('[data-handle]');
+    const mode=handle?handle.dataset.handle:'move';
+    cropState.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    try{cropEl.setPointerCapture(e.pointerId)}catch{}
+    if(cropState.pointers.size===1){
+      cropState.active={id:e.pointerId,mode,startX:e.clientX,startY:e.clientY,rect:{...drawFrame()}};
+      cropState.pinch=null;
+    }else if(cropState.pointers.size===2){
+      const [a,b]=[...cropState.pointers.values()];
+      cropState.pinch={distance:Math.hypot(a.x-b.x,a.y-b.y)||1,zoom:cam.scale,midX:(a.x+b.x)/2,midY:(a.y+b.y)/2,offsetX:cam.offsetX,offsetY:cam.offsetY};
+      cropState.active=null;
+    }
+  });
+  cropEl.addEventListener('pointermove',e=>{
+    if(!cropState.pointers.has(e.pointerId))return;
+    cropState.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(cropState.pointers.size===2 && cropState.pinch){
+      const [a,b]=[...cropState.pointers.values()],p=cropState.pinch;
+      setCameraScale(p.zoom*Math.hypot(a.x-b.x,a.y-b.y)/p.distance);
+      cam.offsetX=clamp(p.offsetX+(a.x+b.x)/2-p.midX,-320,320);
+      cam.offsetY=clamp(p.offsetY+(a.y+b.y)/2-p.midY,-270,270);
+      return;
+    }
+    const action=cropState.active;
+    if(!action||action.id!==e.pointerId)return;
+    const dx=e.clientX-action.startX,dy=e.clientY-action.startY;
+    const next={...action.rect};
+    if(action.mode==='move'){
+      next.x+=dx;next.y+=dy;
+    }else{
+      if(action.mode.includes('w')){next.x+=dx;next.w-=dx}
+      if(action.mode.includes('e'))next.w+=dx;
+      if(action.mode.includes('n')){next.y+=dy;next.h-=dy}
+      if(action.mode.includes('s'))next.h+=dy;
+    }
+    const b=cropState.bounds||safeBounds();
+    const minW=Math.min(115,b.w),minH=Math.min(90,b.h);
+    if(action.mode==='move')keepInBounds(next,b);
+    else{
+      const oldRight=next.x+next.w,oldBottom=next.y+next.h;
+      if(action.mode.includes('w')){next.x=clamp(next.x,b.x,oldRight-minW);next.w=oldRight-next.x}
+      if(action.mode.includes('n')){next.y=clamp(next.y,b.y,oldBottom-minH);next.h=oldBottom-next.y}
+      if(action.mode.includes('e'))next.w=clamp(next.w,minW,b.x+b.w-next.x);
+      if(action.mode.includes('s'))next.h=clamp(next.h,minH,b.y+b.h-next.y);
+      keepInBounds(next,b);
+    }
+    cropState.rect=next;
+    cropState.manual=true;
+    cropState.persist={aspect:next.w/next.h,wFrac:next.w/b.w,cx:(next.x+next.w/2-b.x)/b.w,cy:(next.y+next.h/2-b.y)/b.h};
+    ratioTouched=true; // don't auto-reset someone's hand-edited crop on orientation change
+    drawFrame();
+  });
+  function endCropPointer(e){
+    cropState.pointers.delete(e.pointerId);
+    try{if(cropEl.hasPointerCapture(e.pointerId))cropEl.releasePointerCapture(e.pointerId)}catch{}
+    cropState.active=null;cropState.pinch=null;
+  }
+  cropEl.addEventListener('pointerup',endCropPointer);
+  cropEl.addEventListener('pointercancel',endCropPointer);
   const orientationNotice=document.createElement('div');
   orientationNotice.className='uxRotateNotice';
-  orientationNotice.innerHTML='<strong>↻ 휴대폰을 가로로 돌려봐</strong><span>풍경과 친구들을 더 넓게 담을 수 있어</span><button type="button" aria-label="가로 화면 안내 닫기">×</button>';
+  orientationNotice.innerHTML='<strong>✂ 테두리를 당겨 촬영 영역을 조절해</strong><button type="button" aria-label="사진 영역 안내 닫기">×</button>';
   layer.appendChild(orientationNotice);
   let orientationDismissed=false,ratioTouched=false,previousLandscape=null;
   orientationNotice.querySelector('button').onclick=()=>{orientationDismissed=true;orientationNotice.hidden=true};
@@ -411,20 +565,22 @@ tryConnect();
     const btn=$ux('ratios').querySelector(`[data-ratio="${ratio}"]`);
     btn?.click();
     ratioIndex=ratios.indexOf(ratio);
-    $ux('uxRatio').firstChild.textContent=ratio+' ';
+    setCropPreset(ratio);
+    drawFrame();
   };
   function syncOrientation(){
     const landscape=getLandscape();
     const changed=previousLandscape!==landscape;
     previousLandscape=landscape;
     if(state.photo&&changed){
-      if(!ratioTouched)setRatio(landscape?'16:9':'4:5');
-      alignPhoto();
+      if(!ratioTouched && !cropState.manual)setRatio(landscape?'16:9':'4:5');
+      if(!cropState.manual)alignPhoto();
     }
     orientationNotice.hidden=!state.photo||landscape||orientationDismissed||!matchMedia('(pointer: coarse)').matches;
     if(state.photo)drawFrame();
   }
   window.addEventListener('resize',()=>requestAnimationFrame(syncOrientation));
+  window.visualViewport?.addEventListener('resize',()=>requestAnimationFrame(syncOrientation));
   screen.orientation?.addEventListener?.('change',()=>setTimeout(syncOrientation,130));
   let cachedImage=null, cachedFile=null, photoBusy=false, ratioIndex=0;
   const ratios=['4:5','1:1','16:9'];
@@ -465,9 +621,17 @@ tryConnect();
   }
   window.__photoAlign=alignPhoto;
   $ux('uxFit').addEventListener('click',alignPhoto);
+  $ux('uxRatio').setAttribute('aria-expanded','false');
+  $ux('uxRatio').setAttribute('aria-controls','uxRatioMenu');
   $ux('uxRatio').addEventListener('click',()=>{
+    const menu=$ux('uxRatioMenu');menu.hidden=!menu.hidden;
+    $ux('uxRatio').setAttribute('aria-expanded',String(!menu.hidden));
+    updateRatioBadge();
+  });
+  $ux('uxRatioMenu').addEventListener('click',e=>{
+    const button=e.target.closest('[data-crop-preset]');if(!button)return;
     ratioTouched=true;
-    setRatio(ratios[(ratioIndex+1)%ratios.length]);
+    setRatio(button.dataset.cropPreset);
     alignPhoto();
   });
   const toggleSettings=()=>{
@@ -477,7 +641,7 @@ tryConnect();
   };
   $ux('uxSettings').addEventListener('click',toggleSettings);
   $ux('uxReset').addEventListener('click',()=>{
-    alignPhoto();syncZoom();
+    setCropPreset(state.ratio);alignPhoto();syncZoom();
     $ux('uxOptions').hidden=true;$ux('uxSettings').setAttribute('aria-expanded','false');
   });
   $ux('uxStamp').addEventListener('change',()=>{$ux('dateStamp').checked=$ux('uxStamp').checked});
@@ -504,7 +668,11 @@ tryConnect();
     c.fillText('GONGANG  ·  '+place,52,h-94);c.font='22px sans-serif';c.fillText(date,52,h-54);
   }
   async function createPhoto(){
-    const r=drawFrame(),outW=state.ratio==='16:9'?1920:1600,outH=Math.round(outW*r.h/r.w),s=outW/r.w;
+    const r=drawFrame(),aspect=r.w/r.h;
+    let outW=aspect>1.30?1920:1600;
+    let outH=Math.round(outW/aspect);
+    if(outH>2400){outH=2400;outW=Math.round(outH*aspect)}
+    const s=outW/r.w;
     const out=document.createElement('canvas');out.width=outW;out.height=outH;
     const c=out.getContext('2d');if(!c)throw new Error('Canvas unsupported');
     drawWorld(c,W,H,s,{x:-r.x*s,y:-r.y*s},false,true);
@@ -557,6 +725,8 @@ tryConnect();
     originalEnter?.call(this,event);
     hidePreview();
     ratioTouched=false;
+    cropState.rect=null;cropState.bounds=null;cropState.manual=false;cropState.persist=null;cropState.pointers.clear();
+    $ux('uxRatioMenu').hidden=true;
     $ux('uxOptions').hidden=true;$ux('uxSettings').setAttribute('aria-expanded','false');
     $ux('uxStamp').checked=$ux('dateStamp').checked;
     previousLandscape=null;
@@ -565,7 +735,7 @@ tryConnect();
   };
   const originalClose=$ux('closePhoto').onclick;
   $ux('closePhoto').onclick=function(event){hidePreview(); originalClose?.call(this,event)};
-  window.__photoUxDebug={get:()=>({photo:state.photo,ratio:state.ratio,preview:!preview.hidden,countdown:$ux('uxDelay').checked,zoom:cam.scale}),capture:takePhoto,fit:alignPhoto};
+  window.__photoUxDebug={get:()=>({photo:state.photo,ratio:state.ratio,manualCrop:cropState.manual,crop:drawFrame(),preview:!preview.hidden,countdown:$ux('uxDelay').checked,zoom:cam.scale}),capture:takePhoto,fit:alignPhoto,preset:setRatio};
 })();
 
 </script>
