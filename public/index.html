@@ -24,6 +24,56 @@
 
 .uxPhotoHint{display:none!important}
 
+/* Photo mode: one-handed portrait camera, wide landscape capture. */
+.uxRotateNotice{position:absolute;z-index:12;top:calc(max(13px,env(safe-area-inset-top)) + 59px);left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100% - 30px);display:flex;gap:7px;align-items:center;padding:9px 10px 9px 13px;border-radius:14px;border:1px solid rgba(255,233,197,.40);background:rgba(20,26,40,.86);backdrop-filter:blur(14px);box-shadow:0 6px 20px #0b122744;color:#fff4df;font-size:11px}
+.uxRotateNotice strong{white-space:nowrap}.uxRotateNotice span{font-size:10px;opacity:.84}.uxRotateNotice button{background:transparent;border:0;font-size:17px;padding:0 0 0 5px}
+.uxRotateNotice[hidden]{display:none!important}
+@media(orientation:landscape) and (max-height:600px){
+ .photoDock{width:min(790px,calc(100% - 24px));padding:6px 9px;border-radius:18px;display:grid;grid-template-columns:minmax(210px,1fr) minmax(250px,1.2fr);gap:8px;align-items:center}
+ .photoDockTop{margin:0;gap:5px}.photoDockBottom{min-height:48px;gap:6px}
+ .uxQuick{min-height:39px;font-size:10px;padding:5px 3px}
+ .uxZoomBtn{width:30px;height:30px}
+ .uxShutter{min-height:45px;min-width:64px;border-radius:12px;font-size:10px}
+ .uxShutterRing{width:19px;height:19px;border-width:2px}
+ .uxOptions{position:absolute;right:7px;bottom:calc(100% + 8px);width:min(370px,95%);padding:9px;border-radius:14px;background:rgba(15,23,38,.94);border:1px solid rgba(255,255,255,.2)}
+ .photoTop{top:max(7px,env(safe-area-inset-top));left:10px;right:10px}
+ .photoTop>div{padding:6px 10px;border-radius:10px}.photoTop small{display:none}
+ #closePhoto{padding:8px 10px;border-radius:10px}
+ .uxPhotoHint,.uxRotateNotice{display:none!important}
+ .uxPreviewBox{max-width:min(670px,100%);display:grid;grid-template-columns:1fr 170px;grid-template-rows:auto 1fr auto;gap:8px}
+ .uxPreviewHead{grid-column:1/-1}.uxPreview img{grid-column:1;grid-row:2/4;max-height:calc(100dvh - 75px)}
+ .uxPreviewActions{grid-column:2;grid-row:2;display:flex;flex-direction:column;justify-content:center}
+ .uxPreview p{grid-column:2;grid-row:3}
+}
+
+</style>
+<style>
+.gmRow{display:flex;align-items:center;justify-content:space-between;gap:9px;min-height:40px;margin-bottom:8px}
+.gmStatus{font-size:10px;line-height:1.3;color:#eee3cf;opacity:.9;min-width:87px;flex:1;max-width:126px}
+.gmActions{display:flex;gap:5px;align-items:center;justify-content:flex-end;flex:3;min-width:0}
+.gmActions button{flex:1;min-width:0;max-width:90px;min-height:36px;padding:5px 3px 4px;border:1px solid rgba(255,255,255,.24);background:rgba(255,255,255,.11);color:#fff5e4;border-radius:10px;font-size:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.gmActions small{font-size:9px;white-space:nowrap;letter-spacing:-.03em}
+.gmActions button:disabled,#gmNormal button:disabled{opacity:.33;cursor:not-allowed}
+.gmActions button:not(:disabled):active{background:rgba(255,228,202,.28)}
+.gmNormal{position:absolute;z-index:6;bottom:calc(max(17px,env(safe-area-inset-bottom)) + 75px);right:13px;pointer-events:auto;display:flex;flex-direction:column-reverse;align-items:flex-end;gap:7px}
+.gmNormal[hidden],#gmNormalActions[hidden]{display:none!important}
+#gmNormalButton{background:rgba(25,34,52,.82);border:1px solid rgba(255,245,219,.40);color:#fff6e7;border-radius:999px;padding:10px 14px;font-size:11px;box-shadow:0 8px 25px rgba(5,12,22,.22);font-weight:800;backdrop-filter:blur(14px)}
+#gmNormalActions{background:rgba(20,29,45,.9);border:1px solid rgba(255,255,255,.20);padding:7px;border-radius:15px;backdrop-filter:blur(17px)}
+#gmNormalActionsCopy{display:flex;flex-direction:column;gap:5px}
+#gmNormalActionsCopy button{color:#fff4df;background:rgba(255,255,255,.09);border:0;border-radius:9px;padding:10px 13px;font-weight:700;font-size:11px;white-space:nowrap}
+.photographing .gmNormal{display:none}
+@media(max-width:370px){.gmStatus{max-width:93px;font-size:9px}.gmActions small{font-size:8px}.gmRow{gap:3px}.gmActions{gap:3px}}
+@media(orientation:landscape) and (max-height:600px){
+ .photoDock{grid-template-columns:minmax(185px,.95fr) minmax(205px,1.05fr) minmax(225px,1.1fr);width:min(860px,calc(100% - 24px));gap:8px}
+ .gmRow{margin:0;gap:4px;min-height:45px}
+ .gmStatus{display:none}
+ .gmActions{gap:4px}
+ .gmActions button{min-height:40px;max-width:none}
+ .gmActions small{font-size:8px}
+ .gmNormal{bottom:75px;right:10px}
+}
+@media(orientation:landscape) and (max-height:390px){.photoDock{bottom:max(3px,env(safe-area-inset-bottom));padding:4px 7px}.gmActions button{min-height:36px}.uxShutter{min-height:40px}.photoTop>div{padding:4px 7px}}
+
 </style></head><body>
 <main id="app">
   <canvas id="game" aria-label="모바일 2D 산책 공간"></canvas>
@@ -328,19 +378,54 @@ tryConnect();
   </div>`;
   app.appendChild(preview);
 
-  // Keep the photographer in the photo on tall mobile screens. The original
-  // frame was positioned too high, so feet and entire travelers were cropped.
+  // The frame is sized from the actual space available AFTER reserving the
+  // controls. In landscape the dock becomes one short horizontal strip.
   const originalFrame=drawFrame;
+  const getLandscape=()=>innerWidth>innerHeight;
   drawFrame=function(){
-    const frame=originalFrame();
-    if(!frame)return frame;
-    const dockHeight=dock.getBoundingClientRect().height || 132;
-    const bottomReserved=dockHeight+Math.max(10,Number.parseFloat(getComputedStyle(dock).bottom)||10)+14;
-    const maxY=Math.max(77,H-bottomReserved-frame.h);
-    frame.y=maxY;
-    $ux('photoFrame').style.top=frame.y+'px';
-    return frame;
+    const old=originalFrame();
+    if(!old)return old;
+    const landscape=getLandscape();
+    const dockHeight=dock.getBoundingClientRect().height||(landscape?76:140);
+    const dockBottom=Math.max(10,Number.parseFloat(getComputedStyle(dock).bottom)||10);
+    const top=landscape?52:95;
+    const bottom=Math.min(H*.48,dockHeight+dockBottom+(landscape?16:25));
+    const usable=Math.max(95,H-top-bottom);
+    const aspect=state.ratio==='4:5'?.8:state.ratio==='1:1'?1:16/9;
+    const width=Math.max(90,Math.min(W-(landscape?110:26),usable*aspect));
+    const height=width/aspect;
+    const frameY=landscape?top+Math.max(0,(usable-height)*.5):Math.max(top,H-bottom-12-height);
+    const rect={x:(W-width)/2,y:frameY,w:width,h:height};
+    Object.assign($ux('photoFrame').style,{
+      left:rect.x+'px',top:rect.y+'px',width:rect.w+'px',height:rect.h+'px'
+    });
+    return rect;
   };
+  const orientationNotice=document.createElement('div');
+  orientationNotice.className='uxRotateNotice';
+  orientationNotice.innerHTML='<strong>↻ 휴대폰을 가로로 돌려봐</strong><span>풍경과 친구들을 더 넓게 담을 수 있어</span><button type="button" aria-label="가로 화면 안내 닫기">×</button>';
+  layer.appendChild(orientationNotice);
+  let orientationDismissed=false,ratioTouched=false,previousLandscape=null;
+  orientationNotice.querySelector('button').onclick=()=>{orientationDismissed=true;orientationNotice.hidden=true};
+  const setRatio=(ratio)=>{
+    const btn=$ux('ratios').querySelector(`[data-ratio="${ratio}"]`);
+    btn?.click();
+    ratioIndex=ratios.indexOf(ratio);
+    $ux('uxRatio').firstChild.textContent=ratio+' ';
+  };
+  function syncOrientation(){
+    const landscape=getLandscape();
+    const changed=previousLandscape!==landscape;
+    previousLandscape=landscape;
+    if(state.photo&&changed){
+      if(!ratioTouched)setRatio(landscape?'16:9':'4:5');
+      alignPhoto();
+    }
+    orientationNotice.hidden=!state.photo||landscape||orientationDismissed||!matchMedia('(pointer: coarse)').matches;
+    if(state.photo)drawFrame();
+  }
+  window.addEventListener('resize',()=>requestAnimationFrame(syncOrientation));
+  screen.orientation?.addEventListener?.('change',()=>setTimeout(syncOrientation,130));
   let cachedImage=null, cachedFile=null, photoBusy=false, ratioIndex=0;
   const ratios=['4:5','1:1','16:9'];
   const poseCycle=['idle','sit','lie','wave'];let poseIndex=0;
@@ -354,27 +439,36 @@ tryConnect();
     cachedFile=null;
   }
   function alignPhoto(){
-    const all=[{x:state.x,z:state.z},...peers.values()].filter(p=>Math.abs(p.x-state.x)<950&&Math.abs(p.z-state.z)<350);
-    if(all.length<2){
-      cam.x=state.x;cam.z=state.z;
-      cam.offsetX=0;cam.offsetY=0;
-      setCameraScale(.76);
-      toast('내가 가운데 오도록 맞췄어');
-    } else {
-      frameGroup();
-    }
+    const all=[{x:state.x,z:state.z},...peers.values()].filter(p=>
+      Math.abs(p.x-state.x)<=520&&Math.abs(p.z-state.z)<=200
+    );
+    const left=Math.min(...all.map(p=>p.x)),right=Math.max(...all.map(p=>p.x));
+    const focusX=(left+right)/2,focusZ=all.reduce((sum,p)=>sum+p.z,0)/all.length;
+    cam.x=focusX;cam.z=focusZ;cam.offsetX=0;cam.offsetY=0;
+    const rect=drawFrame();
+    // Keep friends large enough to recognize, but leave room for the scenery.
+    const minWorldWidth=getLandscape()?840:560;
+    const worldWidth=Math.max(minWorldWidth,(right-left)+310);
+    const desiredScale=rect.w/worldWidth;
+    const maxPreferred=getLandscape()?(H<600?1.045:1.20):1.45;
+    const minPreferred=getLandscape()?0:1.30;
+    setCameraScale(Math.max(minPreferred,Math.min(maxPreferred,desiredScale*1420/Math.max(H,1))));
+    // Frame feet inside the camera rectangle, rather than under the controls.
+    const wantedY=rect.y+rect.h*(getLandscape()?.79:.85);
+    let actual=worldScreen(focusX,focusZ).y;
+    cam.offsetY=clamp(wantedY-actual,-340,340);
+    // The visible world is clamped to the background edges: if clamping eats
+    // the offset, adjust focus and repeat once without exposing blank areas.
+    actual=worldScreen(focusX,focusZ).y;
+    if(Math.abs(actual-wantedY)>7){cam.z=clamp(cam.z+(actual-wantedY)/cameraTransform().scale,1040,1720)}
     syncZoom();
   }
+  window.__photoAlign=alignPhoto;
   $ux('uxFit').addEventListener('click',alignPhoto);
   $ux('uxRatio').addEventListener('click',()=>{
-    ratioIndex=(ratioIndex+1)%ratios.length;
-    const target=ratios[ratioIndex];
-    const prev=$ux('ratios').querySelector(`[data-ratio="${target}"]`);
-    if(prev)prev.click();
-    $ux('uxRatio').firstChild.textContent=target+' ';
-    // When the frame changes shape, reposition for a good group composition.
-    if(peers.size)frameGroup();
-    syncZoom();
+    ratioTouched=true;
+    setRatio(ratios[(ratioIndex+1)%ratios.length]);
+    alignPhoto();
   });
   const toggleSettings=()=>{
     const willOpen=$ux('uxOptions').hidden;
@@ -383,7 +477,7 @@ tryConnect();
   };
   $ux('uxSettings').addEventListener('click',toggleSettings);
   $ux('uxReset').addEventListener('click',()=>{
-    $ux('resetCamera').click();syncZoom();
+    alignPhoto();syncZoom();
     $ux('uxOptions').hidden=true;$ux('uxSettings').setAttribute('aria-expanded','false');
   });
   $ux('uxStamp').addEventListener('change',()=>{$ux('dateStamp').checked=$ux('uxStamp').checked});
@@ -462,16 +556,162 @@ tryConnect();
   $ux('enterPhoto').onclick=function(event){
     originalEnter?.call(this,event);
     hidePreview();
-    ratioIndex=0;$ux('uxRatio').firstChild.textContent='4:5 ';
+    ratioTouched=false;
     $ux('uxOptions').hidden=true;$ux('uxSettings').setAttribute('aria-expanded','false');
     $ux('uxStamp').checked=$ux('dateStamp').checked;
-    syncZoom();
-    // When entering alone, frame the user and scenery without manual controls.
-    if(!peers.size){cam.x=state.x;cam.z=state.z;cam.offsetX=0;cam.offsetY=0}
+    previousLandscape=null;
+    syncOrientation();
+    requestAnimationFrame(()=>{alignPhoto();syncZoom();});
   };
   const originalClose=$ux('closePhoto').onclick;
   $ux('closePhoto').onclick=function(event){hidePreview(); originalClose?.call(this,event)};
   window.__photoUxDebug={get:()=>({photo:state.photo,ratio:state.ratio,preview:!preview.hidden,countdown:$ux('uxDelay').checked,zoom:cam.scale}),capture:takePhoto,fit:alignPhoto};
+})();
+
+</script>
+<script>
+/* Gongang 2D / real-peer group moments. No simulated users. */
+(() => {
+  'use strict';
+  const mapActions = {
+    wave: {need:2, label:'함께 인사', icon:'✋'},
+    heart: {need:2, label:'함께 하트', icon:'♡'},
+    cheer: {need:3, label:'단체 환호', icon:'✦'}
+  };
+  const root=document.getElementById('app');
+  const dock=document.querySelector('.photoDock');
+  if(!root||!dock)return;
+  const row=document.createElement('div');
+  row.id='gmRow';row.className='gmRow';
+  row.innerHTML=`<span id="gmStatus" class="gmStatus">가까이 모이면 단체 포즈가 열려</span>
+    <div class="gmActions">${Object.entries(mapActions).map(([id,c])=>
+    `<button type="button" data-group-action="${id}" disabled title="가까이 있는 실제 이용자 ${c.need}명 필요" aria-label="${c.label}">${c.icon}<small>${c.label}</small></button>`).join('')}</div>`;
+  dock.insertBefore(row,dock.querySelector('.photoDockBottom'));
+  const normal=document.createElement('div');
+  normal.id='gmNormal';normal.className='gmNormal';normal.hidden=true;
+  normal.innerHTML='<button id="gmNormalButton" type="button">✦ 함께 포즈</button><div id="gmNormalActions" hidden></div>';
+  const open=document.createElement('div');
+  open.id='gmNormalActionsCopy';
+  open.innerHTML=Object.entries(mapActions).map(([id,c])=>`<button type="button" data-group-action="${id}" disabled>${c.icon} ${c.label}</button>`).join('');
+  normal.querySelector('#gmNormalActions').appendChild(open);
+  root.appendChild(normal);
+  normal.querySelector('#gmNormalButton').onclick=()=>{
+    const actions=normal.querySelector('#gmNormalActions');actions.hidden=!actions.hidden;
+    normal.querySelector('#gmNormalButton').setAttribute('aria-expanded',String(!actions.hidden));
+  };
+  const allButtons=Array.from(document.querySelectorAll('[data-group-action]'));
+  const active=new Map();
+  let attached=null;
+  let requestBusyUntil=0;
+  const realNearby=()=>{
+    if(!online||state.solo)return [];
+    const list=[{id:myId,x:state.x,z:state.z}];
+    for(const p of peers.values())if(Math.abs(p.x-state.x)<=250&&Math.abs(p.z-state.z)<=115)list.push(p);
+    return list;
+  };
+  const showStatus=()=>{
+    const n=realNearby().length;
+    document.getElementById('gmStatus').textContent=n<2?`${n||1}명 · 2명부터 함께 포즈`:`가까이 ${n}명 · 함께 포즈 가능`;
+    normal.hidden=n<2||state.photo;
+    if(n<2)normal.querySelector('#gmNormalActions').hidden=true;
+    const ready=online&&!state.solo&&socket?.readyState===WebSocket.OPEN;
+    for(const button of allButtons){
+      const cfg=mapActions[button.dataset.groupAction];
+      button.disabled=!ready||n<cfg.need||Date.now()<requestBusyUntil;
+      button.title=n<cfg.need?`가까이 서 있는 실제 이용자 ${cfg.need}명부터 가능`:`${n}명과 ${cfg.label}`;
+    }
+  };
+  function request(action){
+    const cfg=mapActions[action];
+    if(!cfg)return;
+    const n=realNearby().length;
+    if(n<cfg.need){toast(`${cfg.need}명 이상 가까이 모여야 해`);return}
+    if(!online||socket?.readyState!==WebSocket.OPEN){toast('친구 연결을 확인해 줘');return}
+    if(Date.now()<requestBusyUntil)return;
+    requestBusyUntil=Date.now()+1300;
+    socket.send(JSON.stringify({type:'group_action',action}));
+    normal.querySelector('#gmNormalActions').hidden=true;
+    showStatus();
+  }
+  allButtons.forEach(b=>b.addEventListener('click',()=>request(b.dataset.groupAction)));
+  function onGroupMessage(event){
+    let data;try{data=JSON.parse(event.data)}catch{return}
+    if(data.type==='group_unavailable'){
+      toast(`가까운 이용자 ${data.need}명부터 가능해`);
+      requestBusyUntil=Date.now()+500;
+    }else if(data.type==='group_pose'&&Array.isArray(data.participants)){
+      if(!['heart','wave','cheer'].includes(data.action))return;
+      const participants=data.participants.filter(id=>typeof id==='string'&&id.length<90).slice(0,8);
+      if(participants.length<(mapActions[data.action]?.need||99))return;
+      const now=performance.now();
+      const left=Math.min(9000,Math.max(500,Number(data.expiresAt)-Date.now()||9000));
+      active.set(data.action,{participants,newTime:now,until:now+left});
+      toast(`${participants.length}명이 함께 ${mapActions[data.action].label} 중!`);
+      // Fit the active group automatically during photo mode.
+      if(state.photo)window.__photoAlign?.();
+    }
+  }
+  function attach(){
+    const ws=socket;
+    if(ws===attached)return;
+    if(attached)attached.removeEventListener('message',onGroupMessage);
+    attached=ws;
+    if(ws)ws.addEventListener('message',onGroupMessage);
+  }
+  function drawHeart(c,x,y,size,a){
+    c.save();c.translate(x,y);c.scale(size/20,size/20);
+    c.beginPath();c.moveTo(0,8);c.bezierCurveTo(-20,-6,-9,-19,0,-9);c.bezierCurveTo(9,-19,20,-6,0,8);
+    c.closePath();c.fillStyle=`rgba(255,205,218,${a})`;c.fill();c.lineWidth=1.5;c.strokeStyle=`rgba(255,249,233,${a*.96})`;c.stroke();c.restore();
+  }
+  // Draw temporary group gestures over the unchanged original characters.
+  // The same canvas renderer is used when exporting the high-resolution photo.
+  const drawOriginal=drawWorld;
+  drawWorld=function(c,...args){
+    drawOriginal(c,...args);
+    const now=performance.now();
+    for(const [action,effect] of active){
+      if(now>effect.until){active.delete(action);continue}
+      const elapsed=(now-effect.newTime)/1000;
+      const fade=Math.min(1,elapsed/.3,(effect.until-now)/500);
+      const actorScale=cameraTransform().scale*1.27;
+      effect.participants.forEach((id,i)=>{
+        const p=(id===myId)?state:peers.get(id);
+        if(!p)return;
+        const screen=worldScreen(p.x,p.z);
+        c.save();c.translate(screen.x,screen.y);c.scale(actorScale,actorScale);
+        c.lineCap='round';c.lineJoin='round';
+        if(action==='heart'){
+          const pulse=1+0.11*Math.sin(elapsed*7+i*.3);
+          drawHeart(c,0,-118+Math.sin(elapsed*2+i)*4,22*pulse,fade*.95);
+          c.strokeStyle=`rgba(255,222,197,${fade})`;c.lineWidth=5;
+          c.beginPath();c.moveTo(-17,-55);c.quadraticCurveTo(-18,-80,-3,-96);c.moveTo(17,-55);c.quadraticCurveTo(18,-80,3,-96);c.stroke();
+          for(let k=0;k<3;k++){const x=Math.cos(elapsed*1.2+k*2+i)*32;const y=-132-9*Math.sin(elapsed*2+k);drawHeart(c,x,y,7,fade*.70)}
+        }else if(action==='wave'){
+          const wobble=Math.sin(elapsed*10+i*.35)*6;
+          c.strokeStyle=`rgba(243,222,195,${fade})`;c.lineWidth=7;
+          c.beginPath();c.moveTo(19,-56);c.lineTo(25+wobble,-99);c.stroke();
+          c.fillStyle=`rgba(250,220,200,${fade})`;c.beginPath();c.arc(25+wobble,-99,5,0,Math.PI*2);c.fill();
+          c.strokeStyle=`rgba(255,241,188,${fade*.7})`;c.lineWidth=2;
+          for(let k=0;k<3;k++){const xx=38+k*6,yy=-110+k*10;c.beginPath();c.moveTo(xx-3,yy);c.lineTo(xx+1,yy-7);c.stroke()}
+        }else if(action==='cheer'){
+          const bounce=Math.sin(elapsed*7+i*1.2);
+          c.strokeStyle=`rgba(255,231,202,${fade})`;c.lineWidth=7;
+          c.beginPath();c.moveTo(-17,-54);c.lineTo(-29,-89-bounce*6);c.moveTo(17,-54);c.lineTo(29,-89-bounce*6);c.stroke();
+          for(let k=0;k<8;k++){
+            const angle=(k/8)*Math.PI*2+elapsed*.4+i;
+            const rad=36+(elapsed*11)%44;
+            c.fillStyle=k%2?`rgba(255,224,169,${fade*.85})`:`rgba(255,182,170,${fade*.85})`;
+            c.save();c.translate(Math.cos(angle)*rad,-83+Math.sin(angle)*rad*.65);c.rotate(angle);c.fillRect(-3,-1,6,3);c.restore();
+          }
+        }
+        c.restore();
+      });
+    }
+  };
+  const interval=setInterval(()=>{attach();showStatus();},310);
+  window.addEventListener('pagehide',()=>clearInterval(interval),{once:true});
+  window.__groupPoseDebug={nearby:()=>realNearby().map(p=>p.id),request,active:()=>[...active.keys()],status:showStatus};
+  attach();showStatus();
 })();
 
 </script></body></html>
