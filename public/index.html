@@ -10,7 +10,21 @@
 /* Gentle photo controls for narrow portrait screens */
 @media(max-width:420px){.topright{gap:4px}.circle{width:34px;height:34px;border-radius:12px}.brand{gap:6px}.brand small{font-size:9px}.brand strong{font-size:16px}.photoRow{gap:5px}.photoRow .minor{padding:8px 6px;font-size:9px}.photoTip{display:none}.photoRow input[type=range]{min-width:58px}.place{top:calc(max(13px,env(safe-area-inset-top)) + 83px)}}
 </style>
-</head><body>
+<style>
+/* Mobile-first, thumb-friendly photo mode; preserves the original canvas viewport. */
+.photoBar-legacy{display:none!important}
+.photoDock{position:absolute;pointer-events:auto;left:50%;transform:translateX(-50%);bottom:max(10px,env(safe-area-inset-bottom));width:min(470px,calc(100% - 22px));padding:10px 12px 13px;border:1px solid rgba(255,251,237,.25);background:rgba(18,25,42,.75);backdrop-filter:blur(22px);border-radius:23px;box-shadow:0 12px 40px rgba(5,10,22,.20)}
+.photoDockTop{display:flex;align-items:center;gap:8px;margin-bottom:9px}.uxQuick{flex:1;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);border-radius:13px;color:#fff8ea;min-height:39px;font-size:11px;font-weight:700;white-space:nowrap}.uxChevron{opacity:.74}
+.photoDockBottom{display:flex;align-items:center;gap:8px;min-height:61px}.uxZoomBtn{border:1px solid rgba(255,255,255,.17);background:rgba(255,255,255,.07);color:white;border-radius:50%;width:32px;height:32px;flex:none;font-size:20px}.photoDockBottom input[type=range]{flex:1;min-width:25px;width:20px;accent-color:#f6d6a4;touch-action:none}.uxShutter{flex:none;display:grid;place-items:center;gap:2px;margin-left:5px;border:0;border-radius:18px;min-height:59px;min-width:77px;background:linear-gradient(135deg,#fff6df,#eac7a3);color:#3b3a3d;font-size:11px;font-weight:850;box-shadow:0 3px 9px rgba(0,0,0,.15)}.uxShutterRing{display:block;width:23px;height:23px;background:#f8eee3;border:3px solid #4f4851;border-radius:50%;box-shadow:inset 0 0 0 3px #f8eee3}.uxShutter.busy{opacity:.55}
+.uxOptions{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px 0 11px;margin-bottom:7px;border-bottom:1px solid rgba(255,255,255,.16)}.uxOptions[hidden],.uxPreview[hidden]{display:none!important}.uxOptions label,.uxOptions button{min-height:38px;display:flex;align-items:center;justify-content:center;gap:4px;background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.10);border-radius:10px;color:white;font-size:11px;padding:6px}.uxOptions input{accent-color:#efd2a9}
+.uxPhotoHint{position:absolute;pointer-events:none;top:auto;bottom:calc(max(10px,env(safe-area-inset-bottom)) + 151px);left:50%;transform:translateX(-50%);max-width:95vw;white-space:nowrap;border-radius:999px;padding:7px 10px;background:rgba(13,22,35,.56);color:#fef5e6;font-size:10px;text-align:center;text-shadow:0 1px 8px #162235}
+.uxPreview{position:absolute;inset:0;z-index:65;display:flex;align-items:center;justify-content:center;pointer-events:auto;padding:max(18px,env(safe-area-inset-top)) 14px max(18px,env(safe-area-inset-bottom));background:rgba(9,17,29,.90);backdrop-filter:blur(20px);color:#fff8eb}.uxPreviewBox{width:min(430px,100%);max-height:100%;display:flex;flex-direction:column;gap:11px;align-items:stretch}.uxPreviewHead{display:flex;align-items:center;justify-content:space-between;gap:10px}.uxPreviewHead strong{font-weight:800;font-size:17px}.uxPreviewHead button{background:rgba(255,255,255,.13);color:white;border:1px solid rgba(255,255,255,.20);border-radius:12px;padding:10px 14px}.uxPreview img{object-fit:contain;min-height:0;max-height:min(65dvh,620px);max-width:100%;border-radius:10px;box-shadow:0 8px 50px rgba(0,0,0,.35);align-self:center}.uxPreviewActions{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:7px}.uxPreviewActions button{border:1px solid rgba(255,255,255,.20);background:rgba(255,255,255,.12);color:white;border-radius:14px;min-height:48px;padding:6px;font-size:12px;font-weight:700}.uxPreviewActions .uxPrimary{background:#fae8c7;color:#343a45;border:0}.uxPreview p{margin:0;font-size:10px;line-height:1.5;opacity:.75;text-align:center}
+@media(max-height:690px){.photoDock{padding:6px 10px}.photoDockTop{margin-bottom:3px}.uxPhotoHint{display:none}.uxPreview img{max-height:53dvh}}
+@media(min-width:800px){.photoDock{bottom:18px}.uxPhotoHint{bottom:158px}}
+
+.uxPhotoHint{display:none!important}
+
+</style></head><body>
 <main id="app">
   <canvas id="game" aria-label="모바일 2D 산책 공간"></canvas>
   <div class="vignette"></div>
@@ -258,4 +272,206 @@ async function capturePhoto(){
 window.__gongangDebug={getState:()=>({scene:state.scene,x:state.x,z:state.z,pose:state.pose,peers:peers.size,online,myId}),switchScene,setPosition:(x,z)=>{state.x=clamp(x,WORLD.minX,WORLD.maxX);state.z=clampWalkZ(z);sendState(true)},getFrame:drawFrame,getCameraRect:()=>cameraTransform(),setCamera:(value)=>{if(Number.isFinite(value?.x))cam.x=value.x;if(Number.isFinite(value?.z))cam.z=value.z;if(Number.isFinite(value?.offsetX))cam.offsetX=value.offsetX;if(Number.isFinite(value?.offsetY))cam.offsetY=value.offsetY;if(Number.isFinite(value?.scale))setCameraScale(value.scale)}};
 tryConnect();
 </script>
-</body></html>
+<script>
+/* 공강 PHOTO · mobile first camera controls / 2026-11-07
+   Progressive enhancement of the existing multiplayer camera. */
+(() => {
+  'use strict';
+  const $ux = id => document.getElementById(id);
+  const layer = $ux('photoLayer');
+  if (!layer || !document.querySelector('.photoBar')) return;
+  const original = document.querySelector('.photoBar');
+  original.classList.add('photoBar-legacy');
+  original.setAttribute('aria-hidden','true');
+  const dock = document.createElement('div');
+  dock.className='photoDock';
+  dock.innerHTML=`
+    <div class="photoDockTop">
+      <button type="button" id="uxFit" class="uxQuick" aria-label="함께 있는 친구들 자동으로 화면에 맞추기">◎ <span>친구 함께</span></button>
+      <button type="button" id="uxRatio" class="uxQuick" aria-label="사진 가로 세로 비율 바꾸기">4:5 <span class="uxChevron">⌄</span></button>
+      <button type="button" id="uxSettings" class="uxQuick" aria-expanded="false" aria-controls="uxOptions">⚙ <span>설정</span></button>
+    </div>
+    <div id="uxOptions" class="uxOptions" hidden>
+      <label><input type="checkbox" id="uxDelay" checked> 3초 타이머</label>
+      <label><input type="checkbox" id="uxStamp" checked> 장소·날짜 표시</label>
+      <button type="button" id="uxReset">내 위치로 맞춤</button>
+      <button type="button" id="uxPose">포즈: 서기</button>
+    </div>
+    <div class="photoDockBottom">
+      <button type="button" id="uxMinus" class="uxZoomBtn" aria-label="축소">−</button>
+      <input id="uxZoom" type="range" min="0.55" max="1.45" step="0.01" value="0.72" aria-label="촬영 구도 확대 축소">
+      <button type="button" id="uxPlus" class="uxZoomBtn" aria-label="확대">＋</button>
+      <button type="button" id="uxShutter" class="uxShutter" aria-label="사진 촬영"><span class="uxShutterRing"></span><span class="uxShutterLabel">촬영</span></button>
+    </div>`;
+  layer.appendChild(dock);
+  const hint=document.createElement('div');
+  hint.className='uxPhotoHint';
+  hint.textContent='화면을 드래그해 구도 조절 · 두 손가락으로 확대';
+  document.querySelector('.photoTop small').textContent='드래그로 이동 · 두 손가락 확대';
+  layer.appendChild(hint);
+  const preview=document.createElement('section');
+  preview.className='uxPreview';
+  preview.id='uxPreview';
+  preview.hidden=true;
+  preview.setAttribute('role','dialog');
+  preview.setAttribute('aria-modal','true');
+  preview.setAttribute('aria-label','촬영한 사진 확인');
+  preview.innerHTML=`<div class="uxPreviewBox">
+    <div class="uxPreviewHead"><strong>이 사진 어때?</strong><button type="button" id="uxDismiss" aria-label="미리보기 닫기">✕</button></div>
+    <img id="uxPreviewImg" alt="지금 찍은 공강 기념사진">
+    <div class="uxPreviewActions">
+      <button type="button" id="uxRetake">↺ 다시 찍기</button>
+      <button type="button" id="uxSave">↓ 저장</button>
+      <button type="button" id="uxShare" class="uxPrimary">↗ 공유·사진 앱</button>
+    </div>
+    <p id="uxPreviewNote">아이폰에서는 ‘공유·사진 앱’을 누른 뒤 ‘이미지 저장’을 선택할 수 있어</p>
+  </div>`;
+  app.appendChild(preview);
+
+  // Keep the photographer in the photo on tall mobile screens. The original
+  // frame was positioned too high, so feet and entire travelers were cropped.
+  const originalFrame=drawFrame;
+  drawFrame=function(){
+    const frame=originalFrame();
+    if(!frame)return frame;
+    const dockHeight=dock.getBoundingClientRect().height || 132;
+    const bottomReserved=dockHeight+Math.max(10,Number.parseFloat(getComputedStyle(dock).bottom)||10)+14;
+    const maxY=Math.max(77,H-bottomReserved-frame.h);
+    frame.y=maxY;
+    $ux('photoFrame').style.top=frame.y+'px';
+    return frame;
+  };
+  let cachedImage=null, cachedFile=null, photoBusy=false, ratioIndex=0;
+  const ratios=['4:5','1:1','16:9'];
+  const poseCycle=['idle','sit','lie','wave'];let poseIndex=0;
+  function syncZoom(){
+    const old=$ux('zoom'),fresh=$ux('uxZoom');
+    fresh.min=old.min;fresh.max=old.max;fresh.value=String(cam.scale);
+  }
+  function hidePreview(){
+    preview.hidden=true;
+    if(cachedImage){URL.revokeObjectURL(cachedImage);cachedImage=null;}
+    cachedFile=null;
+  }
+  function alignPhoto(){
+    const all=[{x:state.x,z:state.z},...peers.values()].filter(p=>Math.abs(p.x-state.x)<950&&Math.abs(p.z-state.z)<350);
+    if(all.length<2){
+      cam.x=state.x;cam.z=state.z;
+      cam.offsetX=0;cam.offsetY=0;
+      setCameraScale(.76);
+      toast('내가 가운데 오도록 맞췄어');
+    } else {
+      frameGroup();
+    }
+    syncZoom();
+  }
+  $ux('uxFit').addEventListener('click',alignPhoto);
+  $ux('uxRatio').addEventListener('click',()=>{
+    ratioIndex=(ratioIndex+1)%ratios.length;
+    const target=ratios[ratioIndex];
+    const prev=$ux('ratios').querySelector(`[data-ratio="${target}"]`);
+    if(prev)prev.click();
+    $ux('uxRatio').firstChild.textContent=target+' ';
+    // When the frame changes shape, reposition for a good group composition.
+    if(peers.size)frameGroup();
+    syncZoom();
+  });
+  const toggleSettings=()=>{
+    const willOpen=$ux('uxOptions').hidden;
+    $ux('uxOptions').hidden=!willOpen;
+    $ux('uxSettings').setAttribute('aria-expanded',String(willOpen));
+  };
+  $ux('uxSettings').addEventListener('click',toggleSettings);
+  $ux('uxReset').addEventListener('click',()=>{
+    $ux('resetCamera').click();syncZoom();
+    $ux('uxOptions').hidden=true;$ux('uxSettings').setAttribute('aria-expanded','false');
+  });
+  $ux('uxStamp').addEventListener('change',()=>{$ux('dateStamp').checked=$ux('uxStamp').checked});
+  $ux('uxPose').addEventListener('click',()=>{
+    poseIndex=(poseIndex+1)%poseCycle.length;
+    const selected=poseCycle[poseIndex];
+    if(selected==='wave'){$ux('wave').click();state.pose='idle';sendState(true);}
+    else if(selected==='idle'){state.pose='idle';sendState(true);}
+    else{state.pose=selected;sendState(true);}
+    $ux('uxPose').textContent='포즈: '+({idle:'서기',sit:'앉기',lie:'눕기',wave:'인사'}[selected]);
+  });
+  $ux('uxZoom').addEventListener('input',e=>{setCameraScale(Number(e.target.value));syncZoom()});
+  $ux('uxMinus').addEventListener('click',()=>{setCameraScale(cam.scale-.09);syncZoom()});
+  $ux('uxPlus').addEventListener('click',()=>{setCameraScale(cam.scale+.09);syncZoom()});
+  // Keep original controls in sync when users pinch on the canvas.
+  const oldScale=setCameraScale;
+  setCameraScale=function(value){oldScale(value);syncZoom()};
+
+  function roundCornerStamp(c,w,h,place,date){
+    const gradient=c.createLinearGradient(0,h-215,0,h);
+    gradient.addColorStop(0,'rgba(14,20,32,0)');gradient.addColorStop(1,'rgba(14,20,32,.62)');
+    c.fillStyle=gradient;c.fillRect(0,h-215,w,215);
+    c.fillStyle='#fff7ea';c.textBaseline='middle';c.font='700 25px sans-serif';
+    c.fillText('GONGANG  ·  '+place,52,h-94);c.font='22px sans-serif';c.fillText(date,52,h-54);
+  }
+  async function createPhoto(){
+    const r=drawFrame(),outW=state.ratio==='16:9'?1920:1600,outH=Math.round(outW*r.h/r.w),s=outW/r.w;
+    const out=document.createElement('canvas');out.width=outW;out.height=outH;
+    const c=out.getContext('2d');if(!c)throw new Error('Canvas unsupported');
+    drawWorld(c,W,H,s,{x:-r.x*s,y:-r.y*s},false,true);
+    c.setTransform(1,0,0,1,0,0);
+    if($ux('uxStamp').checked)roundCornerStamp(c,outW,outH,state.scene==='campus'?'AUTUMN WALK':'HAN RIVER NIGHT',new Date().toLocaleDateString('ko-KR'));
+    const blob=await new Promise(resolve=>out.toBlob(resolve,'image/png'));
+    if(!blob)throw new Error('PNG unavailable');
+    return new File([blob],`gongang_${state.scene}_${Date.now()}.png`,{type:'image/png'});
+  }
+  async function takePhoto(){
+    if(photoBusy)return;
+    photoBusy=true;$ux('uxShutter').disabled=true;
+    $ux('uxShutter').classList.add('busy');
+    const countdown=$ux('countdown');
+    try{
+      if($ux('uxDelay').checked){
+        countdown.hidden=false;
+        for(let i=3;i>=1;i--){countdown.textContent=i;await new Promise(r=>setTimeout(r,800))}
+      }
+      countdown.hidden=true;
+      const file=await createPhoto();
+      hidePreview();cachedFile=file;
+      cachedImage=URL.createObjectURL(file);
+      $ux('uxPreviewImg').src=cachedImage;
+      preview.hidden=false;
+      toast('촬영 완료! 사진을 확인해 봐');
+    }catch(err){console.error('Photo studio capture failed',err);toast('촬영에 실패했어. 다시 시도해 줘')}
+    finally{countdown.hidden=true;photoBusy=false;$ux('uxShutter').disabled=false;$ux('uxShutter').classList.remove('busy')}
+  }
+  $ux('uxShutter').addEventListener('click',takePhoto);
+  $ux('uxDismiss').addEventListener('click',hidePreview);
+  $ux('uxRetake').addEventListener('click',hidePreview);
+  $ux('uxSave').addEventListener('click',()=>{
+    if(!cachedFile)return;
+    const url=URL.createObjectURL(cachedFile),a=document.createElement('a');
+    a.download=cachedFile.name;a.href=url;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),10000);toast('PNG 파일로 저장했어');
+  });
+  $ux('uxShare').addEventListener('click',async()=>{
+    if(!cachedFile)return;
+    if(navigator.share&&navigator.canShare?.({files:[cachedFile]})){
+      try{await navigator.share({files:[cachedFile],title:'공강에서 남긴 사진'});return}
+      catch(err){if(err.name==='AbortError')return;console.warn('Sharing failed',err)}
+    }
+    $ux('uxSave').click();
+    $ux('uxPreviewNote').textContent='이 브라우저에서는 공유 기능을 지원하지 않아 PNG 파일로 저장했어';
+  });
+  const originalEnter=$ux('enterPhoto').onclick;
+  $ux('enterPhoto').onclick=function(event){
+    originalEnter?.call(this,event);
+    hidePreview();
+    ratioIndex=0;$ux('uxRatio').firstChild.textContent='4:5 ';
+    $ux('uxOptions').hidden=true;$ux('uxSettings').setAttribute('aria-expanded','false');
+    $ux('uxStamp').checked=$ux('dateStamp').checked;
+    syncZoom();
+    // When entering alone, frame the user and scenery without manual controls.
+    if(!peers.size){cam.x=state.x;cam.z=state.z;cam.offsetX=0;cam.offsetY=0}
+  };
+  const originalClose=$ux('closePhoto').onclick;
+  $ux('closePhoto').onclick=function(event){hidePreview(); originalClose?.call(this,event)};
+  window.__photoUxDebug={get:()=>({photo:state.photo,ratio:state.ratio,preview:!preview.hidden,countdown:$ux('uxDelay').checked,zoom:cam.scale}),capture:takePhoto,fit:alignPhoto};
+})();
+
+</script></body></html>
