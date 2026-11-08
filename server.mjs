@@ -7,14 +7,15 @@ import { WebSocket, WebSocketServer } from 'ws';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const MAX_PEERS = 8;
-const MAPS = ['campus', 'river'];
+const MAPS = ['campus', 'river', 'stargaze'];
 // Server-side guard: old tabs and custom clients must never put avatars on roofs.
-const WALK_LIMITS = {campus:{minX:115,maxX:3080,minZ:1500,maxZ:1760},river:{minX:115,maxX:3080,minZ:1540,maxZ:1750}};
+const WALK_LIMITS = {campus:{minX:115,maxX:3080,minZ:1500,maxZ:1760},river:{minX:115,maxX:3080,minZ:1540,maxZ:1750},stargaze:{minX:115,maxX:3080,minZ:1500,maxZ:1740}};
 const rooms = Object.fromEntries(MAPS.map(m => [m, new Map()]));
 const port = Number(process.env.PORT || 3000);
 const dbURL = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
 const dbKey = String(process.env.SUPABASE_ANON_KEY || '');
 const html = await readFile(join(ROOT, 'public', 'index.html'));
+const stargazeScript = await readFile(join(ROOT, 'public', 'stargaze.js'));
 let lastDbError = null;
 let dbWriteOk = false;
 
@@ -75,6 +76,15 @@ const server = createServer((req, res) => {
     else res.end(html);
     return;
   }
+  if (path === '/stargaze.js') {
+    res.writeHead(200, {
+      'Content-Type': 'text/javascript; charset=utf-8',
+      'Content-Length': stargazeScript.byteLength,
+      'Cache-Control': 'public, max-age=300'
+    });
+    res.end(req.method === 'HEAD' ? undefined : stargazeScript);
+    return;
+  }
   if (path === '/favicon.ico') { res.writeHead(204).end(); return; }
   res.writeHead(404).end();
 });
@@ -96,6 +106,8 @@ function validState(raw) {
   return { x, z, yaw, pose, gesture, signal };
 }
 const pending = new Map();
+const skyEventState = new Map();
+const SKY_EVENT_COOLDOWN_MS = 90000;
 function snapshot(map) {
   pending.delete(map);
   const players = [...rooms[map].values()].filter(peer => peer.state).map(peer => ({ id: peer.id, ...peer.state }));
@@ -133,7 +145,12 @@ presence.on('connection', (ws, map) => {
   }
   const peer = { id: randomUUID(), state: null, lastSent: 0, alive: true };
   room.set(ws, peer);
-  send(ws, { type: 'welcome', id: peer.id, capacity: MAX_PEERS });
+  const latestSkyEvent = skyEventState.get(map);
+  send(ws, {
+    type: 'welcome', id: peer.id, capacity: MAX_PEERS, serverTime: Date.now(),
+    skyEvent: latestSkyEvent && Date.now() < latestSkyEvent.startsAt
+      + latestSkyEvent.duration * 1000 ? latestSkyEvent : null
+  });
   const handshake = setTimeout(() => {
     if (peer.state === null) ws.close(1008, 'State required');
   }, 12000);
@@ -145,6 +162,26 @@ presence.on('connection', (ws, map) => {
     if (Buffer.byteLength(raw) > 1024) return;
     let command = null;
     try { command = JSON.parse(raw); } catch { return; }
+    if (command?.type === 'sky_event') {
+      if (map !== 'stargaze' || !peer.state || !['meteor', 'fireworks'].includes(command.kind)) return;
+      const now = Date.now();
+      const last = skyEventState.get(map);
+      const elapsed = last ? now - (last.startsAt - 1100) : Infinity;
+      if (elapsed < SKY_EVENT_COOLDOWN_MS) {
+        send(ws, { type: 'sky_event_unavailable', waitMs: Math.max(0, SKY_EVENT_COOLDOWN_MS - elapsed) });
+        return;
+      }
+      const next = {
+        type: 'sky_event',
+        kind: command.kind,
+        startsAt: now + 1100,
+        seed: Math.floor(Math.random() * 0x7fffffff),
+        duration: command.kind === 'meteor' ? 15 : 17
+      };
+      skyEventState.set(map, next);
+      for (const client of room.keys()) send(client, next);
+      return;
+    }
     if (command?.type === 'group_action') {
       if (!peer.state || !['heart','wave','cheer'].includes(command.action)) return;
       const now = Date.now();
