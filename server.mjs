@@ -8,6 +8,8 @@ import { WebSocket, WebSocketServer } from 'ws';
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const MAX_PEERS = 8;
 const MAPS = ['campus', 'river'];
+// Server-side guard: old tabs and custom clients must never put avatars on roofs.
+const WALK_LIMITS = {campus:{minX:115,maxX:3080,minZ:1500,maxZ:1760},river:{minX:115,maxX:3080,minZ:1540,maxZ:1750}};
 const rooms = Object.fromEntries(MAPS.map(m => [m, new Map()]));
 const port = Number(process.env.PORT || 3000);
 const dbURL = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
@@ -169,6 +171,9 @@ presence.on('connection', (ws, map) => {
     }
     const state = validState(raw);
     if (!state) return;
+    const bounds = WALK_LIMITS[map];
+    state.x = Math.min(bounds.maxX, Math.max(bounds.minX, state.x));
+    state.z = Math.min(bounds.maxZ, Math.max(bounds.minZ, state.z));
     const now = Date.now();
     const actionChanged = peer.state && ['pose', 'gesture', 'signal'].some(k => state[k] !== peer.state[k]);
     if (!actionChanged && now - peer.lastSent < 40) return;
