@@ -17,57 +17,80 @@
     c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2);c.restore();
   }
   function paintClouds(c){
-    // Cloud fields are shaped from overlapping soft-lit masses, not a static
-    // rectangular sky image. The luminous undersides face the distant horizon.
+    // Broken sculpted clouds with cool upper faces and subtle warm undersides.
     const groups=[
-      [185,484,305,64,.47],[550,430,280,70,.41],
-      [1190,470,270,68,.54],[1640,535,358,94,.61],
-      [650,625,300,58,.32],[1405,632,255,47,.44]
+      [145,480,280,92,.55],[510,430,260,75,.48],
+      [1100,455,270,78,.54],[1590,520,340,109,.62],
+      [610,630,265,57,.33],[1450,646,285,67,.43]
     ];
     groups.forEach(([x,y,w,h,str],gi)=>{
       const r=seeded(616+gi*317);
-      for(let k=0;k<19;k++){
-        const xx=x+(r()-.5)*w*1.8,yy=y+(r()-.5)*h*.75;
-        const rw=w*(.16+.20*r()),rh=h*(.21+.45*r());
-        c.save();c.translate(xx,yy);c.scale(1,rh/rw);
-        const g=c.createRadialGradient(0,0,0,0,0,rw);
-        g.addColorStop(0,gi%3===0?'rgba(101,138,198,.18)':'rgba(98,132,193,.15)');
-        g.addColorStop(.53,gi%2===0?'rgba(111,142,189,.12)':'rgba(147,148,191,.12)');
-        g.addColorStop(1,'rgba(53,85,143,0)');
-        c.fillStyle=g;c.fillRect(-rw,-rw,rw*2,rw*2);c.restore();
+      c.save();
+      const haze=c.createRadialGradient(x,y,12,x,y,w*.81);
+      haze.addColorStop(0,'rgba(126,161,204,.09)');
+      haze.addColorStop(1,'rgba(86,122,191,0)');
+      c.fillStyle=haze;c.fillRect(x-w,y-w,x?2*w:2*w,2*w);
+      const left=x-w*.62,right=x+w*.62;
+      c.beginPath();c.moveTo(left,y+h*.18);
+      for(let i=0;i<17;i++){
+        const fx=left+i*(right-left)/16;
+        const top=y-h*(.11+.25*r()+.23*Math.sin(i/16*Math.PI));
+        c.quadraticCurveTo(fx-(right-left)/48,top,fx,top);
       }
-      c.globalAlpha=str*.16;
-      c.fillStyle='#c5bed9';
-      c.beginPath();c.ellipse(x,y+h*.18,w*.47,h*.12,-.03,0,TAU);c.fill();
-      c.globalAlpha=1;
+      for(let i=16;i>=0;i--){
+        const fx=left+i*(right-left)/16;
+        const base=y+h*(.13+.09*r());
+        c.quadraticCurveTo(fx+7,base,fx,base);
+      }
+      c.closePath();
+      const gradient=c.createLinearGradient(0,y-h*.6,0,y+h*.36);
+      gradient.addColorStop(0,'rgba(85,124,181,.17)');
+      gradient.addColorStop(.55,'rgba(118,151,201,.18)');
+      gradient.addColorStop(1,'rgba(205,165,196,.08)');
+      c.fillStyle=gradient;
+      c.shadowColor='rgba(94,133,197,.16)';c.shadowBlur=14;
+      c.globalAlpha=str*1.55;c.fill();
+      c.shadowBlur=0;
+      for(let k=0;k<23;k++){
+        const xx=x+(r()-.5)*w*1.17,yy=y+(r()-.5)*h*.63;
+        const rw=w*(.07+.13*r()),rh=h*(.11+.33*r());
+        c.save();c.translate(xx,yy);c.scale(1,rh/rw);
+        const p=c.createRadialGradient(0,0,0,0,0,rw);
+        p.addColorStop(0,k%4===0?'rgba(203,172,206,.13)':'rgba(140,169,216,.12)');
+        p.addColorStop(.6,'rgba(109,145,197,.07)');
+        p.addColorStop(1,'rgba(94,126,192,0)');
+        c.fillStyle=p;c.fillRect(-rw,-rw,rw*2,rw*2);c.restore();
+      }
+      c.restore();
     });
   }
   function paintMilkyWay(c){
     const r=seeded(17352);
     c.save();c.globalCompositeOperation='screen';
-    for(let i=0;i<380;i++){
+    for(let i=0;i<650;i++){
       const u=r();
       const x=480+u*840+(r()-.5)*195;
       const y=570-u*610+(r()-.5)*120;
-      const rad=16+r()*125;
-      glow(c,x,y,rad, i%3===0?'rgba(191,152,232,.065)':'rgba(107,163,239,.063)',
-        'rgba(24,47,106,0)',.38+r()*.52);
+      const rad=10+r()*112;
+      glow(c,x,y,rad, i%3===0?'rgba(197,141,242,.13)':'rgba(111,167,242,.11)',
+        'rgba(24,47,106,0)',.50+r()*.46);
     }
     c.restore();
     const r2=seeded(731663);
-    for(let i=0;i<2450;i++){
+    for(let i=0;i<5200;i++){
       const u=r2(),x=490+u*820+(r2()-.5)*350,y=550-u*620+(r2()-.5)*205;
       if(x<0||x>WIDTH||y<0||y>730)continue;
-      const a=.035+.25*r2();
+      const a=.05+.34*r2();
       c.fillStyle='rgba(203,219,255,'+a.toFixed(3)+')';
-      const size=.30+r2()*.84;
+      const size=.30+r2()*1.05;
       c.fillRect(x,y,size,size);
     }
   }
   function ridgeY(x,baseY,amp,seed){
     const p=x/WIDTH;
-    return baseY - amp*(.36*Math.sin(p*6.5+seed)+.31*Math.sin(p*13.6-seed*2)
-      +.21*Math.sin(p*29.7+seed*2)+.12*Math.sin(p*71.+seed));
+    return baseY - amp*(.29*Math.sin(p*6.5+seed)+.25*Math.sin(p*13.6-seed*2)
+      +.20*Math.sin(p*29.7+seed*2)+.13*Math.sin(p*71.+seed)
+      +.08*Math.sin(p*137.+seed*7)+.05*Math.sin(p*237.-seed*3));
   }
   function paintRidge(c,baseY,amp,top,bottom,seed){
     c.save();c.beginPath();c.moveTo(0,HEIGHT);
@@ -111,6 +134,36 @@
       c.fillStyle='rgba(255,231,174,'+(.06+r()*.22).toFixed(3)+')';
       c.beginPath();c.arc(x,y,.5+r()*1.25,0,TAU);c.fill();
     }
+  }
+  function paintFramingTree(c){
+    // An old moonlit tree frames the right edge but never masks the Milky Way.
+    c.save();c.lineCap='round';c.lineJoin='round';
+    c.strokeStyle='#152c3d';c.lineWidth=72;
+    c.beginPath();c.moveTo(1984,935);c.bezierCurveTo(1918,682,1909,450,1795,262);c.stroke();
+    c.lineWidth=35;c.strokeStyle='#203749';
+    c.beginPath();c.moveTo(1826,338);c.bezierCurveTo(1715,190,1568,165,1442,132);c.stroke();
+    c.lineWidth=23;c.beginPath();c.moveTo(1883,515);c.bezierCurveTo(1765,392,1634,364,1532,366);c.stroke();
+    c.lineWidth=17;c.beginPath();c.moveTo(1796,278);c.bezierCurveTo(1722,102,1755,45,1666,-80);c.stroke();
+    const rnd=seeded(3657);
+    for(const [cx,cy,rx,ry] of [
+      [1740,84,220,88],[1530,87,164,76],[1735,247,130,63],
+      [1860,18,165,96],[1645,304,120,60],[1950,176,105,116]
+    ]){
+      for(let i=0;i<255;i++){
+        const a=rnd()*TAU,rad=Math.sqrt(rnd()),xx=cx+Math.cos(a)*rad*rx,yy=cy+Math.sin(a)*rad*ry;
+        const ww=2+rnd()*10,hh=1.6+rnd()*5;
+        c.fillStyle=['rgba(39,76,76,.70)','rgba(48,89,87,.58)','rgba(68,111,108,.50)','rgba(105,128,115,.40)'][Math.floor(rnd()*4)];
+        c.beginPath();c.ellipse(xx,yy,ww,hh,rnd()*.8-.4,0,TAU);c.fill();
+      }
+    }
+    // Only a whisper of amber, as a resting place rather than a carnival.
+    const x=1885,y=317;
+    c.strokeStyle='rgba(165,137,97,.57)';c.lineWidth=2;c.beginPath();c.moveTo(x,y-74);c.lineTo(x,y-20);c.stroke();
+    glow(c,x,y,90,'rgba(255,197,122,.23)','rgba(255,182,101,0)');
+    c.fillStyle='rgba(255,220,159,.80)';
+    c.beginPath();c.moveTo(x-10,y-20);c.lineTo(x+10,y-20);c.lineTo(x+15,y+10);c.lineTo(x-15,y+10);c.closePath();c.fill();
+    c.strokeStyle='#4c4b43';c.lineWidth=3;c.stroke();
+    c.restore();
   }
   function paintValley(c){
     // A river far below the grassy viewpoint, with warm scattered town lights.
@@ -160,6 +213,7 @@
     paintRidge(c,841,50,'#1f4565','#173b56',5.4);
     paintValley(c);
     paintMeadow(c);
+    paintFramingTree(c);
     base=canvas;metrics.staticLayers++;
     return canvas;
   }
