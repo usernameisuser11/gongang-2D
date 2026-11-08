@@ -202,66 +202,7 @@ function sendState(force=false){if(!socket||socket.readyState!==WebSocket.OPEN||
 function disconnect(){clearTimeout(reconnect);if(socket){const ws=socket;socket=null;ws.onclose=null;ws.close()}online=false;myId='';peers.clear()}
 function switchScene(map){if(map===state.scene)return;disconnect();state.scene=map;state.x=map==='campus'?1600:1600;state.z=map==='campus'?1490:1610;state.target=null;state.pose='idle';cam.x=state.x;cam.z=state.z;cam.offsetX=cam.offsetY=0;cam.scale=1;$('#placeTitle').textContent=SCENES[map].name;$('#placeDesc').textContent=SCENES[map].description;$('#label').textContent=SCENES[map].label;try{history.replaceState(null,'',location.pathname+'?map='+map)}catch{}$('#placeSheet').hidden=true;$('#spotSheet').hidden=true;updateSpots();if(state.photo)closePhoto();tryConnect()}
 $('#placeTitle').textContent=SCENES[state.scene].name;$('#placeDesc').textContent=SCENES[state.scene].description;$('#label').textContent=SCENES[state.scene].label;
-// Repair baked-in overlapping artwork strips once, without changing any controls.
-function repairCampusPanorama(image){
-  const sw=image.naturalWidth, sh=image.naturalHeight;
-  if(!sw||!sh)throw new Error('Campus image dimensions unavailable');
-  const cuts=[[.286,.389],[.675,.757]].map(([a,b])=>[Math.round(sw*a),Math.round(sw*b)]);
-  const pieces=[[0,cuts[0][0]],[cuts[0][1],cuts[1][0]],[cuts[1][1],sw]];
-  const cleanWidth=pieces.reduce((total,[a,b])=>total+b-a,0);
-  if(cleanWidth<=0)throw new Error('Invalid panorama cuts');
-  const scale=sw/cleanWidth;
-  const output=document.createElement('canvas');
-  output.width=sw;output.height=sh;
-  const c=output.getContext('2d',{alpha:false});
-  if(!c)throw new Error('Panorama canvas unavailable');
-  c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';
-  const seams=[];let dx=0;
-  pieces.forEach(([a,b],i)=>{
-    const dw=i===pieces.length-1?sw-dx:(b-a)*scale;
-    c.drawImage(image,a,0,b-a,sh,dx,0,dw,sh);
-    dx+=dw;
-    if(i<pieces.length-1)seams.push({x:dx,left:b,right:pieces[i+1][0]});
-  });
-  // Blend only a narrow strip at each join; avoid full-height ghost panels.
-  const feather=Math.min(52,Math.round(sw*.018));
-  for(const seam of seams){
-    const fx=Math.round(seam.x-feather), fw=feather*2;
-    if(fx<0||fx+fw>sw)continue;
-    const sourceSpan=Math.max(2,fw/scale);
-    const left=document.createElement('canvas'),right=document.createElement('canvas');
-    left.width=right.width=fw;left.height=right.height=sh;
-    const a=left.getContext('2d'),b=right.getContext('2d');
-    if(!a||!b)continue;
-    a.drawImage(image,seam.left-sourceSpan,0,sourceSpan,sh,0,0,fw,sh);
-    b.drawImage(image,seam.right,0,sourceSpan,sh,0,0,fw,sh);
-    const ld=a.getImageData(0,0,fw,sh).data,rd=b.getImageData(0,0,fw,sh).data;
-    const mixed=c.createImageData(fw,sh);
-    for(let x=0;x<fw;x++){
-      const u=x/(fw-1),t=u*u*(3-2*u),l=1-t;
-      for(let y=0;y<sh;y++){
-        const p=(y*fw+x)*4;
-        mixed.data[p]=ld[p]*l+rd[p]*t;
-        mixed.data[p+1]=ld[p+1]*l+rd[p+1]*t;
-        mixed.data[p+2]=ld[p+2]*l+rd[p+2]*t;
-        mixed.data[p+3]=255;
-      }
-    }
-    c.putImageData(mixed,fx,0);
-  }
-  return output;
-}
-function loadImage(name,url){
-  const i=new Image();
-  i.onload=()=>{
-    if(name==='campus'){
-      try{backgrounds[name]=repairCampusPanorama(i)}
-      catch(err){console.warn('Panorama repair fallback:',err);backgrounds[name]=i}
-    }else backgrounds[name]=i;
-  };
-  i.onerror=()=>{toast('배경 이미지 로딩 실패')};
-  i.src=url;
-}
+function loadImage(name,url){const i=new Image();i.onload=()=>{backgrounds[name]=i};i.onerror=()=>{toast('배경 이미지 로딩 실패')};i.src=url}
 Object.entries(SCENES).forEach(([k,v])=>loadImage(k,v.src));
 // input
 const keys=new Set();
