@@ -29,6 +29,14 @@ try{
   await page.waitForTimeout(400);
   if(!(await page.locator('#skyDock').isVisible()))throw Error('Sky controls not visible');
   await page.screenshot({path:'artifacts/stargaze/panorama.png'});
+  // Ensure the existing high-resolution PNG photo workflow still works.
+  await page.locator('#enterPhoto').click();
+  await page.waitForFunction(()=>window.__photoUxDebug?.get().photo===true,{timeout:8000});
+  await page.locator('#uxShutter').click();
+  await page.waitForFunction(()=>window.__photoUxDebug?.get().preview===true,{timeout:20000});
+  await page.locator('#uxDismiss').click();
+  await page.locator('#closePhoto').click();
+  await page.waitForFunction(()=>window.__photoUxDebug?.get().photo===false);
   await page.locator('[data-sky-view]').click();
   await page.waitForFunction(()=>window.__stargazeDebug?.get().view==='personal');
   await page.screenshot({path:'artifacts/stargaze/personal.png'});
