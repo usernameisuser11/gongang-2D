@@ -3,7 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
-  "scripts": { "start": "node server.mjs" },
-  "dependencies": { "ws": "8.22.1" }
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "check": "node --check server.mjs && node --check public/stargaze.js && node --test test/*.test.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "ws": "8.22.1"
+  }
 }
