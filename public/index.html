@@ -161,9 +161,9 @@ window.createCleanCampusBackdrop = function createCleanCampusBackdrop(){
  const glow=(x,y,r,color)=>{fill(grad(x,y,r,[[0,color],[1,'rgba(255,210,145,0)']]));p.fillRect(x-r,y-r,r*2,r*2)};
  // Twilight sky — uninterrupted horizon across the whole panorama.
  let sky=p.createLinearGradient(0,0,0,1040);
- [[0,'#111b46'],[.16,'#293775'],[.32,'#60418b'],[.51,'#a858a0'],[.67,'#e0769c'],[.80,'#ff9b85'],[.93,'#ffbd7f'],[1,'#ffc993']].forEach(([s,k])=>sky.addColorStop(s,k));
+ [[0,'#071131'],[.13,'#141b51'],[.29,'#292767'],[.47,'#533c88'],[.65,'#a25b97'],[.79,'#ed90a0'],[.93,'#ffc5a2'],[1,'#ffe1ba']].forEach(([s,k])=>sky.addColorStop(s,k));
  fill(sky);p.fillRect(0,0,W,H);
- fill(grad(1500,780,850,[[0,'rgba(255,243,179,.63)'],[.28,'rgba(255,207,134,.35)'],[1,'rgba(255,148,139,0)']]));p.fillRect(0,0,W,1600);
+ fill(grad(1450,800,1050,[[0,'rgba(255,229,171,.30)'],[.25,'rgba(255,161,137,.13)'],[.7,'rgba(226,130,187,.035)'],[1,'rgba(255,148,139,0)']]));p.fillRect(0,0,W,1700);
  // Thin atmospheric ribbons are painted instead of reusing cropped image strips.
  for(let i=0;i<100;i++){
   const yy=between(515,935),xx=between(-250,W+250),ww=between(75,470);
@@ -178,43 +178,53 @@ window.createCleanCampusBackdrop = function createCleanCampusBackdrop(){
   met.addColorStop(0,'rgba(255,242,230,0)');met.addColorStop(.77,'rgba(248,208,249,.6)');met.addColorStop(1,'#fffaf0');
   stroke(x-l,y+l*.46,x,y,met,3.1);glow(x,y,31,'rgba(255,251,238,.78)');fill('#fffef0');ellipse(x,y,3.5,3.5);p.fill();p.restore();
  }
- // Painterly cloud groups. All clouds share one sky-space coordinate system.
+ // Irregular brush-painted clouds: tapered silhouettes and soft warm rim light.
  function cloud(x,y,w,h,light=1){
-  p.save();
-  const topColors=['#6e548c','#d98daf','#ffc9b7'];
-  for(let layer=0;layer<3;layer++){
-    const y0=y+(layer-1)*h*.15;
-    const gain=[.52,.46,.36][layer];
-    const count=26;
-    for(let i=0;i<count;i++){
-      const f=i/(count-1), u=(f-.5)*2;
-      const dome=Math.pow(Math.max(0,1-u*u),.68);
-      const cx=x+u*w*.52, cy=y0-h*(dome*(.42+layer*.08)+.02)+Math.sin(i*.49+layer)*h*.07;
-      const rx=w/(count-3)*between(1.3,2.8),ry=h*between(.25,.47)*(0.44+.56*dome);
-      const g=p.createRadialGradient(cx,cy,0,cx,cy,Math.max(rx,ry)*1.7);
-      g.addColorStop(0,topColors[layer]);g.addColorStop(.5,topColors[layer]);g.addColorStop(1,topColors[layer]);
-      p.globalAlpha=gain*between(.64,.95);
-      fill(g);ellipse(cx,cy,rx,ry,between(-.24,.24));p.fill();
-    }
+  p.save();p.lineJoin='round';
+  const outline=[];
+  for(let i=0;i<=76;i++){
+   const t=i/76,e=Math.sin(Math.PI*t);
+   const crest=-.10+.94*Math.pow(Math.max(0,e),.75);
+   const ripple=e*(.12*Math.sin(t*12.6+x*.001)+.068*Math.cos(t*29.8+y*.0011)+.037*Math.sin(t*48.3));
+   outline.push([x+(t-.5)*w,y-h*(crest+ripple)]);
+  }
+  const paint=(offset)=>{
+   p.beginPath();p.moveTo(x-w*.5,y+h*.10+offset);
+   for(const [cx,cy] of outline)p.lineTo(cx,cy+offset);
+   for(let j=76;j>=0;j--){const t=j/76;p.lineTo(x+(t-.5)*w,y+h*(.10+.045*Math.sin(t*9))*Math.sin(Math.PI*t)+offset)}
+   p.closePath();
+  };
+  const g=p.createLinearGradient(0,y-h,0,y+h*.5);
+  g.addColorStop(0,'#ffe5d6');g.addColorStop(.35,'#f8acc1');g.addColorStop(.76,'#b07aa9');g.addColorStop(1,'#695786');
+  p.filter='blur(12px)';p.globalAlpha=.27;fill('#b07ab4');paint(h*.1);p.fill();
+  p.filter='none';p.globalAlpha=.68;fill(g);paint(0);p.fill();
+  const colors=['#ffe6dc','#ffd0ce','#ecacc7','#9d7ab2'];
+  for(let i=0;i<310;i++){
+   const t=rand(),e=Math.sin(Math.PI*t),a=Math.pow(Math.max(0,e),.75);
+   const cx=x+(t-.5)*w,cy=y-h*(-.1+.94*a)+between(-12,h*.30);
+   p.globalAlpha=between(.04,.18);fill(colors[i%4]);
+   ellipse(cx,cy,between(5,25)*(.5+e),between(2,10)*(.5+e),between(-.22,.22));p.fill();
   }
   p.globalCompositeOperation='screen';
-  for(let k=0;k<86;k++){
-    const t=rand(),dome=Math.pow(Math.max(0,Math.sin(t*Math.PI)),.65);
-    const cx=x+(t-.5)*w,cy=y-h*(.18+dome*.52)+between(-18,16);
-    p.globalAlpha=between(.02,.12);
-    fill(rand()>.5?'#fff0d4':'#ffb9bf');ellipse(cx,cy,between(7,25),between(2,9),between(-.3,.3));p.fill();
+  for(let i=0;i<100;i++){
+   const t=rand(),e=Math.sin(Math.PI*t),cx=x+(t-.5)*w,cy=y-h*(-.1+.9*Math.pow(Math.max(0,e),.75))+between(-17,18);
+   p.globalAlpha=between(.05,.16);fill(i%2===0?'#fff0df':'#ffc8ca');ellipse(cx,cy,between(9,33),between(2,8));p.fill();
   }
-  p.restore();p.globalAlpha=1;
+  p.restore();
  }
- [[320,340,760,172],[1300,265,750,160],[2460,435,1080,195],[-10,570,800,150],[1640,650,1050,156],[2900,690,780,192],[800,560,710,148],[2010,290,620,135]].forEach(a=>cloud(...a));
+ [[310,290,740,178],[1270,260,770,165],[2470,400,1030,200],[-30,605,800,150],[1750,635,970,155],[2990,690,660,150],[720,550,590,138],[1970,355,560,115]].forEach(a=>cloud(...a));
  // Low sun and glowing haze, behind ridge and architecture.
- glow(1500,775,420,'rgba(255,238,165,.57)');fill('#ffedb1');ellipse(1500,784,105,105);p.fill();
+ glow(1540,825,540,'rgba(255,226,156,.47)');fill('#ffedcb');ellipse(1540,870,49,49);p.fill();p.save();p.globalCompositeOperation='screen';glow(1540,858,170,'rgba(255,227,178,.35)');p.restore();
  // Atmospheric hills are smooth asymmetric silhouettes, not geometric triangles.
  function ridge(y,amp,col,offset){fill(col);p.beginPath();p.moveTo(0,H);
   for(let x=0;x<=W+16;x+=16){let yy=y+Math.sin(x*.0035+offset)*amp*.58+Math.sin(x*.0081+offset*2)*amp*.31+Math.sin(x*.015+offset*.4)*amp*.1;p.lineTo(x,yy)}
   p.lineTo(W,H);p.closePath();p.fill()}
  ridge(875,80,'rgba(123,99,151,.36)',.8);ridge(930,102,'#8e7896',1.9);
- ridge(1020,118,'#6d748a',3.4);
+ ridge(1020,118,'#6a6988',3.4);
+ p.save();p.globalAlpha=.18;
+ for(let i=0;i<210;i++){const x=between(0,W),y=between(940,1090),w=between(14,110);
+ fill(i%3===0?'#c49cb8':'#f2bac1');ellipse(x,y,w,between(1,5),between(-.2,.2));p.fill()}
+ p.restore();
  // Distant individual fir canopies behind building.
  for(let i=0;i<155;i++){
   const x=between(0,W),y=between(990,1110),h=between(22,66);
@@ -243,6 +253,12 @@ window.createCleanCampusBackdrop = function createCleanCampusBackdrop(){
    }
   }
   for(let i=1;i<columns;i++)rect(x+i*gapX-4,y,7,h,'rgba(160,116,135,.37)');
+ p.save();p.globalAlpha=.42;
+ for(let row=0;row<stories;row++){const gy=y+row*gapY+gapY*.79;
+ stroke(x+6,gy,x+w-6,gy,'rgba(255,242,208,.85)',2);
+ stroke(x+6,gy+6,x+w-6,gy+6,'rgba(69,51,83,.38)',2)}
+ for(let col=0;col<columns;col+=2){const xx=x+col*gapX+gapX*.24;stroke(xx,y+9,xx,y+h-17,'rgba(255,250,234,.24)',1.3)}
+ p.restore();
  }
  // Rear block, front two wings, and a central roofline form one coherent university.
  p.save();p.translate(0,205);
@@ -257,6 +273,13 @@ window.createCleanCampusBackdrop = function createCleanCampusBackdrop(){
    rect(x+3,1196,36,70,grad(x+17,1230,70,[[0,'rgba(255,237,178,.55)'],[1,'rgba(244,159,97,.12)']]));
  }
  rect(400,1157,2420,17,'#e9cfbe');
+ rect(1380,1137,405,16,'#f5d9cd');rect(1420,1152,16,140,'#856678');rect(1716,1152,16,140,'#856678');
+ for(let i=0;i<31;i++){const xx=416+i*77;rect(xx,1153,8,17,'rgba(253,226,203,.62)');stroke(xx,1162,xx+65,1162,'rgba(79,55,80,.35)',1)}
+ rect(1050,1088,1040,12,'#efcbbd');rect(1090,1100,960,5,'rgba(63,48,79,.65)');
+ for(let i=0;i<28;i++){const xx=1060+i*37;stroke(xx,1102,xx,1143,'rgba(56,56,77,.35)',2.1)}
+ p.save();p.globalCompositeOperation='screen';
+ for(let i=0;i<68;i++){const x=between(420,2750),y=between(1174,1280);
+ fill('rgba(255,232,170,.18)');ellipse(x,y,between(4,17),between(1,3));p.fill()}p.restore();
  // Campus sign: real native Korean typography, never an AI-generated word image.
  rect(1260,855,650,82,'rgba(244,226,214,.95)','rgba(178,126,130,.5)');
  p.fillStyle='#48516d';p.font='bold 52px "Apple SD Gothic Neo","Noto Sans CJK KR",system-ui,sans-serif';p.textBaseline='middle';p.fillText('상명대학교',1295,898);
@@ -274,11 +297,11 @@ window.createCleanCampusBackdrop = function createCleanCampusBackdrop(){
  for(let x=40;x<W;x+=68){const y=between(1245,1330);shrub(x,y,between(45,110),['#506c61','#68806b','#77846a','#819275','#a2a279'])}
  // Continuous lawn with amber reflected light.
  let grass=p.createLinearGradient(0,1260,0,H);
- grass.addColorStop(0,'rgba(83,106,80,.83)');grass.addColorStop(.38,'#567a63');grass.addColorStop(.75,'#466d5b');grass.addColorStop(1,'#344f4c');
+ grass.addColorStop(0,'rgba(70,93,89,.76)');grass.addColorStop(.35,'#446e69');grass.addColorStop(.72,'#37605e');grass.addColorStop(1,'#283e51');
  fill(grass);p.fillRect(0,1320,W,H-1320);
  // Broad diagonally receding stone path and low grassy shoulders.
- fill('#c4aa8d');path([[0,1780],[0,1745],[1300,1455],[1540,1455],[1880,1800]]);p.fill();
- fill('#cfb49a');path([[930,H],[1280,1420],[1555,1420],[1980,H]]);p.fill();
+ fill('#ae9284');path([[0,1780],[0,1745],[1300,1455],[1540,1455],[1880,1800]]);p.fill();
+ let stone=p.createLinearGradient(0,1430,0,H);stone.addColorStop(0,'#998389');stone.addColorStop(.55,'#cbb0a3');stone.addColorStop(1,'#d7b5a4');fill(stone);path([[930,H],[1280,1420],[1555,1420],[1980,H]]);p.fill();stroke(1280,1420,930,H,'rgba(40,67,63,.46)',7);stroke(1555,1420,1980,H,'rgba(40,67,63,.52)',7);
  for(let i=0;i<20;i++){
   const t=i/20,y=1450+t*365,l=1280-340*t,r=1570+390*t;
   stroke(l,y,r,y+3,'rgba(108,94,104,.19)',1.5+t*3);
@@ -292,44 +315,38 @@ window.createCleanCampusBackdrop = function createCleanCampusBackdrop(){
  ];
  function tree(x,ground,scale,colors,far=false){
   p.save();p.translate(x,ground);p.scale(scale,scale);
-  const trunk=p.createLinearGradient(-26,0,26,0);trunk.addColorStop(0,'#65444a');trunk.addColorStop(.5,'#886253');trunk.addColorStop(1,'#513e4e');
-  p.strokeStyle=trunk;p.lineCap='round';p.lineJoin='round';
-  p.lineWidth=24;p.beginPath();p.moveTo(0,3);p.bezierCurveTo(10,-94,-25,-186,1,-294);p.stroke();
-  let branchSeeds=[];
-  for(let i=0;i<14;i++){
-   const side=i%2===0?-1:1,yy=-80-i*13,off=side*between(56,156),top=yy-between(65,120);
-   p.lineWidth=between(4,11);p.strokeStyle='#64474c';p.beginPath();p.moveTo(0,yy);p.quadraticCurveTo(off*.47,yy-18,off,top);p.stroke();branchSeeds.push([off,top]);
-  }
-  // layered canopy, with loose irregular silhouettes and hundreds of leaves
-  const caps=[[-145,-315,120,88],[5,-405,158,110],[142,-324,132,96],[-35,-280,145,110],[38,-350,152,120]];
-  for(const [xx,yy,rx,ry] of caps){
-    p.globalAlpha=far?.80:.90;
-    fill(colors[0]);p.beginPath();
-    for(let j=0;j<=70;j++){
-      const a=j*Math.PI*2/70;
-      const edge=1+.095*Math.sin(7*a+xx*.021)+.07*Math.sin(15*a+yy*.013)+.04*Math.cos(25*a);
-      const bx=xx+Math.cos(a)*rx*edge,by=yy+Math.sin(a)*ry*edge;
-      if(j===0)p.moveTo(bx,by);else p.lineTo(bx,by);
-    }p.closePath();p.fill();
-    const cnt=far?140:240;
-    for(let k=0;k<cnt;k++){
-     const a=rand()*Math.PI*2,rad=Math.sqrt(rand()),bx=xx+Math.cos(a)*rad*rx*1.08,by=yy+Math.sin(a)*rad*ry*1.06;
-     const sz=between(far?4:6,far?11:16),color=colors[(rand()*colors.length)|0];
-     p.globalAlpha=between(.46,.98);fill(color);ellipse(bx,by,sz*between(.7,1.3),sz*between(.28,.63),between(-1.1,1.1));p.fill();
-    }
+  const bark=p.createLinearGradient(-24,0,32,0);bark.addColorStop(0,'#3c3549');bark.addColorStop(.5,'#80524e');bark.addColorStop(1,'#453447');
+  p.strokeStyle=bark;p.lineCap='round';p.lineJoin='round';p.lineWidth=22;
+  p.beginPath();p.moveTo(0,3);p.bezierCurveTo(-18,-85,20,-185,3,-286);p.stroke();
+  for(let i=0;i<17;i++){const y=-65-i*12,sgn=i%2===0?-1:1,dx=sgn*between(65,176),dy=y-between(64,136);
+   p.lineWidth=between(4.5,10);p.strokeStyle='#59404c';p.beginPath();p.moveTo(0,y);p.quadraticCurveTo(dx*.4,y-45,dx,dy);p.stroke()}
+  const crowns=[[-137,-305,127,97],[-40,-409,145,104],[110,-358,139,115],[13,-281,155,100],[30,-455,108,86]];
+  for(const [cx,cy,rx,ry] of crowns){
+   for(let layer=0;layer<4;layer++){
+    const rw=rx*(1-layer*.13),rh=ry*(1-layer*.12);p.globalAlpha=far?.47:.61;fill(colors[layer===0?0:layer===1?1:layer===2?2:3]);
+    p.beginPath();
+    for(let j=0;j<=80;j++){const a=j*Math.PI*2/80,rough=1+.09*Math.sin(9*a+cx*.03)+.06*Math.cos(17*a+cy*.05)+.035*Math.sin(31*a);
+     const bx=cx+Math.cos(a)*rw*rough,by=cy+Math.sin(a)*rh*rough-layer*7;
+     if(j===0)p.moveTo(bx,by);else p.lineTo(bx,by)}
+    p.closePath();p.fill()}
+   for(let i=0;i<(far?125:210);i++){const a=rand()*Math.PI*2,r=Math.sqrt(rand()),xx=cx+Math.cos(a)*rx*r,yy=cy+Math.sin(a)*ry*r;
+    const up=(1-(yy-cy)/ry)/2;p.globalAlpha=between(.31,.94);
+    fill(colors[Math.max(0,Math.min(colors.length-1,Math.floor(between(0,4)+up*.55)))]);
+    ellipse(xx,yy,between(5,17),between(2,8),between(-1,1));p.fill()}
+   for(let i=0;i<(far?120:180);i++){const a=rand()*Math.PI*2,r=between(.7,1.21);
+    const xx=cx+Math.cos(a)*rx*r,yy=cy+Math.sin(a)*ry*r;p.globalAlpha=between(.58,.98);fill(colors[(rand()*colors.length)|0]);
+    ellipse(xx,yy,between(2.5,8),between(1.2,4.4),between(-2,2));p.fill()}
   }
   p.globalAlpha=1;
-  for(let j=0;j<40;j++){
-   const bx=between(-250,250),by=between(-475,-205);
-   fill(colors[2+(rand()*2)|0]);ellipse(bx,by,between(1,5),between(2,8),between(-1.6,1.6));p.fill();
-  }
+  for(let j=0;j<(far?10:30);j++){const x=between(-250,250),y=between(-470,-185);p.globalAlpha=between(.45,.8);
+   fill(colors[(2+Math.floor(rand()*3))%colors.length]);ellipse(x,y,between(2,7),between(2,5),between(-1.3,1.3));p.fill()}
   p.restore();
  }
  // Back-row saplings frame the central building but keep its sign legible.
- tree(170,1390,.79,paletteSets[1],true);tree(580,1370,.66,paletteSets[2],true);
- tree(1020,1395,.77,paletteSets[0],true);tree(2450,1375,.75,paletteSets[1],true);
- tree(3000,1400,.85,paletteSets[0],true);
- tree(1350,1455,.76,paletteSets[1],true);tree(2030,1455,.78,paletteSets[0],true);
+ tree(140,1385,.88,paletteSets[1],true);tree(540,1375,.68,paletteSets[2],true);
+ tree(1060,1430,.80,paletteSets[0],true);tree(2440,1405,.89,paletteSets[1],true);
+ tree(3000,1400,.88,paletteSets[0],true);
+ tree(1280,1455,.58,paletteSets[3],true);tree(2060,1445,.77,paletteSets[0],true);
  // Foreground maple framing, layered above architecture but out of central play area.
  tree(90,1570,1.22,paletteSets[0]);tree(3100,1560,1.15,paletteSets[1]);
  // Tiny paths into campus, benches, and lamp posts add depth.
@@ -392,8 +409,8 @@ window.createCleanCampusBackdrop = function createCleanCampusBackdrop(){
    }
    p.restore();
  }
- mapleCeiling(450,210,1,1080,['#bc3b58','#e65358','#ff7854','#ffae5a','#f8bf73']);
- mapleCeiling(W-420,280,-1,990,['#9e3761','#d64a6c','#ee6970','#f7a960','#ffd28b']);
+ mapleCeiling(280,130,1,980,['#bc3b58','#e65358','#ff7854','#ffae5a','#f8bf73']);
+ mapleCeiling(W-320,170,-1,850,['#9e3761','#d64a6c','#ee6970','#f7a960','#ffd28b']);
  // Fine string lights hang on a gentle catenary between distant branches.
  p.save();p.strokeStyle='rgba(44,40,59,.77)';p.lineWidth=4;p.beginPath();
  for(let i=0;i<=85;i++){
@@ -415,6 +432,10 @@ window.createCleanCampusBackdrop = function createCleanCampusBackdrop(){
  }
  p.restore();
 
+ p.save();p.globalCompositeOperation='screen';
+ for(let i=0;i<105;i++){const x=between(100,W-100),y=between(1295,1700),r=between(14,63);
+  p.globalAlpha=between(.04,.12);fill(grad(x,y,r,[[0,'rgba(255,221,151,.66)'],[1,'rgba(255,221,151,0)']]));p.fillRect(x-r,y-r,2*r,2*r)}
+ p.restore();
  // Gentle photographic grading and edge shadows — no composited old scene.
  let shade=p.createLinearGradient(0,0,0,H);shade.addColorStop(0,'rgba(16,17,55,.15)');shade.addColorStop(.55,'rgba(255,211,180,0)');shade.addColorStop(1,'rgba(21,42,38,.17)');fill(shade);p.fillRect(0,0,W,H);
  return c;
