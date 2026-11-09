@@ -17,54 +17,44 @@
     c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2);c.restore();
   }
   function paintClouds(c){
-    // Broken sculpted clouds with cool upper faces and subtle warm undersides.
-    const groups=[
-      [145,480,280,92,.55],[510,430,260,75,.48],
-      [1100,455,270,78,.54],[1590,520,340,109,.62],
-      [610,630,265,57,.33],[1450,646,285,67,.43]
+    // Soft overlapping lobe contours rather than long straight-edged strips.
+    const cloudbanks=[
+      [140,444,220,69,.72],[475,480,300,83,.70],
+      [1015,438,240,71,.62],[1500,463,295,76,.78],
+      [665,608,365,54,.44],[1310,596,260,63,.50]
     ];
-    groups.forEach(([x,y,w,h,str],gi)=>{
-      const r=seeded(616+gi*317);
+    for(const [x,y,width,height,opacity] of cloudbanks){
+      const r=seeded(Math.round(x*31+y*13));
       c.save();
-      const haze=c.createRadialGradient(x,y,12,x,y,w*.81);
-      haze.addColorStop(0,'rgba(126,161,204,.09)');
-      haze.addColorStop(1,'rgba(86,122,191,0)');
-      c.fillStyle=haze;c.fillRect(x-w,y-w,x?2*w:2*w,2*w);
-      const left=x-w*.62,right=x+w*.62;
-      c.beginPath();c.moveTo(left,y+h*.18);
-      for(let i=0;i<17;i++){
-        const fx=left+i*(right-left)/16;
-        const top=y-h*(.11+.25*r()+.23*Math.sin(i/16*Math.PI));
-        c.quadraticCurveTo(fx-(right-left)/48,top,fx,top);
+      const haze=c.createRadialGradient(x,y,15,x,y,width*.97);
+      haze.addColorStop(0,'rgba(114,147,203,.10)');
+      haze.addColorStop(1,'rgba(69,102,168,0)');
+      c.fillStyle=haze;c.fillRect(x-width,y-width,width*2,width*2);
+      // Shaded undersides are broad and hazy; upper cloudlets are distinct.
+      for(let i=0;i<46;i++){
+        const q=(r()-.5)*1.72;
+        const x0=x+q*width*.66;
+        const y0=y+(r()-.5)*height*.35+Math.abs(q)*height*.20;
+        const radius=(.09+.15*r())*width;
+        const vertical=(.32+.34*r());
+        c.save();c.translate(x0,y0);c.scale(1,vertical);
+        const g=c.createRadialGradient(0,0,radius*.04,0,0,radius);
+        const a=(.075+.16*r())*opacity;
+        g.addColorStop(0,'rgba(151,178,221,'+a.toFixed(3)+')');
+        g.addColorStop(.56,'rgba(116,147,204,'+(a*.76).toFixed(3)+')');
+        g.addColorStop(1,'rgba(72,115,175,0)');
+        c.fillStyle=g;c.fillRect(-radius,-radius,radius*2,radius*2);
+        c.restore();
       }
-      for(let i=16;i>=0;i--){
-        const fx=left+i*(right-left)/16;
-        const base=y+h*(.13+.09*r());
-        c.quadraticCurveTo(fx+7,base,fx,base);
-      }
-      c.closePath();
-      const gradient=c.createLinearGradient(0,y-h*.6,0,y+h*.36);
-      gradient.addColorStop(0,'rgba(85,124,181,.17)');
-      gradient.addColorStop(.55,'rgba(118,151,201,.18)');
-      gradient.addColorStop(1,'rgba(205,165,196,.08)');
-      c.fillStyle=gradient;
-      c.shadowColor='rgba(94,133,197,.16)';c.shadowBlur=14;
-      c.globalAlpha=str*1.55;c.fill();
-      c.shadowBlur=0;
-      for(let k=0;k<23;k++){
-        const xx=x+(r()-.5)*w*1.17,yy=y+(r()-.5)*h*.63;
-        const rw=w*(.07+.13*r()),rh=h*(.11+.33*r());
-        c.save();c.translate(xx,yy);c.scale(1,rh/rw);
-        const p=c.createRadialGradient(0,0,0,0,0,rw);
-        p.addColorStop(0,k%4===0?'rgba(203,172,206,.13)':'rgba(140,169,216,.12)');
-        p.addColorStop(.6,'rgba(109,145,197,.07)');
-        p.addColorStop(1,'rgba(94,126,192,0)');
-        c.fillStyle=p;c.fillRect(-rw,-rw,rw*2,rw*2);c.restore();
-      }
+      // Rare warm tints catch the dim light at the horizon.
+      c.strokeStyle='rgba(191,176,206,'+(.075*opacity).toFixed(3)+')';
+      c.lineWidth=2.2;c.beginPath();
+      c.moveTo(x-width*.55,y+height*.13);
+      c.bezierCurveTo(x-width*.24,y+height*.26,x+width*.10,y+height*.17,x+width*.48,y+height*.23);
+      c.stroke();
       c.restore();
-    });
+    }
   }
-
   // A low-resolution, cached painterly dust texture. Color is sculpted in a
   // diagonally arching galactic band, with fine dark lanes and chromatic knots.
   // It is generated once; no per-frame image-data uploads.
@@ -134,12 +124,12 @@
   function paintCirrus(c){
     const r=seeded(2118);
     c.save();c.lineCap='round';
-    for(let i=0;i<98;i++){
+    for(let i=0;i<38;i++){
       const x=r()*2100-130,y=375+r()*350,len=45+r()*210;
-      const opacity=.025+r()*.056;
+      const opacity=.011+r()*.030;
       c.strokeStyle=i%4?'rgba(180,194,232,'+opacity.toFixed(3)+')':
         'rgba(243,191,213,'+opacity.toFixed(3)+')';
-      c.lineWidth=1+r()*5;
+      c.lineWidth=.6+r()*2.3;
       c.beginPath();c.moveTo(x,y);
       c.bezierCurveTo(x+len*.26,y-10-r()*26,x+len*.55,y+25-r()*35,x+len,y-18-r()*20);
       c.stroke();
@@ -152,7 +142,7 @@
     for(let i=0;i<410;i++){
       const x=r()*WIDTH,top=ridgeY(x,baseY,amp,seed),y=top+5+r()*170;
       if(y>HEIGHT)continue;
-      c.strokeStyle=i%4===0?'rgba(158,182,204,.072)':'rgba(8,35,64,.083)';
+      c.strokeStyle=i%4===0?'rgba(158,182,204,.042)':'rgba(8,35,64,.043)';
       c.lineWidth=.5+r()*1.9;
       c.beginPath();c.moveTo(x,y);
       c.lineTo(x+(r()-.2)*28,y+12+r()*25);c.stroke();
@@ -168,24 +158,51 @@
   }
 
   function paintMilkyWay(c){
-    const r=seeded(17352);
-    c.save();c.globalCompositeOperation='screen';
-    for(let i=0;i<650;i++){
-      const u=r();
-      const x=480+u*840+(r()-.5)*195;
-      const y=570-u*610+(r()-.5)*120;
-      const rad=10+r()*112;
-      glow(c,x,y,rad, i%3===0?'rgba(197,141,242,.13)':'rgba(111,167,242,.11)',
-        'rgba(24,47,106,0)',.50+r()*.46);
+    const dust=seeded(17352);
+    c.save();
+    c.globalCompositeOperation='screen';
+    // Controlled diffuse nebula knots. Too many blended glows create a flat
+    // white beam, so the core is particulate rather than uniformly luminous.
+    for(let i=0;i<85;i++){
+      const y=dust()*720,x=1195-1.08*y+(dust()-.5)*290;
+      const radius=24+dust()*91;
+      const core=i%3===0?'rgba(214,149,212,.050)':
+        i%3===1?'rgba(114,174,244,.046)':'rgba(154,141,235,.048)';
+      glow(c,x,y,radius,core,'rgba(44,62,136,0)',.36+dust()*.56);
     }
     c.restore();
-    const r2=seeded(731663);
-    for(let i=0;i<5200;i++){
-      const u=r2(),x=490+u*820+(r2()-.5)*350,y=550-u*620+(r2()-.5)*205;
-      if(x<0||x>WIDTH||y<0||y>730)continue;
-      const a=.05+.34*r2();
-      c.fillStyle='rgba(203,219,255,'+a.toFixed(3)+')';
-      const size=.30+r2()*1.05;
+
+    // Dust obscuration: dark irregular channels weave through the luminous
+    // galactic band. Stroke size and opacity stay restrained.
+    c.save();c.globalCompositeOperation='multiply';c.lineCap='round';
+    for(let j=0;j<9;j++){
+      const r=seeded(5500+j*2187),offset=(j-4)*12+(r()-.5)*60;
+      c.strokeStyle='rgba(19,27,57,'+(.13+r()*.15).toFixed(3)+')';
+      c.lineWidth=4+r()*21;
+      c.shadowBlur=19;c.shadowColor='rgba(11,17,43,.23)';
+      c.beginPath();
+      let first=true;
+      for(let yy=-65;yy<725;yy+=45){
+        const xx=1200-1.08*yy+offset+
+          Math.sin(yy*.015+j*1.71)*13+Math.sin(yy*.035+j)*8;
+        if(first){c.moveTo(xx,yy);first=false}else c.lineTo(xx,yy);
+      }
+      c.stroke();
+    }
+    c.restore();
+
+    // More individual celestial grains, brighter near the textured core.
+    const points=seeded(731663);
+    for(let i=0;i<17200;i++){
+      const y=points()*765;
+      const x=1195-1.08*y+
+        (points()+points()+points()-1.5)*345;
+      if(x<0||x>=WIDTH)continue;
+      const a=.06+.66*points()**1.8;
+      const size=.28+points()**3*1.24;
+      c.fillStyle=points()>.74?'rgba(253,217,231,'+a.toFixed(3)+')':
+        points()>.44?'rgba(186,218,255,'+a.toFixed(3)+')':
+        'rgba(238,237,255,'+a.toFixed(3)+')';
       c.fillRect(x,y,size,size);
     }
   }
