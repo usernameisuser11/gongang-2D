@@ -172,24 +172,8 @@
     }
     c.restore();
 
-    // Dust obscuration: dark irregular channels weave through the luminous
-    // galactic band. Stroke size and opacity stay restrained.
-    c.save();c.globalCompositeOperation='multiply';c.lineCap='round';
-    for(let j=0;j<9;j++){
-      const r=seeded(5500+j*2187),offset=(j-4)*12+(r()-.5)*60;
-      c.strokeStyle='rgba(19,27,57,'+(.13+r()*.15).toFixed(3)+')';
-      c.lineWidth=4+r()*21;
-      c.shadowBlur=19;c.shadowColor='rgba(11,17,43,.23)';
-      c.beginPath();
-      let first=true;
-      for(let yy=-65;yy<725;yy+=45){
-        const xx=1200-1.08*yy+offset+
-          Math.sin(yy*.015+j*1.71)*13+Math.sin(yy*.035+j)*8;
-        if(first){c.moveTo(xx,yy);first=false}else c.lineTo(xx,yy);
-      }
-      c.stroke();
-    }
-    c.restore();
+    // The generated nebula texture carries irregular dust gaps itself.
+    // Do not paint hard vector lanes over it: those look like giant slashes.
 
     // More individual celestial grains, brighter near the textured core.
     const points=seeded(731663);
