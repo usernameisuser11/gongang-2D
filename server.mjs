@@ -17,6 +17,10 @@ const dbKey = String(process.env.SUPABASE_ANON_KEY || '');
 const html = await readFile(join(ROOT, 'public', 'index.html'));
 const stargazeScript = await readFile(join(ROOT, 'public', 'stargaze.js'));
 const stellarGrainScript = await readFile(join(ROOT, 'public', 'stellar-grains.js'));
+const scenicLayers = new Map(await Promise.all(
+  ['sky','clouds','far','mid','meadow'].map(async name =>
+    [name+'.svg',await readFile(join(ROOT,'public','art',name+'.svg'))])
+));
 
 let lastDbError = null;
 let dbWriteOk = false;
@@ -76,6 +80,18 @@ const server = createServer((req, res) => {
     });
     if (req.method === 'HEAD') res.end();
     else res.end(html);
+    return;
+  }
+  if (path.startsWith('/art/')) {
+    const name=path.slice('/art/'.length),asset=scenicLayers.get(name);
+    if (!asset) { res.writeHead(404).end(); return; }
+    res.writeHead(200,{
+      'Content-Type':'image/svg+xml; charset=utf-8',
+      'Content-Length':asset.byteLength,
+      'Cache-Control':'public, max-age=604800, immutable',
+      'X-Content-Type-Options':'nosniff'
+    });
+    res.end(req.method==='HEAD'?undefined:asset);
     return;
   }
   if (path === '/stellar-grains.js') {
