@@ -82,12 +82,14 @@ try{
   await mobile.screenshot({path:'artifacts/stargaze/mobile.png'});
   for(const target of [page,mobile]){
     const info=await target.evaluate(()=>window.__stargazeDebug.get());
-    if(info.staticLayers!==1||info.layerCount!==6)
-      throw Error('Expected six cached landscape planes built once: '+JSON.stringify(info));
+    if(info.staticLayers!==1||info.layerCount!==9)
+      throw Error('Expected nine cached scenic planes built once: '+JSON.stringify(info));
+    if(info.cachedMegabytes>60||info.cachedMegabytes<49)
+      throw Error('Canvas memory budget unexpectedly large or missing planes: '+info.cachedMegabytes);
     if(info.buildMs>12000)
       throw Error('Initial static scene generation too slow: '+info.buildMs+'ms');
     if(info.grains.animatedGrains>155)throw Error('Animated star budget exceeded');
-    console.log('Cached landscape: '+Math.round(info.buildMs)+' ms; '+info.grains.animatedGrains+' animated stars');
+    console.log('Nine cached planes using '+info.cachedMegabytes.toFixed(1)+' MiB: '+Math.round(info.buildMs)+' ms; '+info.grains.animatedGrains+' animated stars');
   }
   for(const file of ['panorama','personal','fireworks','mobile']){
     const size=(await stat('artifacts/stargaze/'+file+'.png')).size;
