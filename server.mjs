@@ -7,9 +7,9 @@ import { WebSocket, WebSocketServer } from 'ws';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const MAX_PEERS = 8;
-const MAPS = ['campus', 'river', 'stargaze'];
+const MAPS = ['river', 'stargaze'];
 // Server-side guard: old tabs and custom clients must never put avatars on roofs.
-const WALK_LIMITS = {campus:{minX:115,maxX:3080,minZ:1500,maxZ:1760},river:{minX:115,maxX:3080,minZ:1540,maxZ:1750},stargaze:{minX:115,maxX:3080,minZ:1500,maxZ:1740}};
+const WALK_LIMITS = {river:{minX:115,maxX:3080,minZ:1540,maxZ:1750},stargaze:{minX:115,maxX:3080,minZ:1500,maxZ:1740}};
 const rooms = Object.fromEntries(MAPS.map(m => [m, new Map()]));
 const port = Number(process.env.PORT || 3000);
 const dbURL = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
@@ -133,7 +133,7 @@ server.on('upgrade', (req, socket, head) => {
   if (!goodOrigin) {
     socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); socket.destroy(); return;
   }
-  const map = MAPS.includes(url.searchParams.get('map')) ? url.searchParams.get('map') : 'campus';
+  const map = MAPS.includes(url.searchParams.get('map')) ? url.searchParams.get('map') : 'stargaze';
   presence.handleUpgrade(req, socket, head, ws => presence.emit('connection', ws, map));
 });
 presence.on('connection', (ws, map) => {

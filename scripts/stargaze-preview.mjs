@@ -28,6 +28,19 @@ try{
   await page.waitForFunction(()=>window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
   await page.waitForTimeout(400);
   if(!(await page.locator('#skyDock').isVisible()))throw Error('Sky controls not visible');
+  if(await page.locator('[data-map="campus"]').count())throw Error('Retired autumn campus is still listed');
+  const retired=await browser.newPage({viewport:{width:900,height:640}});
+  await retired.goto(origin+'/?map=campus',{waitUntil:'domcontentloaded'});
+  await retired.waitForFunction(()=>window.__stargazeDebug?.get().scene==='stargaze',{timeout:20000});
+  if(!retired.url().includes('map=stargaze'))throw Error('Old campus link was not redirected');
+  await retired.close();
+  const imageStats=await page.evaluate(()=>{
+    const c=document.querySelector('#game'),context=c.getContext('2d');
+    const {width,height}=c;
+    const pts=[[.36,.24],[.50,.35],[.61,.34],[.42,.68],[.74,.78],[.14,.9]];
+    return pts.map(([x,y])=>[...context.getImageData(Math.floor(width*x),Math.floor(height*y),1,1).data].slice(0,3));
+  });
+  if(new Set(imageStats.map(c=>c.join(','))).size<4)throw Error('Landscape looks flat or blank');
   await page.screenshot({path:'artifacts/stargaze/panorama.png'});
   // Ensure the existing high-resolution PNG photo workflow still works.
   await page.locator('#enterPhoto').click();
