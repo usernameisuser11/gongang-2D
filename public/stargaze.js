@@ -10,6 +10,25 @@
   const random=seeded(20261108);
   let base=null, stars=[],event=null,view='wide',clockOffset=0,lastUi=0,buttonBar=null;
   const metrics={rendered:0,staticLayers:0,buildMs:0};
+  const art={sky:null,clouds:null,far:null,mid:null,meadow:null};
+  let artReady=false,artFailed=false;
+  const SCENERY_VERSION='scenery-v1-20261109';
+  function loadPaintedLayers(){
+    Promise.all(Object.keys(art).map(name=>new Promise((resolve,reject)=>{
+      const img=new Image();
+      img.decoding='async';
+      img.onload=()=>resolve([name,img]);
+      img.onerror=()=>reject(new Error('Landscape layer unavailable: '+name));
+      img.src='/art/'+name+'.svg?v='+SCENERY_VERSION;
+    }))).then(entries=>{
+      for(const [name,img] of entries)art[name]=img;
+      artReady=true;
+      base=null;
+    }).catch(error=>{
+      artFailed=true;
+      console.warn('Painterly landscape fallback:',error.message);
+    });
+  }
   function glow(c,x,y,r,inner,outer,opacity=1){
     c.save();c.globalAlpha=opacity;
     const g=c.createRadialGradient(x,y,0,x,y,r);
@@ -399,40 +418,55 @@
     const canvas=document.createElement('canvas');
     canvas.width=WIDTH;canvas.height=HEIGHT;
     const c=canvas.getContext('2d',{alpha:false});
-    let g=c.createLinearGradient(0,0,0,HEIGHT);
-    for(const [p,col] of [[0,'#060e26'],[.25,'#101c3d'],[.50,'#263d69'],[.66,'#5b6692'],[.75,'#9884a2'],[.81,'#c995a4'],[1,'#273e65']])g.addColorStop(p,col);
-    c.fillStyle=g;c.fillRect(0,0,WIDTH,HEIGHT);
-    glow(c,670,820,500,'rgba(247,154,157,.16)','rgba(231,121,168,0)');
-    paintNebula(c);
-    if(window.StellarGrains)window.StellarGrains.paint(c,WIDTH,HEIGHT,galaxyAt,skyVisibility);
-    else paintMilkyWay(c);
-    stars=[];
-    if(!window.StellarGrains){
-      const r=seeded(71526);
-      for(let i=0;i<2200;i++){
-        const x=r()*WIDTH,y=r()*800,sz=.25+r()**5*1.7,a=.14+r()*.8;
-        c.fillStyle='rgba(217,232,255,'+a.toFixed(3)+')';
-        c.fillRect(x,y,sz,sz);
-        if(i%29===0)glow(c,x,y,7,'rgba(186,213,255,.18)','rgba(186,213,255,0)');
-        if(i%31===0)stars.push({x,y,r:.6+r()*1.6,phase:r()*TAU});
+    if(artReady){
+      // Rich artwork is baked into five compact SVG image layers. The core sky,
+      // stars, clouds and mountain plates are composited once and cached.
+      c.drawImage(art.sky,0,0,WIDTH,HEIGHT);
+      if(window.StellarGrains)window.StellarGrains.paint(c,WIDTH,HEIGHT,galaxyAt,skyVisibility);
+      else paintMilkyWay(c);
+      c.drawImage(art.clouds,0,0,WIDTH,HEIGHT);
+      c.drawImage(art.far,0,0,WIDTH,HEIGHT);
+      c.drawImage(art.mid,0,0,WIDTH,HEIGHT);
+    }else{
+      // Safe offline fallback to the old scene if an art asset cannot load.
+      let g=c.createLinearGradient(0,0,0,HEIGHT);
+      for(const [p,col] of [[0,'#060e26'],[.25,'#101c3d'],[.50,'#263d69'],[.66,'#5b6692'],[.75,'#9884a2'],[.81,'#c995a4'],[1,'#273e65']])g.addColorStop(p,col);
+      c.fillStyle=g;c.fillRect(0,0,WIDTH,HEIGHT);
+      glow(c,670,820,500,'rgba(247,154,157,.16)','rgba(231,121,168,0)');
+      paintNebula(c);
+      if(window.StellarGrains)window.StellarGrains.paint(c,WIDTH,HEIGHT,galaxyAt,skyVisibility);
+      else paintMilkyWay(c);
+      stars=[];
+      if(!window.StellarGrains){
+        const r=seeded(71526);
+        for(let i=0;i<2200;i++){
+          const x=r()*WIDTH,y=r()*800,sz=.25+r()**5*1.7,a=.14+r()*.8;
+          c.fillStyle='rgba(217,232,255,'+a.toFixed(3)+')';
+          c.fillRect(x,y,sz,sz);
+          if(i%29===0)glow(c,x,y,7,'rgba(186,213,255,.18)','rgba(186,213,255,0)');
+          if(i%31===0)stars.push({x,y,r:.6+r()*1.6,phase:r()*TAU});
+        }
       }
+      paintCirrus(c);
+      paintClouds(c);
+      // A warm, almost extinguished afterglow beneath the distant cloud bank.
+      glow(c,530,725,430,'rgba(237,153,190,.13)','rgba(233,127,192,0)',.65);
+      paintRidge(c,756,101,'#66829d','#365574',1.1);
+      paintMountainDetail(c,756,101,1.1);
+      paintAerialHaze(c,781,57,'rgba(155,178,214,.089)');
+      paintRidge(c,828,106,'#3d6585','#173f61',2.7);
+      paintMountainDetail(c,828,106,2.7);
+      paintAerialHaze(c,855,48,'rgba(160,190,216,.068)');
+      paintRidge(c,901,90,'#23536b','#12394e',5.4);
+      paintMountainDetail(c,901,90,5.4);
+      paintValley(c);
+      paintMeadow(c);
+      paintFramingTree(c);
+  
     }
-    paintCirrus(c);
-    paintClouds(c);
-    // A warm, almost extinguished afterglow beneath the distant cloud bank.
-    glow(c,530,725,430,'rgba(237,153,190,.13)','rgba(233,127,192,0)',.65);
-    paintRidge(c,756,101,'#66829d','#365574',1.1);
-    paintMountainDetail(c,756,101,1.1);
-    paintAerialHaze(c,781,57,'rgba(155,178,214,.089)');
-    paintRidge(c,828,106,'#3d6585','#173f61',2.7);
-    paintMountainDetail(c,828,106,2.7);
-    paintAerialHaze(c,855,48,'rgba(160,190,216,.068)');
-    paintRidge(c,901,90,'#23536b','#12394e',5.4);
-    paintMountainDetail(c,901,90,5.4);
-    paintValley(c);
-    paintMeadow(c);
-    paintFramingTree(c);
-    base=canvas;metrics.staticLayers++;metrics.buildMs=performance.now()-started;
+    base=canvas;
+    metrics.staticLayers=1;
+    metrics.buildMs=performance.now()-started;
     return canvas;
   }
   function drawMeteor(c,t,fx,fy,scale=1,color='#dceeff'){
@@ -512,20 +546,42 @@
     return {x,y,width,height};
   }
   function drawBackground(c,t,now,personal=false){
-    const b=base||build(),viewT=makeTransform(t,personal);
-    c.drawImage(b,viewT.x,viewT.y,viewT.width,viewT.height);
-    drawSkyEffects(c,viewT,now);
+    const viewT=makeTransform(t,personal);
+    if(artReady||artFailed){
+      const b=base||build();
+      c.drawImage(b,viewT.x,viewT.y,viewT.width,viewT.height);
+      drawSkyEffects(c,viewT,now);
+      if(artReady){
+        // A few translucent drifting cloud masses and thin valley mist give
+        // life without per-frame turbulence, filters or thousands of sprites.
+        c.save();
+        c.globalAlpha=.065;
+        const dx=Math.sin(now*.000023)*15;
+        c.drawImage(art.clouds,viewT.x+dx,viewT.y,viewT.width,viewT.height);
+        c.restore();
+        // Near-field parallax is separate from the sky and mountain cache.
+        // The displacement is only a handful of pixels: no ugly seam.
+        const px=personal?0:clamp((state.x-1600)/1600,-1,1)*7;
+        c.drawImage(art.meadow,viewT.x+px,viewT.y,viewT.width,viewT.height);
+      }
+    }else{
+      // Minimal night gradient until the art assets are ready, not a second
+      // expensive procedural landscape built and immediately discarded.
+      const g=c.createLinearGradient(0,0,0,innerHeight);
+      g.addColorStop(0,'#07112c');g.addColorStop(.7,'#3d4c82');g.addColorStop(1,'#183b47');
+      c.fillStyle=g;c.fillRect(0,0,innerWidth,innerHeight);
+    }
     metrics.rendered++;
-    // Tiny luminous fireflies at the hillside edge.
-    if(!personal){
-      for(let i=0;i<19;i++){
-        const x=(i*367+130)%WIDTH, y=meadowY(x)+15+(i*19)%85;
+    if(artReady&&!personal){
+      // Sparse fireflies over the meadow; foreground remains a single plate.
+      for(let i=0;i<14;i++){
+        const x=(i*367+130)%WIDTH,y=meadowY(x)+15+(i*19)%85;
         const flicker=(.5+.5*Math.sin(now*.0014+i*3.1))*.55;
         if(flicker<.12)continue;
-        const xx=viewT.x+x/WIDTH*viewT.width;
-        const yy=viewT.y+y/HEIGHT*viewT.height;
         c.fillStyle='rgba(244,221,151,'+(flicker*.55).toFixed(3)+')';
-        c.beginPath();c.arc(xx,yy,1.7,0,TAU);c.fill();
+        c.beginPath();
+        c.arc(viewT.x+x/WIDTH*viewT.width,viewT.y+y/HEIGHT*viewT.height,1.7,0,TAU);
+        c.fill();
       }
     }
   }
@@ -584,6 +640,7 @@
     toast(data.kind==='fireworks'?'함께 보는 불꽃놀이가 시작돼':'밤하늘에 유성우가 찾아와');
   }
   function init(){
+    loadPaintedLayers();
     const style=document.createElement('style');
     style.textContent='#skyDock{position:absolute;z-index:4;right:max(12px,env(safe-area-inset-right));bottom:max(84px,env(safe-area-inset-bottom));display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px;max-width:min(95vw,440px)}#skyDock[hidden],#app.photographing #skyDock{display:none!important}#skyDock button{border:1px solid rgba(237,232,221,.35);border-radius:24px;background:rgba(13,28,53,.57);backdrop-filter:blur(11px);padding:11px 14px;color:#f5f4e9;font-weight:650;font-size:12px;box-shadow:0 4px 17px rgba(9,15,34,.18)}#skyDock button:disabled{opacity:.42;cursor:not-allowed}@media(max-width:600px){#skyDock{bottom:max(133px,env(safe-area-inset-bottom));right:8px;max-width:calc(100vw - 16px);gap:5px}#skyDock button{padding:9px 10px;font-size:11px}}';
     document.head.appendChild(style);
@@ -599,7 +656,7 @@
     buttonBar.querySelectorAll('[data-sky-event]').forEach(b=>b.addEventListener('click',()=>sendEvent(b.dataset.skyEvent)));
     setInterval(showControls,750);
     showControls();
-    window.__stargazeDebug={get:()=>({scene:state.scene,view,event,rendered:metrics.rendered,staticLayers:metrics.staticLayers,buildMs:metrics.buildMs,grains:window.StellarGrains?.getDebug()}),setView:(v)=>{view=v==='personal'?'personal':'wide';showControls()}};
+    window.__stargazeDebug={get:()=>({scene:state.scene,view,event,rendered:metrics.rendered,staticLayers:metrics.staticLayers,buildMs:metrics.buildMs,artReady,artFailed,artLayerCount:Object.values(art).filter(Boolean).length,grains:window.StellarGrains?.getDebug()}),setView:(v)=>{view=v==='personal'?'personal':'wide';showControls()}};
   }
   window.GongangStargaze={
     drawBackground,drawTraveler,receiveEvent,
