@@ -56,26 +56,31 @@ test('stargaze preserves 8-person multiplayer and synchronizes fireworks', {time
   assert.equal(script.status,200);
   assert.match(script.headers.get('content-type'),/javascript/);
   assert.match(await script.text(),/GongangStargaze/);
-  for(let i=0;i<2;i++){
+  for(let i=0;i<8;i++){
     const socket=new WebSocket('ws://127.0.0.1:'+port+'/presence?map=stargaze',{
       headers:{Origin:origin}
     });
     sockets.push(socket);
     await once(socket,'open');
-    socket.send(state(1450+i*45,1620,i?'lie':'sit'));
+    socket.send(state(1450+i*45,1620,i%2?'lie':'sit'));
   }
-  const [a,b]=sockets;
-  await waitForType(a,'snapshot',msg=>msg.players.length>=2);
-  const fireA=waitForType(a,'sky_event');
-  const fireB=waitForType(b,'sky_event');
+  const [a]=sockets;
+  const snapshot=await waitForType(a,'snapshot',msg=>msg.players.length===8);
+  assert.equal(snapshot.players.filter(p=>p.pose==='sit').length,4);
+  assert.equal(snapshot.players.filter(p=>p.pose==='lie').length,4);
+  const overflow=new WebSocket('ws://127.0.0.1:'+port+'/presence?map=stargaze',{headers:{Origin:origin}});
+  sockets.push(overflow);
+  const full=waitForType(overflow,'full');
+  await full;
+  const shared=sockets.slice(0,8).map(socket=>waitForType(socket,'sky_event'));
   a.send(JSON.stringify({type:'sky_event',kind:'fireworks'}));
-  const [x,y]=await Promise.all([fireA,fireB]);
+  const [x,...others]=await Promise.all(shared);
   assert.equal(x.kind,'fireworks');
-  assert.deepEqual(x,y,'All room members must receive one identical event');
+  for(const y of others)assert.deepEqual(x,y,'All eight room members must receive one identical event');
   assert.ok(x.startsAt>Date.now()-1000);
   const unavailable=waitForType(a,'sky_event_unavailable');
   a.send(JSON.stringify({type:'sky_event',kind:'meteor'}));
   assert.ok((await unavailable).waitMs>0);
   const h=await (await fetch(origin+'/healthz')).json();
-  assert.equal(h.rooms.stargaze,2);
+  assert.equal(h.rooms.stargaze,8);
 });

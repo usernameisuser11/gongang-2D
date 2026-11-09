@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches:
+      - main
       - feature/stargaze-observatory-20261108
   workflow_dispatch:
 

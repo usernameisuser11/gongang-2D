@@ -62,6 +62,11 @@ try{
   await page.waitForFunction(()=>window.__photoUxDebug?.get().photo===false);
   await page.locator('[data-sky-view]').click();
   await page.waitForFunction(()=>window.__stargazeDebug?.get().view==='personal');
+  for(const pose of ['sit','lie']){
+    await page.locator('[data-pose="'+pose+'"]').click();
+    if(!await page.locator('[data-pose="'+pose+'"]').evaluate(el=>el.classList.contains('active')))
+      throw Error(pose+' pose control failed');
+  }
   await page.screenshot({path:'artifacts/stargaze/personal.png'});
   await page.locator('[data-sky-view]').click();
   await page.waitForFunction(()=>window.__stargazeDebug?.get().view==='wide');
@@ -75,6 +80,12 @@ try{
   await mobile.goto(origin+'/?map=stargaze',{waitUntil:'domcontentloaded'});
   await mobile.waitForFunction(()=>window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
   await mobile.screenshot({path:'artifacts/stargaze/mobile.png'});
+  for(const target of [page,mobile]){
+    const info=await target.evaluate(()=>window.__stargazeDebug.get());
+    if(info.staticLayers!==1)throw Error('Landscape was rebuilt during camera or photo changes');
+    if(info.grains.animatedGrains>155)throw Error('Animated star budget exceeded');
+    console.log('Cached landscape: '+Math.round(info.buildMs)+' ms; '+info.grains.animatedGrains+' animated stars');
+  }
   for(const file of ['panorama','personal','fireworks','mobile']){
     const size=(await stat('artifacts/stargaze/'+file+'.png')).size;
     if(size<30000)throw Error(file+' screenshot unexpectedly small '+size);

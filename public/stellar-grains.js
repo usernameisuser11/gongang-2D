@@ -63,7 +63,7 @@
     ctx.globalAlpha=alpha;
     ctx.drawImage(sprite,x-size*.5,y-size*.5,size,size);
   }
-  function scatter(ctx,width,height){
+  function scatter(ctx,width,height,galaxyAt,visibility=()=>1){
     const r=randomMaker(915715);
     twinkles.length=0;
     ctx.save();ctx.globalCompositeOperation='screen';
@@ -75,15 +75,15 @@
       const shade=r();
       const tint=shade<.20?4:shade<.51?5:shade<.77?1:2;
       const rare=Math.pow(r(),7);
-      const size=.65+rare*5.5;
-      const alpha=.24+r()*.64;
+      const size=.55+rare*4.7;
+      const alpha=(.20+r()*.58)*(1-.48*(y/(height*.70))**2);
       if(size<1.25){
         ctx.globalAlpha=alpha*.54;
         ctx.fillStyle=palette[tint];
         ctx.fillRect(x,y,.55+r()*.52,.55+r()*.52);
       }else one(ctx,x,y,size,alpha,tint,size>3.2);
       if(size>2.7 && twinkles.length<95 && r()>.33){
-        twinkles.push({x,y,size:size*.72,phase:r()*TAU,tint,alpha:.14+r()*.14});
+        twinkles.push({x,y,size:size*.72,phase:r()*TAU,tint,alpha:(.14+r()*.14)*visibility(x,y)});
       }
       count++;
     }
@@ -96,17 +96,20 @@
       const x=center+side;
       if(x<0||x>=width)continue;
       const dist=Math.abs(side), density=Math.max(.20,1-dist/430);
+      const field=galaxyAt?.(x,y);
+      // Use the nebula's actual dust lanes, so stars do not fill in its shadows.
+      const transmission=field?(.30+field.light*1.7)*(1-field.dust*.86):1;
       const hue=r();
       const tint=hue<.29?1:hue<.52?2:hue<.70?0:hue<.84?3:5;
       const rare=Math.pow(r(),6.3);
       const size=.62+rare*4.9;
-      const alpha=(.18+r()*.59)*(.4+.6*density);
+      const alpha=(.18+r()*.59)*(.4+.6*density)*transmission;
       if(size<1.26){
         ctx.globalAlpha=alpha*.58;
         ctx.fillStyle=palette[tint];ctx.fillRect(x,y,.58+r()*.44,.58+r()*.44);
       }else one(ctx,x,y,size,alpha,tint,size>3);
       if(size>3.1 && twinkles.length<155 && r()>.38){
-        twinkles.push({x,y,size:size*.78,phase:r()*TAU,tint,alpha:.16+r()*.16});
+        twinkles.push({x,y,size:size*.78,phase:r()*TAU,tint,alpha:(.16+r()*.16)*transmission*visibility(x,y)});
       }
       count++;
     }
