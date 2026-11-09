@@ -1187,4 +1187,144 @@ tryConnect();
   attach();showStatus();
 })();
 
+</script><script>
+/* Starfall sky: optional client-only stargazing, no change to shared movement or rooms. */
+(() => {
+  'use strict';
+  if (typeof drawWorld !== 'function' || typeof state === 'undefined' || typeof backgrounds === 'undefined') return;
+  const WIDTH = 3200, HEIGHT = 1800, TWO_PI = Math.PI * 2;
+  let showingNight = false, cachedNight = null, cachedSource = null;
+
+  function randomMaker(seed) {
+    return () => { seed = (Math.imul(seed,1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  }
+  const sparkleRandom = randomMaker(0x6c0f226b);
+  const sparkles = Array.from({length:45}, (_,i) => ({
+    x: 140+sparkleRandom()*2920, y: 115+sparkleRandom()*585,
+    r: .8+sparkleRandom()*1.65, phase: sparkleRandom()*TWO_PI, speed: .5+sparkleRandom()*1.6
+  }));
+
+  function makeNight(source) {
+    const layer = document.createElement('canvas');
+    layer.width = WIDTH; layer.height = HEIGHT;
+    const p = layer.getContext('2d', {alpha:false});
+    if (!p) return null;
+    p.drawImage(source,0,0,WIDTH,HEIGHT);
+    p.globalCompositeOperation = 'multiply';
+    p.fillStyle='#2d3c61'; p.fillRect(0,0,WIDTH,HEIGHT);
+    p.globalCompositeOperation = 'source-over';
+    const sky = p.createLinearGradient(0,0,0,1040);
+    sky.addColorStop(0,'rgba(5,12,38,.94)');
+    sky.addColorStop(.36,'rgba(11,20,56,.89)');
+    sky.addColorStop(.62,'rgba(22,29,67,.79)');
+    sky.addColorStop(.82,'rgba(44,45,82,.33)');
+    sky.addColorStop(1,'rgba(43,45,77,0)');
+    p.fillStyle=sky; p.fillRect(0,0,WIDTH,1040);
+
+    // Layered dust cloud: soft stellar haze, not an opaque or repeated background texture.
+    p.save();
+    p.globalCompositeOperation='screen';
+    const nebula = randomMaker(0x0dd5e5a7);
+    for (let i=0;i<24;i++) {
+      const x=240+i*116+nebula()*80, y=90+i*12+nebula()*135, radius=115+nebula()*190;
+      const glow=p.createRadialGradient(x,y,0,x,y,radius);
+      const c=i%3===0?'156,145,217':i%3===1?'115,158,219':'192,136,180';
+      glow.addColorStop(0,'rgba('+c+',.042)');
+      glow.addColorStop(.46,'rgba('+c+',.014)');
+      glow.addColorStop(1,'rgba('+c+',0)');
+      p.fillStyle=glow; p.fillRect(x-radius,y-radius,radius*2,radius*2);
+    }
+    const r=randomMaker(0x12377cbd);
+    for(let i=0;i<1220;i++) {
+      const x=r()*WIDTH, y=20+r()*700;
+      const band=Math.abs(y-(130+x*.155));
+      if(band>235 && r()>.30) continue;
+      const rad=r()>.965 ? 2.2 : .35+r()*1.15;
+      const alpha=.24+r()*.64;
+      p.fillStyle=r()>.80?'rgba(255,234,213,'+alpha+')':'rgba(210,227,255,'+alpha+')';
+      p.beginPath();p.arc(x,y,rad,0,TWO_PI);p.fill();
+    }
+    for(const [x,y,radius] of [[2620,175,27],[2760,342,15],[625,275,12]]) {
+      const glow=p.createRadialGradient(x,y,0,x,y,radius*5);
+      glow.addColorStop(0,'rgba(222,235,255,.28)');
+      glow.addColorStop(1,'rgba(222,235,255,0)');
+      p.fillStyle=glow;p.fillRect(x-radius*5,y-radius*5,radius*10,radius*10);
+    }
+    p.restore();
+    return layer;
+  }
+
+  function skyMotion(c, transform, now) {
+    const s=now/1000;
+    c.save();
+    c.translate(transform.x,transform.y);
+    c.scale(transform.width/WIDTH,transform.height/HEIGHT);
+    c.globalCompositeOperation='screen';
+    // All motion is confined to the upper sky, away from buildings and characters.
+    for(const star of sparkles) {
+      const alpha=(showingNight?.22:.045)+(showingNight?.55:.14)*Math.pow(.5+.5*Math.sin(s*star.speed+star.phase),4);
+      c.fillStyle='rgba(230,239,255,'+alpha+')';
+      c.beginPath();c.arc(star.x,star.y,star.r,0,TWO_PI);c.fill();
+    }
+    const cycle=showingNight?17:25;
+    const phase=(s+2)%cycle;
+    if(phase<1.18) {
+      const progress=phase/1.18, x=2660-progress*550, y=155+progress*235;
+      const opacity=Math.sin(Math.PI*progress)*(showingNight?.92:.56);
+      const trail=c.createLinearGradient(x-160,y-72,x,y);
+      trail.addColorStop(0,'rgba(211,216,255,0)');
+      trail.addColorStop(.75,'rgba(198,216,255,'+(opacity*.32)+')');
+      trail.addColorStop(1,'rgba(255,245,222,'+opacity+')');
+      c.strokeStyle=trail;c.lineWidth=2.4;c.lineCap='round';
+      c.beginPath();c.moveTo(x-160,y-72);c.lineTo(x,y);c.stroke();
+      c.fillStyle='rgba(255,247,229,'+opacity+')';
+      c.beginPath();c.arc(x,y,2.6,0,TWO_PI);c.fill();
+    }
+    c.restore();
+  }
+
+  const nightButton=document.createElement('button');
+  nightButton.type='button';nightButton.className='circle';
+  nightButton.title='노을과 별밤 전환';nightButton.setAttribute('aria-label','별밤 풍경으로 전환');
+  nightButton.style.cssText='font-size:18px;flex:0 0 37px;touch-action:manipulation';
+  nightButton.textContent='🌙';nightButton.setAttribute('aria-pressed','false');
+  const buttons=document.querySelector('.topright');
+  if(buttons)buttons.prepend(nightButton);
+  nightButton.addEventListener('click',()=>{
+    if(state.scene!=='campus')return;
+    if(!showingNight){
+      const source=backgrounds.campus;
+      if(!source){toast('풍경을 불러오는 중이야');return}
+      if(!cachedNight||cachedSource!==source){cachedNight=makeNight(source);cachedSource=source}
+      if(!cachedNight){toast('별밤을 표시할 수 없어');return}
+    }
+    showingNight=!showingNight;
+    nightButton.textContent=showingNight?'🌅':'🌙';
+    nightButton.setAttribute('aria-pressed',String(showingNight));
+    nightButton.setAttribute('aria-label',showingNight?'노을 풍경으로 전환':'별밤 풍경으로 전환');
+    toast(showingNight?'별빛이 머무는 밤':'노을이 머무는 산책길');
+  });
+
+  const previousDrawWorld=drawWorld;
+  drawWorld=function(c,width,height,scaleOverride=1,originOffset={x:0,y:0},animated=true,photo=false) {
+    const original=backgrounds.campus;
+    const replace=showingNight && state.scene==='campus' && cachedNight;
+    if(replace)backgrounds.campus=cachedNight;
+    try {
+      previousDrawWorld(c,width,height,scaleOverride,originOffset,animated,photo);
+    } finally {
+      if(replace)backgrounds.campus=original;
+    }
+    if(state.scene==='campus'){
+      c.save();
+      c.setTransform(scaleOverride,0,0,scaleOverride,originOffset.x,originOffset.y);
+      skyMotion(c,cameraTransform(photo),performance.now());
+      c.restore();
+    }
+  };
+  const reflectScene=()=>{nightButton.hidden=state.scene!=='campus'};
+  reflectScene();
+  const sceneCheck=setInterval(reflectScene,800);
+  window.addEventListener('pagehide',()=>clearInterval(sceneCheck),{once:true});
+})();
 </script></body></html>
