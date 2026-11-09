@@ -82,7 +82,10 @@ try{
   await mobile.screenshot({path:'artifacts/stargaze/mobile.png'});
   for(const target of [page,mobile]){
     const info=await target.evaluate(()=>window.__stargazeDebug.get());
-    if(info.staticLayers!==1)throw Error('Landscape was rebuilt during camera or photo changes');
+    if(info.staticLayers!==1||info.layerCount!==6)
+      throw Error('Expected six cached landscape planes built once: '+JSON.stringify(info));
+    if(info.buildMs>12000)
+      throw Error('Initial static scene generation too slow: '+info.buildMs+'ms');
     if(info.grains.animatedGrains>155)throw Error('Animated star budget exceeded');
     console.log('Cached landscape: '+Math.round(info.buildMs)+' ms; '+info.grains.animatedGrains+' animated stars');
   }
