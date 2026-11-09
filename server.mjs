@@ -16,6 +16,8 @@ const dbURL = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
 const dbKey = String(process.env.SUPABASE_ANON_KEY || '');
 const html = await readFile(join(ROOT, 'public', 'index.html'));
 const stargazeScript = await readFile(join(ROOT, 'public', 'stargaze.js'));
+const stellarGrainScript = await readFile(join(ROOT, 'public', 'stellar-grains.js'));
+
 let lastDbError = null;
 let dbWriteOk = false;
 
@@ -74,6 +76,15 @@ const server = createServer((req, res) => {
     });
     if (req.method === 'HEAD') res.end();
     else res.end(html);
+    return;
+  }
+  if (path === '/stellar-grains.js') {
+    res.writeHead(200, {
+      'Content-Type': 'text/javascript; charset=utf-8',
+      'Content-Length': stellarGrainScript.byteLength,
+      'Cache-Control': 'public, max-age=300'
+    });
+    res.end(req.method === 'HEAD' ? undefined : stellarGrainScript);
     return;
   }
   if (path === '/stargaze.js') {

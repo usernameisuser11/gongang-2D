@@ -28,6 +28,16 @@ try{
   await page.waitForFunction(()=>window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
   await page.waitForTimeout(400);
   if(!(await page.locator('#skyDock').isVisible()))throw Error('Sky controls not visible');
+  const grains=await page.evaluate(()=>window.__stargazeDebug?.get().grains);
+  if(!grains||grains.grainCount<20000||grains.textureSize!==128){
+    throw new Error('Original Quasar v129 128px grain profile was not loaded: '+JSON.stringify(grains));
+  }
+  const grainScript=await fetch(origin+'/stellar-grains.js');
+  if(!grainScript.ok||!(await grainScript.text()).includes('11.4')){
+    throw new Error('Native Stellar Explosion profile missing from public script');
+  }
+  console.log('Original Quasar texture and '+grains.grainCount+' star grains verified');
+
   if(await page.locator('[data-map="campus"]').count())throw Error('Retired autumn campus is still listed');
   const retired=await browser.newPage({viewport:{width:900,height:640}});
   await retired.goto(origin+'/?map=campus',{waitUntil:'domcontentloaded'});
