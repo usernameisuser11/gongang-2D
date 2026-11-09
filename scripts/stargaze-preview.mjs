@@ -27,6 +27,14 @@ try{
   await page.goto(origin+'/?map=stargaze',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
   await page.waitForTimeout(400);
+  await page.waitForFunction(()=>window.__stargazeDebug?.get().artReady && window.__stargazeDebug?.get().staticLayers===1,{timeout:25000});
+  const sceneHealth=await page.evaluate(()=>window.__stargazeDebug.get());
+  if(sceneHealth.artLayerCount!==5)throw Error('Expected five painted image layers: '+JSON.stringify(sceneHealth));
+  for(const name of ['sky','clouds','far','mid','meadow']){
+    const response=await fetch(origin+'/art/'+name+'.svg');
+    if(!response.ok || !response.headers.get('content-type')?.includes('image/svg+xml'))
+      throw Error('Missing painterly landscape asset '+name);
+  }
   if(!(await page.locator('#skyDock').isVisible()))throw Error('Sky controls not visible');
   const grains=await page.evaluate(()=>window.__stargazeDebug?.get().grains);
   if(!grains||grains.grainCount<20000||grains.textureSize!==128){
@@ -79,6 +87,7 @@ try{
   mobile.on('pageerror',e=>errors.push(String(e)));
   await mobile.goto(origin+'/?map=stargaze',{waitUntil:'domcontentloaded'});
   await mobile.waitForFunction(()=>window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
+  await mobile.waitForFunction(()=>window.__stargazeDebug?.get().artReady,{timeout:25000});
   await mobile.screenshot({path:'artifacts/stargaze/mobile.png'});
   for(const target of [page,mobile]){
     const info=await target.evaluate(()=>window.__stargazeDebug.get());
