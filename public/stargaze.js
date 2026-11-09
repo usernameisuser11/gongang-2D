@@ -138,16 +138,46 @@
   }
   function paintMountainDetail(c,baseY,amp,seed){
     const r=seeded(Math.round(seed*1731));
+    const far=seed===1.1,near=seed===5.4;
     c.save();
-    for(let i=0;i<410;i++){
-      const x=r()*WIDTH,top=ridgeY(x,baseY,amp,seed),y=top+5+r()*170;
-      if(y>HEIGHT)continue;
-      c.strokeStyle=i%4===0?'rgba(158,182,204,.042)':'rgba(8,35,64,.043)';
-      c.lineWidth=.5+r()*1.9;
-      c.beginPath();c.moveTo(x,y);
-      c.lineTo(x+(r()-.2)*28,y+12+r()*25);c.stroke();
+    // Every rock facet is clipped beneath the same irregular mountain crest.
+    c.beginPath();c.moveTo(0,HEIGHT);
+    for(let x=0;x<=WIDTH;x+=3)c.lineTo(x,ridgeY(x,baseY,amp,seed));
+    c.lineTo(WIDTH,HEIGHT);c.closePath();c.clip();
+    for(let i=0;i<(far?240:near?770:480);i++){
+      const x=r()*WIDTH,crest=ridgeY(x,baseY,amp,seed);
+      const depth=12+Math.pow(r(),.65)*(near?175:140);
+      const slope=(r()-.52)*(near?115:95),yy=crest+r()*46;
+      c.strokeStyle=i%3===0?'rgba(148,175,198,'+(far?.035:.07)+')':
+        'rgba(5,25,45,'+(far?.035:.055)+')';
+      c.lineWidth=.6+r()*(near?2.2:1.3);
+      c.beginPath();c.moveTo(x,yy);c.quadraticCurveTo(
+        x+slope*.30,yy+depth*.48,x+slope,yy+depth);
+      c.stroke();
+    }
+    // Broad uneven folds that read as landforms, not ruled stripes.
+    for(let i=0;i<(far?22:near?52:38);i++){
+      const x=r()*WIDTH,y=ridgeY(x,baseY,amp,seed)+15+r()*92;
+      const dx=(r()-.5)*220,depth=65+r()*155;
+      c.strokeStyle=i%2?'rgba(166,192,204,.045)':'rgba(7,25,48,.055)';
+      c.lineWidth=8+r()*25;c.beginPath();c.moveTo(x,y);
+      c.quadraticCurveTo(x+dx*.45,y+depth*.45,x+dx,y+depth);c.stroke();
     }
     c.restore();
+    if(near){
+      // Tiny spruce silhouettes along selected ridges add scale and break a
+      // featureless flat mountain edge; cached in the background.
+      const t=seeded(66112);
+      c.save();
+      for(let i=0;i<390;i++){
+        const x=t()*WIDTH,top=ridgeY(x,baseY,amp,seed);
+        const h=3+t()*12,w=.9+t()*2.8;
+        c.fillStyle=t()>.53?'rgba(16,44,62,.45)':'rgba(22,54,68,.42)';
+        c.beginPath();c.moveTo(x,top-h);c.lineTo(x-w,top+2);
+        c.lineTo(x+w,top+2);c.fill();
+      }
+      c.restore();
+    }
   }
   function paintAerialHaze(c,y,spread,color){
     const g=c.createLinearGradient(0,y-spread,0,y+spread);
@@ -190,17 +220,50 @@
       c.fillRect(x,y,size,size);
     }
   }
+  // Mountain profiles are hand-composed nonperiodic summit/saddle lines.
+  // No repeated sine-wave ridges: far peaks, asymmetrical faces, fractured
+  // crests and valleys remain coherent in every atmospheric depth layer.
+  const mountainAnchors={
+    '1.1':[[0,.22],[.08,-.20],[.19,-.55],[.265,-1.39],[.315,-.70],[.375,-.08],
+           [.47,-.19],[.55,-.84],[.645,-1.69],[.71,-.76],[.79,-.18],
+           [.875,-.49],[.95,-1.04],[1,-.73]],
+    '2.7':[[0,-.38],[.07,-.12],[.155,-.72],[.232,-1.22],[.29,-.45],[.38,.12],
+           [.47,-.50],[.535,-1.43],[.61,-.91],[.69,-.25],[.76,-.84],
+           [.83,-1.55],[.92,-.60],[1,-.17]],
+    '5.4':[[0,-.20],[.11,-.40],[.21,-.92],[.30,-.39],[.41,-.16],
+           [.52,-1.19],[.58,-.78],[.675,-.31],[.735,-.72],
+           [.81,-.21],[.89,-1.08],[.955,-.57],[1,-.40]]
+  };
+  function mountainHash(i,seed){
+    let n=Math.imul(i+Math.floor(seed*1907),374761393);
+    n=Math.imul(n^(n>>>13),1274126177);
+    return ((n^(n>>>16))>>>0)/4294967295;
+  }
+  function mountainNoise(p,frequency,seed){
+    const pos=p*frequency,cell=Math.floor(pos),f=pos-cell;
+    const eased=f*f*(3-2*f);
+    return mountainHash(cell,seed)*(1-eased)+mountainHash(cell+1,seed)*eased-.5;
+  }
   function ridgeY(x,baseY,amp,seed){
-    const p=x/WIDTH;
-    return baseY - amp*(.29*Math.sin(p*6.5+seed)+.25*Math.sin(p*13.6-seed*2)
-      +.20*Math.sin(p*29.7+seed*2)+.13*Math.sin(p*71.+seed)
-      +.08*Math.sin(p*137.+seed*7)+.05*Math.sin(p*237.-seed*3));
+    const t=clamp(x/WIDTH,0,1);
+    const anchors=mountainAnchors[String(seed)]||mountainAnchors['1.1'];
+    let lo=0;
+    while(lo+1<anchors.length-1 && t>anchors[lo+1][0])lo++;
+    const left=anchors[lo],right=anchors[lo+1];
+    const u=clamp((t-left[0])/(right[0]-left[0]),0,1);
+    const main=left[1]+(right[1]-left[1])*u;
+    const detail=mountainNoise(t,22,seed)*.22+
+      mountainNoise(t,57,seed+2)*.065+
+      mountainNoise(t,157,seed+3)*.024+
+      mountainNoise(t,349,seed+4)*.008;
+    const summitRoughness=.52+.48*Math.min(1,Math.abs(main)*.75);
+    return baseY+amp*(main+detail*summitRoughness);
   }
   function paintRidge(c,baseY,amp,top,bottom,seed){
     c.save();c.beginPath();c.moveTo(0,HEIGHT);
-    for(let x=0;x<=WIDTH;x+=9)c.lineTo(x,ridgeY(x,baseY,amp,seed));
+    for(let x=0;x<=WIDTH;x+=2)c.lineTo(x,ridgeY(x,baseY,amp,seed));
     c.lineTo(WIDTH,HEIGHT);c.closePath();
-    const gradient=c.createLinearGradient(0,baseY-amp*2,0,HEIGHT);
+    const gradient=c.createLinearGradient(0,baseY-amp*1.5,0,HEIGHT);
     gradient.addColorStop(0,top);gradient.addColorStop(1,bottom);
     c.fillStyle=gradient;c.fill();c.restore();
   }
@@ -305,7 +368,7 @@
     c.closePath();c.fillStyle=g;c.fill();c.restore();
     const r=seeded(618);
     for(let i=0;i<360;i++){
-      const x=r()*WIDTH, ridge=ridgeY(x,850,46,5.4);
+      const x=r()*WIDTH, ridge=ridgeY(x,901,103,5.4);
       const y=ridge-9+r()*75;
       if(y>meadowY(x)-35)continue;
       const a=.15+.60*r()**2;
@@ -322,29 +385,31 @@
     c.fillStyle=g;c.fillRect(0,0,WIDTH,HEIGHT);
     glow(c,670,820,500,'rgba(247,154,157,.16)','rgba(231,121,168,0)');
     paintNebula(c);
-    paintMilkyWay(c);
-    // Dense starfield with a restrained glow; richer than white dots alone.
-    const r=seeded(71526);
+    if(window.StellarGrains)window.StellarGrains.paint(c,WIDTH,HEIGHT);
+    else paintMilkyWay(c);
     stars=[];
-    for(let i=0;i<2200;i++){
-      const x=r()*WIDTH,y=r()*800,s=.25+r()**5*1.7,a=.14+r()*.8;
-      c.fillStyle='rgba(217,232,255,'+a.toFixed(3)+')';
-      c.fillRect(x,y,s,s);
-      if(i%29===0){glow(c,x,y,7,'rgba(186,213,255,.18)','rgba(186,213,255,0)')}
-      if(i%31===0)stars.push({x,y,r:.6+r()*1.6,phase:r()*TAU});
+    if(!window.StellarGrains){
+      const r=seeded(71526);
+      for(let i=0;i<2200;i++){
+        const x=r()*WIDTH,y=r()*800,sz=.25+r()**5*1.7,a=.14+r()*.8;
+        c.fillStyle='rgba(217,232,255,'+a.toFixed(3)+')';
+        c.fillRect(x,y,sz,sz);
+        if(i%29===0)glow(c,x,y,7,'rgba(186,213,255,.18)','rgba(186,213,255,0)');
+        if(i%31===0)stars.push({x,y,r:.6+r()*1.6,phase:r()*TAU});
+      }
     }
     paintCirrus(c);
     paintClouds(c);
     // A warm, almost extinguished afterglow beneath the distant cloud bank.
     glow(c,530,725,430,'rgba(237,153,190,.13)','rgba(233,127,192,0)',.65);
-    paintRidge(c,725,48,'#5576a1','#35587f',1.1);
-    paintMountainDetail(c,725,48,1.1);
-    paintAerialHaze(c,756,58,'rgba(155,178,214,.080)');
-    paintRidge(c,779,62,'#345f85','#1d456c',2.7);
-    paintMountainDetail(c,779,62,2.7);
-    paintAerialHaze(c,820,51,'rgba(160,190,216,.075)');
-    paintRidge(c,839,59,'#204b64','#173a55',5.4);
-    paintMountainDetail(c,839,59,5.4);
+    paintRidge(c,756,122,'#66829d','#365574',1.1);
+    paintMountainDetail(c,756,122,1.1);
+    paintAerialHaze(c,781,57,'rgba(155,178,214,.089)');
+    paintRidge(c,828,118,'#3d6585','#173f61',2.7);
+    paintMountainDetail(c,828,118,2.7);
+    paintAerialHaze(c,855,48,'rgba(160,190,216,.068)');
+    paintRidge(c,901,103,'#23536b','#12394e',5.4);
+    paintMountainDetail(c,901,103,5.4);
     paintValley(c);
     paintMeadow(c);
     paintFramingTree(c);
@@ -394,7 +459,8 @@
       const r=seeded(naturalWindow+474);
       drawMeteor(c,naturalTime,.13+r()*.61,.10+r()*.27,.85,'#ccdcff');
     }
-    for(const st of stars){
+    if(window.StellarGrains)window.StellarGrains.animate(c,now);
+    else for(const st of stars){
       const lum=.10+.48*(.5+.5*Math.sin(now*.0016+st.phase));
       c.fillStyle='rgba(236,240,255,'+lum.toFixed(3)+')';
       c.beginPath();c.arc(st.x,st.y,st.r,0,TAU);c.fill();
@@ -514,7 +580,7 @@
     buttonBar.querySelectorAll('[data-sky-event]').forEach(b=>b.addEventListener('click',()=>sendEvent(b.dataset.skyEvent)));
     setInterval(showControls,750);
     showControls();
-    window.__stargazeDebug={get:()=>({scene:state.scene,view,event,rendered:metrics.rendered,staticLayers:metrics.staticLayers}),setView:(v)=>{view=v==='personal'?'personal':'wide';showControls()}};
+    window.__stargazeDebug={get:()=>({scene:state.scene,view,event,rendered:metrics.rendered,staticLayers:metrics.staticLayers,grains:window.StellarGrains?.getDebug()}),setView:(v)=>{view=v==='personal'?'personal':'wide';showControls()}};
   }
   window.GongangStargaze={
     drawBackground,drawTraveler,receiveEvent,
