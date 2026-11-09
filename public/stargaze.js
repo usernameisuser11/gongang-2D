@@ -156,6 +156,16 @@
       c.stroke();
     }
     // Broad straight folds removed: they read as artificial ruled lines.
+    // Granular rock-and-forest tones: irregular, subtle, and fully clipped.
+    for(let i=0;i<(far?750:near?2350:1550);i++){
+      const x=r()*WIDTH,top=ridgeY(x,baseY,amp,seed),depth=8+r()*210;
+      const y=top+depth;
+      if(y>=HEIGHT)continue;
+      const spread=far?.9:near?2.9:1.8;
+      c.fillStyle=i%4===0?'rgba(160,184,198,.060)':
+        i%3===0?'rgba(65,103,128,.10)':'rgba(15,39,61,.095)';
+      c.beginPath();c.ellipse(x,y,spread*(.3+r()),.5+r()*2.8,r()*.5,0,TAU);c.fill();
+    }
     c.restore();
     if(near){
       // Tiny spruce silhouettes along selected ridges add scale and break a
@@ -254,10 +264,10 @@
     const u2=u*u,u3=u2*u,span=right[0]-left[0];
     const main=(2*u3-3*u2+1)*left[1]+(u3-2*u2+u)*span*m0+
       (-2*u3+3*u2)*right[1]+(u3-u2)*span*m1;
-    const detail=mountainNoise(t,22,seed)*.16+
-      mountainNoise(t,57,seed+2)*.065+
-      mountainNoise(t,157,seed+3)*.024+
-      mountainNoise(t,349,seed+4)*.008;
+    const detail=mountainNoise(t,22,seed)*.30+
+      mountainNoise(t,57,seed+2)*.14+
+      mountainNoise(t,157,seed+3)*.06+
+      mountainNoise(t,349,seed+4)*.018;
     const summitRoughness=.52+.48*Math.min(1,Math.abs(main)*.75);
     return baseY+amp*(main+detail*summitRoughness);
   }
