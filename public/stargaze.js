@@ -394,12 +394,117 @@
       c.fillRect(x,y,.6+r()*2.1,.6+r()*1.5);
     }
   }
+
+  // Fog hangs inside the valley rather than looking like a translucent
+  // rectangle on top of the scene. Everything here is painted only once.
+  function paintValleyMist(c,near=false){
+    const r=seeded(near?936271:752144);
+    const y=near?864:796;
+    const hues=near
+      ? ['157,190,201','139,167,200','199,187,209']
+      : ['165,180,211','150,171,207','205,177,209'];
+    c.save();
+    for(let i=0;i<(near?46:37);i++){
+      const x=-145+r()*2220;
+      const cy=y+(r()-.5)*(near?73:57);
+      const rx=95+r()*(near?205:280);
+      const ry=12+r()*(near?36:44);
+      c.save();c.translate(x,cy);c.scale(1,ry/rx);
+      const shade=hues[Math.floor(r()*hues.length)];
+      const g=c.createRadialGradient(0,0,0,0,0,rx);
+      g.addColorStop(0,'rgba('+shade+','+(near?.055:.042)+')');
+      g.addColorStop(.53,'rgba('+shade+','+(near?.039:.032)+')');
+      g.addColorStop(1,'rgba('+shade+',0)');
+      c.fillStyle=g;c.fillRect(-rx,-rx,rx*2,rx*2);
+      c.restore();
+    }
+    const glowBand=c.createLinearGradient(0,y-62,0,y+86);
+    glowBand.addColorStop(0,'rgba(161,182,218,0)');
+    glowBand.addColorStop(.52,near?'rgba(170,183,206,.043)':'rgba(179,185,214,.033)');
+    glowBand.addColorStop(1,'rgba(123,166,195,0)');
+    c.fillStyle=glowBand;c.fillRect(0,y-62,WIDTH,148);
+    c.restore();
+  }
+  // A small number of moonlit resting clearings, still entirely natural.
+  function paintRestingMeadow(c){
+    const r=seeded(408112);
+    const places=[
+      [410,64,135],[855,57,190],[1305,56,150],[1680,46,105]
+    ];
+    for(const [x,down,w] of places){
+      const y=meadowY(x)+down;
+      c.save();c.translate(x,y);c.scale(1,.22);
+      const g=c.createRadialGradient(0,0,2,0,0,w);
+      g.addColorStop(0,'rgba(190,210,171,.16)');
+      g.addColorStop(.40,'rgba(137,187,166,.095)');
+      g.addColorStop(.80,'rgba(90,145,144,.032)');
+      g.addColorStop(1,'rgba(90,145,144,0)');
+      c.fillStyle=g;c.fillRect(-w,-w,w*2,w*2);c.restore();
+      // Irregular clumps break up the oval without drawing man-made pads.
+      for(let k=0;k<68;k++){
+        const xx=x+(r()-.5)*w*1.9,yy=y+(r()-.5)*34;
+        const h=2+r()*9;
+        c.strokeStyle=r()>.5?'rgba(193,213,162,.18)':'rgba(112,175,157,.14)';
+        c.lineWidth=.6+r()*.6;
+        c.beginPath();c.moveTo(xx,yy);
+        c.quadraticCurveTo(xx-2,yy-h*.6,xx+(r()-.5)*5,yy-h);c.stroke();
+      }
+    }
+  }
+  function paintNearSilhouettes(c){
+    const r=seeded(428971),horizon=HEIGHT-22;
+    // Free-form dark foliage frames only the outer corners, never the
+    // travellers' central viewing area or the Milky Way.
+    const zones=[
+      {x:-70,y:1040,rx:250,ry:104},
+      {x:WIDTH+70,y:1035,rx:220,ry:116}
+    ];
+    for(const z of zones){
+      for(let i=0;i<240;i++){
+        const angle=r()*TAU,amount=Math.sqrt(r());
+        const x=z.x+Math.cos(angle)*z.rx*amount;
+        const y=z.y+Math.sin(angle)*z.ry*amount;
+        const a=.12+r()*.25;
+        c.fillStyle=i%4===0?'rgba(18,41,52,'+a.toFixed(3)+')':
+          'rgba(11,35,47,'+a.toFixed(3)+')';
+        c.beginPath();c.ellipse(x,y,5+r()*25,2+r()*9,angle*.14,0,TAU);c.fill();
+      }
+    }
+    for(let i=0;i<300;i++){
+      const side=i%2===0;
+      const x=side?1+r()*340:WIDTH-1-r()*310;
+      const y=horizon+(r()-.5)*125;
+      const ht=9+r()*48,lean=(r()-.5)*24+(side?8:-8);
+      const a=.15+r()*.43;
+      c.strokeStyle=i%5===0?'rgba(111,151,137,'+(a*.50).toFixed(3)+')':
+        'rgba(17,48,58,'+a.toFixed(3)+')';
+      c.lineWidth=.7+r()*2.4;
+      c.beginPath();c.moveTo(x,y);
+      c.quadraticCurveTo(x+lean*.16,y-ht*.65,x+lean,y-ht);
+      c.stroke();
+      if(i%12===0){
+        c.fillStyle='rgba(198,198,181,'+(.13+r()*.19).toFixed(3)+')';
+        c.beginPath();c.ellipse(x+lean,y-ht,1+r()*3,1+r()*3.8,.2,0,TAU);c.fill();
+      }
+    }
+    // Rare pointed leaves and stems at the very bottom create a lens-like
+    // foreground edge without the chunky triangles used in older versions.
+    for(let i=0;i<45;i++){
+      const x=r()*WIDTH,y=HEIGHT+8,ht=4+r()*31,lean=(r()-.5)*16;
+      c.fillStyle='rgba(11,37,45,'+(.20+r()*.31).toFixed(3)+')';
+      c.beginPath();c.moveTo(x-2,y);c.quadraticCurveTo(x+lean,y-ht*.64,x+lean,y-ht);
+      c.quadraticCurveTo(x+lean+4,y-ht*.50,x+5,y);c.closePath();c.fill();
+    }
+  }
+
   // The painterly landscape is baked as independently composed canvases.
   // Starfield and mountains are never regenerated on camera or photo changes.
-  function scenicCanvas(paint,opaque=false){
+  function scenicCanvas(paint,opaque=false,scale=1){
     const image=document.createElement('canvas');
-    image.width=WIDTH;image.height=HEIGHT;
+    image.width=Math.round(WIDTH*scale);
+    image.height=Math.round(HEIGHT*scale);
     const c=image.getContext('2d',{alpha:!opaque});
+    if(scale!==1)c.scale(scale,scale);
     paint(c);return image;
   }
   function build(){
@@ -435,11 +540,13 @@
       paintMountainDetail(c,756,101,1.1);
       paintAerialHaze(c,781,57,'rgba(155,178,214,.089)');
     });
+    const mistFar=scenicCanvas(c=>paintValleyMist(c,false),false,.5);
     const middle=scenicCanvas(c=>{
       paintRidge(c,828,106,'#3d6585','#173f61',2.7);
       paintMountainDetail(c,828,106,2.7);
       paintAerialHaze(c,855,48,'rgba(160,190,216,.068)');
     });
+    const mistNear=scenicCanvas(c=>paintValleyMist(c,true),false,.5);
     const near=scenicCanvas(c=>{
       paintRidge(c,901,90,'#23536b','#12394e',5.4);
       paintMountainDetail(c,901,90,5.4);
@@ -447,12 +554,16 @@
     });
     const foreground=scenicCanvas(c=>{
       paintMeadow(c);
+      paintRestingMeadow(c);
       paintFramingTree(c);
     });
-    scenicLayers={sky,clouds,distant,middle,near,foreground};
+    const silhouettes=scenicCanvas(c=>paintNearSilhouettes(c),false,.5);
+    scenicLayers={sky,clouds,distant,mistFar,middle,mistNear,near,foreground,silhouettes};
     base=sky;
     metrics.staticLayers++;
-    metrics.layerCount=6;
+    metrics.layerCount=9;
+    metrics.cachedMegabytes=Object.values(scenicLayers).reduce((bytes,img)=>
+      bytes+img.width*img.height*4,0)/(1024*1024);
     metrics.buildMs=performance.now()-started;
     return sky;
   }
@@ -540,19 +651,24 @@
   function drawBackground(c,t,now,personal=false){
     if(!scenicLayers)build();
     const viewT=makeTransform(t,personal);
-    const {sky,clouds,distant,middle,near,foreground}=scenicLayers;
+    const {sky,clouds,distant,mistFar,middle,mistNear,near,foreground,silhouettes}=scenicLayers;
     const relative=clamp((state.x-1600)/1600,-1,1);
     const subtle=personal?.32:1;
     paintParallaxLayer(c,sky,viewT,0);
-    // Slow optical movement is deliberately confined to the cloud layer.
     const cloudDrift=Math.sin(now*.000034)*viewT.width*.007;
-    paintParallaxLayer(c,clouds,viewT,cloudDrift, .012);
+    paintParallaxLayer(c,clouds,viewT,cloudDrift,.012);
+    // Stars and synchronized sky events belong behind the mountains and
+    // foreground, not above every object in the scene.
+    drawSkyEffects(c,viewT,now);
     paintParallaxLayer(c,distant,viewT,relative*viewT.width*.003*subtle,.006);
+    const farDrift=Math.sin(now*.000014)*viewT.width*.012;
+    const nearDrift=Math.sin(now*.000018+1.8)*viewT.width*.015;
+    paintParallaxLayer(c,mistFar,viewT,farDrift,.017);
     paintParallaxLayer(c,middle,viewT,relative*viewT.width*.008*subtle,.014);
+    paintParallaxLayer(c,mistNear,viewT,nearDrift,.02);
     paintParallaxLayer(c,near,viewT,relative*viewT.width*.013*subtle,.023);
     paintParallaxLayer(c,foreground,viewT,relative*viewT.width*.02*subtle,.032);
-    // The user-selected meteor and fireworks timeline remains server shared.
-    drawSkyEffects(c,viewT,now);
+    paintParallaxLayer(c,silhouettes,viewT,relative*viewT.width*.025*subtle,.04);
     metrics.rendered++;
     if(!personal){
       for(let i=0;i<19;i++){
@@ -636,7 +752,7 @@
     buttonBar.querySelectorAll('[data-sky-event]').forEach(b=>b.addEventListener('click',()=>sendEvent(b.dataset.skyEvent)));
     setInterval(showControls,750);
     showControls();
-    window.__stargazeDebug={get:()=>({scene:state.scene,view,event,rendered:metrics.rendered,staticLayers:metrics.staticLayers,buildMs:metrics.buildMs,layerCount:metrics.layerCount||0,grains:window.StellarGrains?.getDebug()}),setView:(v)=>{view=v==='personal'?'personal':'wide';showControls()}};
+    window.__stargazeDebug={get:()=>({scene:state.scene,view,event,rendered:metrics.rendered,staticLayers:metrics.staticLayers,buildMs:metrics.buildMs,layerCount:metrics.layerCount||0,cachedMegabytes:metrics.cachedMegabytes||0,grains:window.StellarGrains?.getDebug()}),setView:(v)=>{view=v==='personal'?'personal':'wide';showControls()}};
   }
   window.GongangStargaze={
     drawBackground,drawTraveler,receiveEvent,
