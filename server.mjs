@@ -19,6 +19,7 @@ const stargazeScript = await readFile(join(ROOT, 'public', 'stargaze.js'));
 const stellarGrainScript = await readFile(join(ROOT, 'public', 'stellar-grains.js'));
 const painterlyScript = await readFile(join(ROOT, 'public', 'scenic-art.js'));
 const natureMotionScript = await readFile(join(ROOT, 'public', 'nature-motion.js'));
+const foliageAtlas = await readFile(join(ROOT, 'public', 'assets', 'foliage-atlas.svg'));
 const artFileNames = [
   'scenic_overlook.webp', 'scenic_overlook_mobile.webp',
   'mountain_depth.webp', 'meadow_foreground.webp', 'mist_high.webp', 'mist_low.webp'
@@ -85,6 +86,16 @@ const server = createServer((req, res) => {
     });
     if (req.method === 'HEAD') res.end();
     else res.end(html);
+    return;
+  }
+  if (path === '/assets/foliage-atlas.svg') {
+    res.writeHead(200, {
+      'Content-Type': 'image/svg+xml; charset=utf-8',
+      'Content-Length': foliageAtlas.byteLength,
+      'Cache-Control': 'public, max-age=86400',
+      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+    });
+    res.end(req.method === 'HEAD' ? undefined : foliageAtlas);
     return;
   }
   if (path === '/nature-motion.js') {
