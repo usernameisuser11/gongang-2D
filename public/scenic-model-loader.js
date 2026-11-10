@@ -2,6 +2,7 @@
  * The asset stays editable in Blender; Three.js handles the GPU rendering.
  * Uses the project's existing /vendor/three.module.js instance; no CDN.
  */
+import { applyRockStrata } from '/rock-materials-3d.js';
 const ASSET = '/assets/models/moonlit-lookout.obj';
 const MATERIALS = '/assets/models/moonlit-lookout.mtl';
 
@@ -162,6 +163,7 @@ async function readLocalMesh(THREE, baseName) {
  */
 export async function loadValleyTerrain(THREE, scene) {
   const mountainGroup = await readLocalMesh(THREE, 'alpine-valley');
+  applyRockStrata(THREE, mountainGroup);
   for (const part of mountainGroup.children) {
     part.material.roughness = 1;
     part.material.metalness = 0;
