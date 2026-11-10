@@ -17,24 +17,77 @@ function texture(draw,w=512,h=256){
 function sky(){
  const t=texture((c,w,h)=>{
    const g=c.createLinearGradient(0,0,0,h);
-   [[0,'#060a1c'],[.24,'#111a38'],[.55,'#273056'],[.8,'#634c73'],[1,'#a46e85']].forEach(([p,v])=>g.addColorStop(p,v));
+   [[0,'#030a1b'],[.22,'#08172f'],[.46,'#132749'],
+     [.68,'#3c4168'],[.85,'#775875'],[1,'#9e6f79']].forEach(([p,v])=>g.addColorStop(p,v));
    c.fillStyle=g;c.fillRect(0,0,w,h);
-   const halo=c.createRadialGradient(w*.7,h*.31,0,w*.7,h*.31,w*.25);
-   halo.addColorStop(0,'rgba(254,221,176,.32)');halo.addColorStop(1,'rgba(179,156,218,0)');
-   c.fillStyle=halo;c.fillRect(0,0,w,h);
+   // One-time painted stardust and diffuse galactic clouds: the sky is not a flat color.
+   const rand=(()=>{let seed=92483;return()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296)})();
+   c.save();c.globalCompositeOperation='screen';
+   for(let i=0;i<115;i++){
+     const y=rand()*h*.87,bandX=w*(.61-.40*y/h)+Math.sin(y*.016)*29;
+     const x=bandX+(rand()+rand()+rand()-1.5)*w*.15;
+     const r=15+rand()*92;
+     const nebula=c.createRadialGradient(x,y,0,x,y,r);
+     const tint=i%3===0?'187,152,218':i%3===1?'87,156,226':'185,135,193';
+     nebula.addColorStop(0,'rgba('+tint+',.038)');
+     nebula.addColorStop(1,'rgba('+tint+',0)');
+     c.fillStyle=nebula;c.fillRect(x-r,y-r,r*2,r*2);
+   }
+   for(let i=0;i<12000;i++){
+     const y=rand()*h,mid=w*(.61-.40*y/h)+Math.sin(y*.016)*29;
+     const x=mid+(rand()+rand()+rand()-1.5)*w*.27;
+     if(x<0||x>=w)continue;
+     const strength=.08+.53*Math.pow(rand(),2.6),size=.25+rand()**3*1.3;
+     c.fillStyle=i%7===0?'rgba(255,220,211,'+strength+')':
+       'rgba(206,229,255,'+strength+')';
+     c.fillRect(x,y,size,size);
+   }
+   c.restore();
+   // A soft veil near the distant ridges leaves the center of the sky dark.
+   const horizon=c.createLinearGradient(0,h*.60,0,h);
+   horizon.addColorStop(0,'rgba(167,125,174,0)');
+   horizon.addColorStop(1,'rgba(190,142,158,.18)');
+   c.fillStyle=horizon;c.fillRect(0,h*.6,w,h*.4);
  },1024,512);
- const plane=new THREE.Mesh(new THREE.PlaneGeometry(380,160),new THREE.MeshBasicMaterial({map:t,fog:false,depthWrite:false}));
- plane.position.set(0,18,-165);scene.add(plane);
+ const plane=new THREE.Mesh(new THREE.PlaneGeometry(116,64),
+   new THREE.MeshBasicMaterial({map:t,fog:false,depthWrite:false,depthTest:false}));
+ plane.position.set(0,-12,-165);plane.renderOrder=-8;scene.add(plane);
  const halo=texture((c,w,h)=>{
-  const g=c.createRadialGradient(w/2,h/2,1,w/2,h/2,w/2);
-  g.addColorStop(0,'rgba(255,247,226,1)');g.addColorStop(.09,'rgba(255,222,190,.9)');
-  g.addColorStop(.24,'rgba(255,212,192,.25)');g.addColorStop(1,'rgba(255,185,225,0)');
+  const g=c.createRadialGradient(w/2,h/2,2,w/2,h/2,w/2);
+  g.addColorStop(0,'rgba(255,246,220,.74)');
+  g.addColorStop(.06,'rgba(255,236,209,.52)');
+  g.addColorStop(.22,'rgba(234,193,211,.17)');
+  g.addColorStop(1,'rgba(213,180,255,0)');
   c.fillStyle=g;c.fillRect(0,0,w,h);
  },256,256);
- const moon=new THREE.Sprite(new THREE.SpriteMaterial({map:halo,transparent:true,depthWrite:false,fog:false,blending:THREE.AdditiveBlending}));
- moon.position.set(12,-3,-153);moon.scale.set(12,12,1);scene.add(moon);
+ const moonGlow=new THREE.Sprite(new THREE.SpriteMaterial({
+   map:halo,transparent:true,depthWrite:false,depthTest:false,
+   blending:THREE.AdditiveBlending,fog:false}));
+ moonGlow.position.set(9,-1,-150);moonGlow.scale.set(12,12,1);
+ moonGlow.renderOrder=1;scene.add(moonGlow);
+ const disc=texture((c,w,h)=>{
+   const g=c.createRadialGradient(w*.41,h*.36,0,w/2,h/2,w*.44);
+   g.addColorStop(0,'rgba(255,252,231,1)');
+   g.addColorStop(.55,'rgba(249,237,215,1)');
+   g.addColorStop(.90,'rgba(232,219,217,.96)');
+   g.addColorStop(1,'rgba(232,219,217,0)');
+   c.fillStyle=g;c.beginPath();c.arc(w/2,h/2,w*.44,0,TAU);c.fill();
+   const random=(()=>{let seed=821;return()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296)})();
+   for(let i=0;i<21;i++){
+     const x=w*(.24+random()*.52),y=h*(.24+random()*.52),radius=2+random()*6;
+     c.fillStyle='rgba(139,154,166,.055)';
+     c.beginPath();c.arc(x,y,radius,0,TAU);c.fill();
+   }
+ },128,128);
+ const moon=new THREE.Sprite(new THREE.SpriteMaterial({
+   map:disc,transparent:true,depthWrite:false,depthTest:false,fog:false}));
+ moon.position.set(9,-1,-149);moon.scale.set(1.36,1.36,1);
+ moon.renderOrder=2;scene.add(moon);
  const xyz=[],phase=[];
- for(let i=0;i<2000;i++){xyz.push((rng()-.5)*108,-9+rng()*28,-139-rng()*3);phase.push(rng()*TAU)}
+ for(let i=0;i<2400;i++){
+   xyz.push((rng()-.5)*112,-16+rng()*33,-139-rng()*3);
+   phase.push(rng()*TAU);
+ }
  const geo=new THREE.BufferGeometry();
  geo.setAttribute('position',new THREE.Float32BufferAttribute(xyz,3));
  geo.setAttribute('aPhase',new THREE.Float32BufferAttribute(phase,1));
@@ -42,7 +95,7 @@ function sky(){
   transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
   uniforms:{uTime:{value:0},uDensity:{value:1}},
   vertexShader:`attribute float aPhase;varying float vPhase;uniform float uDensity;
-    void main(){vPhase=aPhase;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);gl_PointSize=3.0*uDensity;}`,
+    void main(){vPhase=aPhase;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);gl_PointSize=2.8*uDensity;}`,
   fragmentShader:`precision mediump float;uniform float uTime;varying float vPhase;
     void main(){float r=length(gl_PointCoord-.5);
       gl_FragColor=vec4(.85,.93,1.,pow(max(0.,1.-r*2.),2.4)*(.60+.40*sin(uTime*.9+vPhase)));}`
@@ -209,7 +262,7 @@ function forest(){
  const count=330,mesh=new THREE.InstancedMesh(g,mat,count),obj=new THREE.Object3D();
  const colA=new THREE.Color('#9abbb0'),colB=new THREE.Color('#56848a');
  for(let i=0;i<count;i++){
-  const x=-102+rng()*204,crest=-1.6+ridge(x,45)*1.15,h=.95+rng()*3.3;
+  const x=-102+rng()*204,crest=-4.1+ridge(x,45)*1.15,h=.95+rng()*3.3;
   obj.position.set(x,crest-.25-Math.pow(rng(),1.4)*2.2,-55+rng()*7);
   obj.rotation.set(0,(rng()-.5)*.4,0);obj.scale.set(h*(.33+rng()*.13),h,1);
   obj.updateMatrix();mesh.setMatrixAt(i,obj.matrix);
@@ -283,10 +336,10 @@ function init(){
   scene.add(new THREE.HemisphereLight('#ddd9ef','#26403d',2.3));
   const key=new THREE.DirectionalLight('#c5d4ff',1.6);key.position.set(-8,26,9);scene.add(key);
   sky();
-  mountain(-116,-.3,12,'#aaa1c6','#48537b');
-  mountain(-94,1.0,37,'#7189b4','#294b69');
-  mountain(-73,.1,81,'#3f7082','#173d50');
-  mountain(-56,-1.6,45,'#305e69','#0c2938');
+  mountain(-116,-2.4,12,'#7c8cb1','#394968');
+  mountain(-94,-.9,37,'#617f9f','#264863');
+  mountain(-73,-1.7,81,'#376d7c','#14394a');
+  mountain(-56,-4.1,45,'#326772','#0b2938');
   water();land(-1);land(1);foreground();cloudField();plants();forest();
   state.ready=true;
  }catch(e){state.failed=true;state.error=String(e?.message||e);console.warn('Diorama fallback',e);}
