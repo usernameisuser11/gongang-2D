@@ -431,6 +431,10 @@ function draw(ctx,t,now,{personal=false}={}){
   state.lastWind=Math.sin(sec*.86);
   waterClock.value=sec;windClock.value=sec;
   stars.material.uniforms.uTime.value=sec;
+  if(moonSprite){
+    const uv=moonSprite.position.clone().project(camera);
+    state.moonUV={x:(uv.x+1)*.5,y:(1-uv.y)*.5};
+  }
   for(const c of clouds)c.position.x=c.userData.x+Math.sin(sec*c.userData.speed*.04+c.userData.phase)*5.3;
   renderer.render(scene,camera);
   ctx.drawImage(renderer.domElement,t.x,t.y,t.width,t.height);
