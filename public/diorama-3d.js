@@ -1,10 +1,10 @@
 /* Gongang: fixed-camera living 3D diorama. Fallback: existing painterly Canvas2D. */
 import * as THREE from '/vendor/three.module.js';
-import { loadLookoutModel } from '/scenic-model-loader.js';
+import { loadLookoutModel, loadValleyTerrain, loadAlpineGrove } from '/scenic-model-loader.js';
 const TAU=Math.PI*2,worldH=29;
-const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false,modelLoaded:false,modelParts:0,modelError:null};
+const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false,modelLoaded:false,modelParts:0,modelError:null,terrainLoaded:false,terrainParts:0,terrainError:null,groveLoaded:false,pineCount:0,groveError:null};
 const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
-let renderer,scene,camera,waterClock,windClock,stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null;
+let renderer,scene,camera,waterClock,windClock,stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null,legacyMountains=[],legacyForest=null;
 const rng=(()=>{let s=20261110;return()=>((s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296)})();
 const lerp=(a,b,t)=>a+(b-a)*t,smooth=t=>t*t*(3-2*t);
 const hash=n=>{n=Math.imul(n^(n>>>15),2246822519);n=Math.imul(n^(n>>>13),3266489917);return ((n^(n>>>16))>>>0)/4294967295};
@@ -183,7 +183,8 @@ function mountain(z,base,seed,top,bottom){
  g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
  g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));g.setIndex(indices);
  if(!rockPattern)rockPattern=mountainTexture();
- scene.add(new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:rockPattern,vertexColors:true,side:THREE.DoubleSide,fog:false})));
+ const oldMountain=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:rockPattern,vertexColors:true,side:THREE.DoubleSide,fog:false}));
+  scene.add(oldMountain);legacyMountains.push(oldMountain);
 }
 function water(){
  waterClock={value:0};
@@ -342,7 +343,7 @@ function forest(){
   mesh.setColorAt(i,colA.clone().lerp(colB,rng()*.8));
  }
  mesh.instanceMatrix.needsUpdate=true;mesh.frustumCulled=false;
- scene.add(mesh);state.trees=count;
+ scene.add(mesh);legacyForest=mesh;state.trees=count;
 }
 
 /* Actual 3D foreground tree trunks and wind-reactive layered canopy cards.
@@ -525,6 +526,21 @@ function init(){
      state.modelError=String(error?.message||error);
      console.warn('Gongang scenic model unavailable, original landscape retained:',error);
    });
+  // The old ridge panels remain visible until the real 3D terrain is loaded.
+  loadValleyTerrain(THREE,scene).then(group=>{
+    legacyMountains.forEach(mesh=>{mesh.visible=false;});
+    state.terrainLoaded=true;state.terrainParts=group.children.length;
+  }).catch(error=>{
+    state.terrainError=String(error?.message||error);
+    console.warn('3D terrain unavailable; keeping ridge fallback:',error);
+  });
+  loadAlpineGrove(THREE,scene).then(group=>{
+    if(legacyForest)legacyForest.visible=false;
+    state.groveLoaded=true;state.pineCount=group.userData.count;
+  }).catch(error=>{
+    state.groveError=String(error?.message||error);
+    console.warn('3D pines unavailable; keeping 2D forest:',error);
+  });
   state.ready=true;
  }catch(e){state.failed=true;state.error=String(e?.message||e);console.warn('Diorama fallback',e);}
 }
