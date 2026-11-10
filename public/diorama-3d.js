@@ -17,7 +17,7 @@ function texture(draw,w=512,h=256){
 function sky(){
  const t=texture((c,w,h)=>{
    const g=c.createLinearGradient(0,0,0,h);
-   [[0,'#060a1c'],[.24,'#141f43'],[.55,'#45446d'],[.8,'#966d89'],[1,'#bd9190']].forEach(([p,v])=>g.addColorStop(p,v));
+   [[0,'#060a1c'],[.24,'#111a38'],[.55,'#273056'],[.8,'#634c73'],[1,'#a46e85']].forEach(([p,v])=>g.addColorStop(p,v));
    c.fillStyle=g;c.fillRect(0,0,w,h);
    const halo=c.createRadialGradient(w*.7,h*.31,0,w*.7,h*.31,w*.25);
    halo.addColorStop(0,'rgba(254,221,176,.32)');halo.addColorStop(1,'rgba(179,156,218,0)');
@@ -32,9 +32,9 @@ function sky(){
   c.fillStyle=g;c.fillRect(0,0,w,h);
  },256,256);
  const moon=new THREE.Sprite(new THREE.SpriteMaterial({map:halo,transparent:true,depthWrite:false,fog:false,blending:THREE.AdditiveBlending}));
- moon.position.set(12,18,-153);moon.scale.set(13,13,1);scene.add(moon);
+ moon.position.set(12,-3,-153);moon.scale.set(12,12,1);scene.add(moon);
  const xyz=[],phase=[];
- for(let i=0;i<2000;i++){xyz.push((rng()-.5)*260,9+rng()*73,-139-rng()*3);phase.push(rng()*TAU)}
+ for(let i=0;i<2000;i++){xyz.push((rng()-.5)*108,-9+rng()*28,-139-rng()*3);phase.push(rng()*TAU)}
  const geo=new THREE.BufferGeometry();
  geo.setAttribute('position',new THREE.Float32BufferAttribute(xyz,3));
  geo.setAttribute('aPhase',new THREE.Float32BufferAttribute(phase,1));
@@ -209,8 +209,8 @@ function forest(){
  const count=330,mesh=new THREE.InstancedMesh(g,mat,count),obj=new THREE.Object3D();
  const colA=new THREE.Color('#9abbb0'),colB=new THREE.Color('#56848a');
  for(let i=0;i<count;i++){
-  const x=-102+rng()*204,crest=-1.6+ridge(x,45)*1.15,h=1.3+rng()*2.9;
-  obj.position.set(x,crest-.25,-55+rng()*3);
+  const x=-102+rng()*204,crest=-1.6+ridge(x,45)*1.15,h=.95+rng()*3.3;
+  obj.position.set(x,crest-.25-Math.pow(rng(),1.4)*2.2,-55+rng()*7);
   obj.rotation.set(0,(rng()-.5)*.4,0);obj.scale.set(h*(.33+rng()*.13),h,1);
   obj.updateMatrix();mesh.setMatrixAt(i,obj.matrix);
   mesh.setColorAt(i,colA.clone().lerp(colB,rng()*.8));
