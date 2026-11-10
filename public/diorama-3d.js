@@ -330,8 +330,10 @@ function forest(){
  const colA=new THREE.Color('#9abbb0'),colB=new THREE.Color('#56848a');
  for(let i=0;i<count;i++){
   const x=-102+rng()*204,crest=mountainCrest(x,45,-4.1,-56),h=.95+rng()*3.3;
-  obj.position.set(x,crest-.25-Math.pow(rng(),1.4)*2.2,-55+rng()*7);
-  obj.rotation.set(0,(rng()-.5)*.4,0);obj.scale.set(h*(.33+rng()*.13),h,1);
+  const aboveWater=crest>-3.4;
+  obj.position.set(x,aboveWater?crest-.25:-100,-55+rng()*7);
+  obj.rotation.set(0,(rng()-.5)*.4,0);
+  obj.scale.set(aboveWater?h*(.33+rng()*.13):0,aboveWater?h:0,1);
   obj.updateMatrix();mesh.setMatrixAt(i,obj.matrix);
   mesh.setColorAt(i,colA.clone().lerp(colB,rng()*.8));
  }
@@ -429,8 +431,8 @@ function draw(ctx,t,now,{personal=false}={}){
     camera.position.set(eyeX,personal?12:7,39);
     camera.lookAt(eyeX,personal?8:1,-23);
     if(moonSprite){
-      moonSprite.position.y=portrait?-4.1:-1;
-      moonGlow.position.y=portrait?-4.1:-1;
+      moonSprite.position.set(portrait?8:-2,portrait?-4.1:-1,-149);
+      moonGlow.position.set(portrait?8:-2,portrait?-4.1:-1,-150);
     }
     state.personal=personal;state.lastPortrait=portrait;
   }
