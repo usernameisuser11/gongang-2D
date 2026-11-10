@@ -240,10 +240,10 @@ function foreground(){
 }
 function cloudTexture(){
  return texture((c,w,h)=>{
-  for(let i=0;i<44;i++){
-   const x=w*(.08+rng()*.84),y=h*(.3+rng()*.4),r=12+rng()*49;
+  for(let i=0;i<64;i++){
+   const x=w*(.08+rng()*.84),y=h*(.28+rng()*.44),r=18+rng()*64;
    const g=c.createRadialGradient(x,y,1,x,y,r);
-   g.addColorStop(0,'rgba(225,212,235,.10)');g.addColorStop(.5,'rgba(182,197,227,.06)');
+   g.addColorStop(0,'rgba(216,213,237,.18)');g.addColorStop(.5,'rgba(155,181,215,.10)');
    g.addColorStop(1,'rgba(165,181,229,0)');c.fillStyle=g;
    c.beginPath();c.ellipse(x,y,r,r*.30,0,0,TAU);c.fill();
   }
@@ -251,11 +251,11 @@ function cloudTexture(){
 }
 function cloudField(){
  const t=cloudTexture();
- for(let i=0;i<11;i++){
+ for(let i=0;i<9;i++){
   const m=new THREE.Mesh(new THREE.PlaneGeometry(24+rng()*29,7+rng()*7),
-   new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,fog:false,opacity:.45+rng()*.35}));
+   new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,fog:false,opacity:.62+rng()*.25}));
   const x=-100+rng()*200;
-  m.position.set(x,9+rng()*20,-102+rng()*22);
+  m.position.set(x,-5+rng()*11,-104+rng()*19);
   m.userData={x,speed:.10+rng()*.4,phase:rng()*TAU};
   scene.add(m);clouds.push(m);
  }state.clouds=clouds.length;
