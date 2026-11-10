@@ -198,24 +198,30 @@ function water(){
     uniform float uTime;varying vec2 vPos;varying float vRipple;
     void main(){
       vec2 p=vPos;
-      float slow=sin(p.x*.21+p.y*.18-uTime*.27);
-      float warp=.52*sin(p.y*.11+uTime*.21)+.20*sin(p.x*.33-uTime*.36);
-      float wave=sin(p.x*.69+p.y*.35-uTime*.83+warp);
-      float cross=sin(p.y*2.13-p.x*.61+uTime*1.19+slow*.42);
-      float micro=sin(p.x*2.41+p.y*4.12-uTime*.94+cross*.31);
-      float deep=smoothstep(-48.,28.,p.y);
-      vec3 col=mix(vec3(.018,.070,.119),vec3(.037,.155,.185),deep*.90);
-      col+=vec3(.037,.105,.113)*max(0.,wave*.18+cross*.14+micro*.07);
-      // The reflected moon scatters into a broken vertical path.
-      float refX=(p.x-9.)*.18+sin(p.y*.20+uTime*.22)*.45
-        +sin(p.y*.62-uTime*.50)*.10;
-      float moonBand=exp(-abs(refX)*1.42);
-      float rippleLine=pow(max(0.,.5+.5*sin(p.y*1.94+p.x*.28+uTime*.69+warp)),9.);
-      float glint=moonBand*(.018+.38*rippleLine)*(1.-deep*.34);
-      col+=vec3(.48,.45,.39)*glint;
-      float tiny=pow(max(0.,sin(p.x*1.43+p.y*4.6+uTime*.56)),22.);
-      col+=vec3(.16,.23,.24)*tiny*moonBand*.085;
-      col+=vec3(.02,.038,.046)*max(0.,vRipple*.35);
+      float gust=sin(p.x*.12+p.y*.086-uTime*.16)*1.15
+        +sin(p.x*.37-p.y*.16+uTime*.29)*.63;
+      float swell=sin(p.x*.48+p.y*.37-uTime*.54+gust*.80);
+      float current=sin(p.y*1.70-p.x*.82+uTime*1.08+gust*.70);
+      float chop=sin(p.x*2.35+p.y*3.57-uTime*1.13
+        +sin(p.x*.47+p.y*.38-uTime*.20)*1.25);
+      float depth=smoothstep(-52.,37.,p.y);
+      vec3 col=mix(vec3(.020,.062,.110),vec3(.028,.143,.168),depth*.81);
+      float waveLight=max(0.,swell*.28+current*.23+chop*.12);
+      col+=vec3(.047,.115,.123)*waveLight;
+      float softRipple=pow(max(0.,.52+.48*(swell*.55+current*.3+chop*.15)),5.);
+      col+=vec3(.10,.16,.18)*softRipple*.18;
+      // Irregular lunar caustics: not a perfectly straight luminous stripe.
+      float drift=sin(p.y*.16-uTime*.22)*1.5+
+        sin(p.y*.43+uTime*.48+gust*.27)*.63;
+      float path=(p.x-9.+drift)*.20;
+      float moonColumn=exp(-abs(path)*1.7);
+      float broken=pow(max(0.,sin(p.y*2.20+p.x*.54
+        +uTime*.61+gust*1.4+current*.51)),13.);
+      float flecks=pow(max(0.,sin(p.x*3.25-p.y*4.4
+        -uTime*.87+gust*2.0)),28.);
+      float glint=moonColumn*(.022+.46*broken+.13*flecks)*(1.-depth*.32);
+      col+=vec3(.61,.50,.44)*glint;
+      col+=vec3(.035,.08,.09)*max(0.,vRipple*.30);
       gl_FragColor=vec4(col,1.);
     }`
  });
