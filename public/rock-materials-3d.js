@@ -13,7 +13,7 @@ export function createStrataTexture(THREE) {
   c.width = w; c.height = h;
   const ctx = c.getContext('2d');
   const random = seeded(734215);
-  ctx.fillStyle = '#eef0e9';
+  ctx.fillStyle = '#dce4df';
   ctx.fillRect(0, 0, w, h);
 
   // broad rock bedding, semi-transparent and irregular (not graphic stripes)
