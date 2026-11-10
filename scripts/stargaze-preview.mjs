@@ -29,15 +29,25 @@ try{
   await page.waitForTimeout(400);
   if(!(await page.locator('#skyDock').isVisible()))throw Error('Sky controls not visible');
   const motionScript=await fetch(origin+'/nature-motion.js');
-  if(!motionScript.ok||!(await motionScript.text()).includes('grassTip('))
+  if(!motionScript.ok||!(await motionScript.text()).includes('paintSprite('))
     throw Error('Fixed-root vegetation module not served');
+  const atlasRes=await fetch(origin+'/assets/foliage-atlas.svg');
+  if(!atlasRes.ok||!atlasRes.headers.get('content-type')?.includes('image/svg+xml'))
+    throw Error('Independent botanical sprite atlas did not load');
+  const atlasSource=await atlasRes.text();
+  if(atlasSource.length<80000||!(atlasSource.includes('id="plume"')))
+    throw Error('Painterly foliage sprite atlas is missing painted detail');
+  await page.waitForFunction(()=>window.GongangNature?.state.assetReady ||
+    window.GongangNature?.state.assetFailed,{timeout:15000});
+  if(await page.evaluate(()=>window.GongangNature.state.assetFailed))
+    throw Error('Botanical sprite atlas could not be decoded');
   const vegetation=await page.evaluate(()=>{
     const motion=window.GongangNature;
     if(!motion)return null;
     return {state:{...motion.state},first:motion.debugAt(0),
       second:motion.debugAt(2400),third:motion.debugAt(8300)};
   });
-  if(!vegetation||vegetation.state.grassCount<100||vegetation.state.leafCount<35)
+  if(!vegetation||vegetation.state.grassCount<30||vegetation.state.leafCount<8)
     throw Error('Expected sparse but present botanical elements: '+JSON.stringify(vegetation));
   for(const later of [vegetation.second,vegetation.third]){
     if(JSON.stringify(later.grassRoot)!==JSON.stringify(vegetation.first.grassRoot)
@@ -46,10 +56,18 @@ try{
   }
   const tips=[vegetation.first.grassTip.x,vegetation.second.grassTip.x,
     vegetation.third.grassTip.x];
-  if(Math.max(...tips)-Math.min(...tips)<.06)
+  if(Math.max(...tips)-Math.min(...tips)<4)
     throw Error('Grass tips should bend over time: '+tips.join(','));
-  console.log('Anchored wind: '+vegetation.state.grassCount+' stems / '+
-    vegetation.state.leafCount+' leaves; roots fixed and tips moving');
+  console.log('Painted foliage rig: '+vegetation.state.grassCount+' sprite clumps / '+
+    vegetation.state.leafCount+' branch tips; roots fixed and tips moving');
+  // Capture synchronized test times so the plant motion can be compared in
+  // real rendered frames instead of trusting coordinate-only assertions.
+  for(const t of [0,2500,5000,7500]){
+    await page.evaluate(ms=>window.GongangNature.debugSetTime(ms),t);
+    await page.waitForTimeout(140);
+    await page.screenshot({path:'artifacts/stargaze/wind-'+t+'.png'});
+  }
+  await page.evaluate(()=>window.GongangNature.debugSetTime(null));
   const grains=await page.evaluate(()=>window.__stargazeDebug?.get().grains);
   if(!grains||grains.textureSize!==128)
     throw Error('Original Quasar v129 grain renderer missing: '+JSON.stringify(grains));
