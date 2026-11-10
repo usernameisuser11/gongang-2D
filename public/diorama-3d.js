@@ -167,10 +167,10 @@ function mountainSurface(x,z,origin,base,seed){
  const peak=mountainCrest(x,seed,base,origin);
  const low=-8.1+noise(x*.19,seed+13)*.27;
  const slope=Math.pow(t,1.50);
- const erosion=noise(x*.17+z*.11,seed+41)*.74+
-   noise(x*.39-z*.23,seed+61)*.29;
+ const erosion=noise(x*.17+z*.11,seed+41)*1.16+
+   noise(x*.39-z*.23,seed+61)*.53;
  const gullies=Math.max(0,noise(x*.052+z*.16,seed+17))*.85;
- return lerp(low,peak,slope)+(erosion-gullies)*Math.sin(Math.PI*t)*1.12;
+ return lerp(low,peak,slope)+(erosion-gullies)*Math.sin(Math.PI*t)*1.43;
 }
 function mountain(z,base,seed,top,bottom){
  const steps=248,rows=32,positions=[],uvs=[],cols=[],indices=[];
@@ -184,7 +184,7 @@ function mountain(z,base,seed,top,bottom){
    positions.push(x,y,zHere);
    uvs.push(i/steps*2,depth*1.9);
    const micro=noise(x*.38+zHere*.17,seed+34)*.075;
-   const exposure=.75+depth*.18+micro;
+   const exposure=.78+depth*.23+micro;
    const c=low.clone().lerp(high,Math.pow(depth,.66)*.85)
      .multiplyScalar(exposure);
    const wet=Math.max(0,1-depth)*.13;
@@ -276,7 +276,7 @@ function land(side){
  scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})));
 }
 function foreground(){
- const g=new THREE.PlaneGeometry(125,84,70,40);
+ const g=new THREE.PlaneGeometry(125,180,70,70);
  g.rotateX(-Math.PI/2);
  const p=g.getAttribute('position'),cols=[];
  const dark=new THREE.Color('#193331'),light=new THREE.Color('#46604b');
@@ -295,7 +295,7 @@ function foreground(){
  p.needsUpdate=true;g.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
  g.computeVertexNormals();
  const mat=new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide});
- scene.add(new THREE.Mesh(g,mat)).position.set(0,0,49);
+ scene.add(new THREE.Mesh(g,mat)).position.set(0,0,105);
 }
 // Alto-style horizontal atmospheric layers; wind flows but terrain stays fixed.
 function cloudTexture(seed){
@@ -568,10 +568,10 @@ function init(){
   renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.24;
   scene=new THREE.Scene();scene.background=new THREE.Color('#121d3d');
   scene.fog=new THREE.FogExp2('#315b72',.006);
-  camera=new THREE.OrthographicCamera(-20,20,12,-12,.1,500);
-  camera.position.set(0,7,39);camera.lookAt(0,1,-23);
-  scene.add(new THREE.HemisphereLight('#ddd9ef','#26403d',2.3));
-  const key=new THREE.DirectionalLight('#c5d4ff',1.6);key.position.set(-8,26,9);scene.add(key);
+  camera=new THREE.PerspectiveCamera(44,1,.1,600);
+  camera.position.set(0,10,55);camera.lookAt(0,2,-30);
+  scene.add(new THREE.HemisphereLight('#e1e1ed','#25413d',1.25));
+  const key=new THREE.DirectionalLight('#d4d9f9',2.25);key.position.set(-32,40,23);scene.add(key);
   sky();
   mountain(-116,-2.4,12,'#7c8cb1','#394968');
   mountain(-94,-.9,37,'#617f9f','#264863');
@@ -588,16 +588,15 @@ function draw(ctx,t,now,{personal=false}={}){
   const w=Math.min(1220,Math.max(240,Math.round(t.width*factor)));
   const h=Math.min(850,Math.max(240,Math.round(t.height*factor)));
   if(w!==state.width||h!==state.height){renderer.setSize(w,h,false);state.width=w;state.height=h;}
-  const aspect=w/h;camera.left=-worldH*aspect/2;camera.right=worldH*aspect/2;
-  camera.top=worldH/2;camera.bottom=-worldH/2;camera.updateProjectionMatrix();
+  const aspect=w/h;camera.aspect=aspect;camera.updateProjectionMatrix();
   // The canvas crop may be wider than the physical phone screen.
   // Use viewport orientation to frame the moon and near-bank composition.
   const portrait=innerWidth<700 && innerHeight>innerWidth*1.22;
   const eyeX=portrait?-5:0;
   // A portrait composition looks toward the moon without rotating the view.
   if(personal!==state.personal || state.lastPortrait!==portrait){
-    camera.position.set(eyeX,personal?12:7,39);
-    camera.lookAt(eyeX,personal?8:1,-23);
+    camera.position.set(eyeX,personal?17:10,55);
+    camera.lookAt(eyeX,personal?12:2,-30);
     if(moonSprite){
       moonSprite.position.set(portrait?-5:-2,portrait?-3.0:-1,-149);
       moonGlow.position.set(portrait?-5:-2,portrait?-3.0:-1,-150);
