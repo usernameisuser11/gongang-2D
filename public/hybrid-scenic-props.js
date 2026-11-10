@@ -39,12 +39,44 @@ async function prepare(){
     fill.position.set(-12,15,14);scene.add(fill);
 
     props=await loadLookoutModel(THREE,scene);
-    // Important: only this foreground landmark, not the model mountains or
-    // their pines, is brought over the authored panorama.
-    props.position.set(portrait ? -.6 : 10.8,-3.13,11.2);
+    // The painted foreground already contains natural grass, stones and
+    // wildflowers. The OBJ's sculpted stone clearing formed an uncanny floating
+    // island over that art, so keep only the bench and lantern details.
+    for (const piece of props.children) {
+      if (!piece.isMesh) continue;
+      const key = piece.name;
+      if (key.startsWith('Stone') || key.startsWith('Leaf') ||
+          key.startsWith('Flower') || key === 'ReedStem') {
+        piece.visible = false;
+      }
+    }
+
+    // Anchor the authored furniture onto the lower foreground grass, avoiding
+    // the lower action dock. Portrait camera eye is shifted 5 units left.
+    props.position.set(portrait ? -5.6 : 10.8, portrait ? -4.2 : -5.35, 11.2);
     props.rotation.set(0,-.28,0);
-    props.scale.setScalar(portrait?.67:.92);
-    state.modelParts=props.userData.geometryCount;
+    props.scale.setScalar(portrait ? .56 : .84);
+
+    // A feathered contact shadow gives the transparent bench legs weight
+    // without adding a drawn platform or a realtime shadow-map pass.
+    const shadowCanvas=document.createElement('canvas');
+    shadowCanvas.width=128;shadowCanvas.height=48;
+    const g=shadowCanvas.getContext('2d');
+    const shadowFill=g.createRadialGradient(64,24,2,64,24,61);
+    shadowFill.addColorStop(0,'rgba(10,22,25,.23)');
+    shadowFill.addColorStop(.55,'rgba(10,22,25,.10)');
+    shadowFill.addColorStop(1,'rgba(10,22,25,0)');
+    g.fillStyle=shadowFill;g.fillRect(0,0,128,48);
+    const shadowTexture=new THREE.CanvasTexture(shadowCanvas);
+    const contact=new THREE.Sprite(new THREE.SpriteMaterial({
+      map:shadowTexture,transparent:true,depthWrite:false,
+      depthTest:false,fog:false
+    }));
+    contact.name='Soft bench contact shadow';
+    contact.position.set(0,.08,-.1);
+    contact.scale.set(5.8,1.10,1);
+    props.add(contact);
+    state.modelParts=props.children.filter(child=>child.isMesh && child.visible).length;
     state.ready=true;
   }catch(error){
     state.failed=true;state.error=String(error?.message||error);
