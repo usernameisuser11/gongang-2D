@@ -14,3 +14,15 @@ Model generated for the Gongang project. Keep the model file, material file and 
 ## Blender 편집용 프로젝트 만들기 (선택)
 
 Blender가 설치된 개발 환경에서 `blender --background --python blender/prepare_moonlit_lookout.py`를 실행하면 기존 OBJ를 가져오고 조명·카메라·재질을 설정한 `blender/moonlit-lookout.blend` 파일을 생성합니다. 앱 실행이나 웹 배포에는 필요하지 않습니다. 이 스크립트는 Blender 실행 환경에서 아직 검증하지 못했습니다.
+
+## Alpine valley — original 3D terrain
+
+- `alpine-valley.obj` / `alpine-valley.mtl`: four sculpted mountain ranges (12,380 vertices, 22,032 triangles). Deep front slopes, asymmetric peaks, narrow erosion channels and muted stone layers. The scene replaces the older flat mountain cards **only after** loading succeeds.
+- `alpine-pine.obj` / `alpine-pine.mtl`: an individually modeled alpine conifer (2,976 vertices, 4,400 triangles) with bent tapered trunk, forked branches and organically shaped needle sprays.
+- `alpine-grove.json`: authored placements around the valley. Three.js uses GPU instancing so the 3D grove renders in five draw calls instead of one draw call per tree.
+- `blender/build_landscape_library.py`: optional Blender 4.3+ conversion into native editable `.blend` projects. Blender authoring is **not** required for the live website.
+- `server.mjs` explicitly serves these local OBJ, MTL, JSON and loader assets; other filenames remain inaccessible.
+
+### Quality and rollout
+
+The mesh files are generated and checked for complete indices and material names. JavaScript files can be checked with `npm run check`. Real browser rendering, mobile framerate and Blender export still require runtime verification. The live site is unchanged until this draft PR is reviewed and merged.
