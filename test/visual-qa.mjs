@@ -11,10 +11,11 @@ import { chromium } from 'playwright';
 const PORT = 43117;
 const ROOT = 'http://127.0.0.1:' + PORT;
 const snapshots = [
-  { name: 'desktop-cinematic', width: 1440, height: 900, query: '?map=stargaze', threeD: true },
-  { name: 'mobile-cinematic', width: 390, height: 844, query: '?map=stargaze', threeD: true },
-  { name: 'desktop-old-baseline', width: 1440, height: 900, query: '?map=stargaze&models=off&cinema=off', threeD: false },
-  { name: 'desktop-painterly-2d', width: 1440, height: 900, query: '?map=stargaze&renderer=2d', threeD: false }
+  { name: 'desktop-painterly', width: 1440, height: 900, query: '?map=stargaze', kind: 'painterly' },
+  { name: 'mobile-painterly', width: 390, height: 844, query: '?map=stargaze', kind: 'painterly' },
+  { name: 'desktop-hybrid', width: 1440, height: 900, query: '?map=stargaze&hybrid=on', kind: 'hybrid' },
+  { name: 'mobile-hybrid', width: 390, height: 844, query: '?map=stargaze&hybrid=on', kind: 'hybrid' },
+  { name: 'desktop-sculpted-3d', width: 1440, height: 900, query: '?map=stargaze&renderer=3d', kind: '3d' }
 ];
 
 const server = spawn(process.execPath, ['server.mjs'], {
@@ -69,22 +70,26 @@ try {
     });
     try {
       await page.goto(ROOT + '/' + config.query, { waitUntil: 'domcontentloaded' });
-      const painterly = config.query.includes('renderer=2d');
-      if (painterly) {
-        await page.waitForFunction(() => window.GongangPainterly?.readyToDraw,
-          null, { timeout: 30000 });
-      } else {
+      if (config.kind === '3d') {
         await page.waitForFunction(() => {
           const s = window.GongangDiorama3D?.state;
           return Boolean(s?.renderCount > 2 || s?.failed);
         }, null, { timeout: 30000 });
-      }
-      if (config.threeD) {
         await page.waitForFunction(() => {
           const s = window.GongangDiorama3D?.state;
-          return Boolean(s?.failed || (s?.modelLoaded || s?.modelError)
+          return Boolean(s?.failed || ((s?.modelLoaded || s?.modelError)
             && (s?.terrainLoaded || s?.terrainError)
-            && (s?.groveLoaded || s?.groveError));
+            && (s?.groveLoaded || s?.groveError)));
+        }, null, { timeout: 30000 });
+      } else {
+        await page.waitForFunction(() =>
+          window.GongangPainterly?.readyToDraw && window.GongangPainterly.state.renderCount > 2,
+          null, { timeout: 30000 });
+      }
+      if (config.kind === 'hybrid') {
+        await page.waitForFunction(() => {
+          const s = window.GongangHybrid3D?.state;
+          return Boolean(s?.ready && s.frames > 2 || s?.failed);
         }, null, { timeout: 30000 });
       }
       await page.waitForTimeout(1100);
@@ -96,18 +101,27 @@ try {
           modelLoaded: s.modelLoaded, modelError: s.modelError,
           terrainLoaded: s.terrainLoaded, terrainError: s.terrainError,
           groveLoaded: s.groveLoaded, groveError: s.groveError,
-          cinemaError: s.cinemaError, pineCount: s.pineCount
+          cinemaError: s.cinemaError, pineCount: s.pineCount,
+          painterly: window.GongangPainterly?.state || null,
+          hybrid: window.GongangHybrid3D?.state || null
         };
       });
       const canvas = page.locator('#game');
       await canvas.screenshot({ path: 'artifacts/landscape/' + config.name + '.png' });
       results.push({ name: config.name, state, errors });
-      if (!painterly) {
-        assert.equal(state.ready, true, config.name + ': renderer is not ready');
-        assert.equal(state.failed, false, config.name + ': ' + state.error);
-        assert.ok(state.renderCount > 2, config.name + ': not rendering frames');
+      if (config.kind !== '3d') {
+        assert.equal(state.painterly?.ready, true, config.name + ': painted art missing');
+        assert.ok(state.painterly.renderCount > 2, config.name + ': art not rendering');
       }
-      if (config.threeD) {
+      if (config.kind === 'hybrid') {
+        assert.equal(state.hybrid?.ready, true, config.name + ': hybrid overlay failed: ' + state.hybrid?.error);
+        assert.equal(state.hybrid?.failed, false, config.name + ': hybrid overlay failed');
+        assert.ok(state.hybrid.frames > 2, config.name + ': hybrid overlay did not draw');
+      }
+      if (config.kind === '3d') {
+        assert.equal(state.ready, true, config.name + ': 3D renderer is not ready');
+        assert.equal(state.failed, false, config.name + ': ' + state.error);
+        assert.ok(state.renderCount > 2, config.name + ': 3D not rendering');
         assert.ok(state.terrainLoaded, 'Terrain model failed: ' + state.terrainError);
         assert.ok(state.groveLoaded, '3D pine forest failed: ' + state.groveError);
         assert.ok(state.modelLoaded, 'Lookout failed: ' + state.modelError);
