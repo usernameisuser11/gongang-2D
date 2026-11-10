@@ -8,7 +8,7 @@ const rng=(()=>{let s=20261110;return()=>((s=(Math.imul(s,1664525)+1013904223)>>
 const lerp=(a,b,t)=>a+(b-a)*t,smooth=t=>t*t*(3-2*t);
 const hash=n=>{n=Math.imul(n^(n>>>15),2246822519);n=Math.imul(n^(n>>>13),3266489917);return ((n^(n>>>16))>>>0)/4294967295};
 const noise=(x,seed=0)=>{const i=Math.floor(x),t=smooth(x-i);return lerp(hash(i+seed*997),hash(i+seed*997+1),t)*2-1};
-const ridge=(x,s)=>noise(x*.06,s)*3+noise(x*.17,s+9)*1.1+noise(x*.48,s+21)*.35+Math.exp(-Math.pow((x-(s%2?8:-12))/13,2))*3.2;
+const ridge=(x,s)=>noise(x*.052,s)*2.9+noise(x*.18,s+9)*1.35+noise(x*.57,s+21)*.38+Math.exp(-Math.pow((x-(s%2?8:-12))/18,2))*1.25;
 function texture(draw,w=512,h=256){
  const cvs=document.createElement('canvas');cvs.width=w;cvs.height=h;
  draw(cvs.getContext('2d'),w,h);
@@ -23,21 +23,21 @@ function sky(){
    // One-time painted stardust and diffuse galactic clouds: the sky is not a flat color.
    const rand=(()=>{let seed=92483;return()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296)})();
    c.save();c.globalCompositeOperation='screen';
-   for(let i=0;i<115;i++){
+   for(let i=0;i<84;i++){
      const y=rand()*h*.87,bandX=w*(.61-.40*y/h)+Math.sin(y*.016)*29;
      const x=bandX+(rand()+rand()+rand()-1.5)*w*.15;
-     const r=15+rand()*92;
+     const r=11+rand()*72;
      const nebula=c.createRadialGradient(x,y,0,x,y,r);
      const tint=i%3===0?'187,152,218':i%3===1?'87,156,226':'185,135,193';
-     nebula.addColorStop(0,'rgba('+tint+',.038)');
+     nebula.addColorStop(0,'rgba('+tint+',.022)');
      nebula.addColorStop(1,'rgba('+tint+',0)');
      c.fillStyle=nebula;c.fillRect(x-r,y-r,r*2,r*2);
    }
-   for(let i=0;i<12000;i++){
+   for(let i=0;i<6300;i++){
      const y=rand()*h,mid=w*(.61-.40*y/h)+Math.sin(y*.016)*29;
      const x=mid+(rand()+rand()+rand()-1.5)*w*.27;
      if(x<0||x>=w)continue;
-     const strength=.08+.53*Math.pow(rand(),2.6),size=.25+rand()**3*1.3;
+     const strength=.04+.31*Math.pow(rand(),2.6),size=.18+rand()**3*.75;
      c.fillStyle=i%7===0?'rgba(255,220,211,'+strength+')':
        'rgba(206,229,255,'+strength+')';
      c.fillRect(x,y,size,size);
@@ -95,7 +95,7 @@ function sky(){
   transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
   uniforms:{uTime:{value:0},uDensity:{value:1}},
   vertexShader:`attribute float aPhase;varying float vPhase;uniform float uDensity;
-    void main(){vPhase=aPhase;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);gl_PointSize=2.8*uDensity;}`,
+    void main(){vPhase=aPhase;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);gl_PointSize=1.8*uDensity;}`,
   fragmentShader:`precision mediump float;uniform float uTime;varying float vPhase;
     void main(){float r=length(gl_PointCoord-.5);
       gl_FragColor=vec4(.85,.93,1.,pow(max(0.,1.-r*2.),2.4)*(.60+.40*sin(uTime*.9+vPhase)));}`
@@ -223,7 +223,7 @@ function foreground(){
  const g=new THREE.PlaneGeometry(125,46,70,28);
  g.rotateX(-Math.PI/2);
  const p=g.getAttribute('position'),cols=[];
- const dark=new THREE.Color('#223a39'),light=new THREE.Color('#536a52');
+ const dark=new THREE.Color('#193331'),light=new THREE.Color('#46604b');
  for(let i=0;i<p.count;i++){
    const x=p.getX(i),z=p.getZ(i);
    const b=noise(x*.24+z*.16,2);
@@ -240,10 +240,10 @@ function foreground(){
 }
 function cloudTexture(){
  return texture((c,w,h)=>{
-  for(let i=0;i<64;i++){
+  for(let i=0;i<46;i++){
    const x=w*(.08+rng()*.84),y=h*(.28+rng()*.44),r=18+rng()*64;
    const g=c.createRadialGradient(x,y,1,x,y,r);
-   g.addColorStop(0,'rgba(216,213,237,.18)');g.addColorStop(.5,'rgba(155,181,215,.10)');
+   g.addColorStop(0,'rgba(186,196,222,.12)');g.addColorStop(.5,'rgba(135,164,206,.055)');
    g.addColorStop(1,'rgba(165,181,229,0)');c.fillStyle=g;
    c.beginPath();c.ellipse(x,y,r,r*.30,0,0,TAU);c.fill();
   }
@@ -251,9 +251,9 @@ function cloudTexture(){
 }
 function cloudField(){
  const t=cloudTexture();
- for(let i=0;i<9;i++){
+ for(let i=0;i<5;i++){
   const m=new THREE.Mesh(new THREE.PlaneGeometry(24+rng()*29,7+rng()*7),
-   new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,fog:false,opacity:.62+rng()*.25}));
+   new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,fog:false,opacity:.40+rng()*.20}));
   const x=-100+rng()*200;
   m.position.set(x,-5+rng()*11,-104+rng()*19);
   m.userData={x,speed:.10+rng()*.4,phase:rng()*TAU};
@@ -394,8 +394,14 @@ function draw(ctx,t,now,{personal=false}={}){
   if(w!==state.width||h!==state.height){renderer.setSize(w,h,false);state.width=w;state.height=h;}
   const aspect=w/h;camera.left=-worldH*aspect/2;camera.right=worldH*aspect/2;
   camera.top=worldH/2;camera.bottom=-worldH/2;camera.updateProjectionMatrix();
-  if(personal!==state.personal){camera.position.set(0,personal?12:7,39);
-   camera.lookAt(0,personal?8:1,-23);state.personal=personal;}
+  const portrait=aspect<.85;
+  const eyeX=portrait?7:0;
+  // A portrait composition looks toward the moon without rotating the view.
+  if(personal!==state.personal || state.lastPortrait!==portrait){
+    camera.position.set(eyeX,personal?12:7,39);
+    camera.lookAt(eyeX,personal?8:1,-23);
+    state.personal=personal;state.lastPortrait=portrait;
+  }
   state.reducedMotion=Boolean(reduced?.matches);
   const sec=state.reducedMotion?0:(debugTimeMs===null?now:debugTimeMs)/1000;
   state.lastWind=Math.sin(sec*.86);
