@@ -24,8 +24,8 @@
   // repeated line-shaped reeds drawn in front of the painting.
   function grassline(x){return 571+.146*x+17*Math.sin(x*.0047+.7);}
   const anchors=[82,195,325,475,615,745,965,1070,1210,1360,1500,1610];
-  for(let i=0;i<44;i++){
-    const center=anchors[i%anchors.length];
+  for(let i=0;i<27;i++){
+    const center=anchors[(i*5)%anchors.length];
     const x=clamp(center+(random()-.5)*(i%4===0?164:115),35,ART_W-38);
     const depth=.18+.82*random();
     let rootY=grassline(x)+48+depth*190;
@@ -36,8 +36,8 @@
     const width=(70+random()*70)*(0.72+depth*.37);
     grass.push({
       x,rootY,width,height,variant,
-      alpha:(.43+random()*.40)*(variant===4?.74:1),
-      amplitude:11+random()*26,
+      alpha:(.33+random()*.31)*(variant===4?.74:1),
+      amplitude:18+random()*23,
       phase:random()*TAU,stiffness:.70+random()*.75,
       direction:random()>.5?1:-1
     });
@@ -45,12 +45,12 @@
   // A few distinct leafy sprays hang from the actual left-hand tree. The
   // source illustration stays untouched: these are independent transparent
   // branch tips above the background, not a duplicate translated canopy.
-  for(let i=0;i<12;i++){
+  for(let i=0;i<5;i++){
     const x=30+random()*350;
     const rootY=36+random()*140;
     leaves.push({
       x,rootY,width:56+random()*59,height:70+random()*73,
-      variant:4,alpha:.24+random()*.27,
+      variant:4,alpha:.11+random()*.12,
       amplitude:5+random()*11,phase:random()*TAU,
       stiffness:.72+random()*.52,direction:1,
       angle:1.0+(random()-.5)*.8
@@ -82,38 +82,44 @@
   // The atlas is decoded once. Every frame, 11 overlapping source rows make
   // a smooth deformation mesh, with the bottom source row anchored at zero.
   function paintSprite(c,item,t){
-    const slice=TH/SEGMENTS;
-    const width=item.width,height=item.height;
-    c.save();
-    c.translate(item.x,item.rootY);
-    if(item.angle)c.rotate(item.angle);
+    // Contiguous image rotation around a fixed root when WebGL2 is absent.
+    const turn=Math.atan2(bend(item,t,1),item.height)*.72;
+    c.save();c.translate(item.x,item.rootY);
+    c.rotate((item.angle||0)+turn);
     c.globalAlpha=item.alpha;
-    for(let i=0;i<SEGMENTS;i++){
-      const sy=i*slice,sh=(i===SEGMENTS-1?TH-sy:slice);
-      const h0=height*(sy/TH),h1=height*((sy+sh)/TH);
-      const q=1-(sy+sh*.5)/TH;
-      const dx=bend(item,t,q);
-      c.drawImage(asset,item.variant*TW,sy,TW,sh,
-        -width*.5+dx,-height+h0,width,(h1-h0)+.42);
-    }
+    c.drawImage(asset,item.variant*TW,0,TW,TH,
+      -item.width*.5,-item.height,item.width,item.height);
     c.restore();
   }
   // If the atlas is unavailable, never replace the user's art with crude
   // rectangles. The static painted meadow remains untouched.
+  let gpu=null,gpuAttempted=false;
   function draw(c,transform,now,{personal=false}={}){
     if(!transform||!state.assetReady)return;
     const isReduced=Boolean(reduced?.matches);
     state.reducedMotion=isReduced;
     const t=isReduced?0:(debugClock===null?now/1000:debugClock/1000);
     state.lastWind=wind(t,900,0);
-    c.save();
-    c.translate(transform.x,transform.y);
-    c.scale(transform.width/ART_W,transform.height/ART_H);
-    if(personal)c.globalAlpha=.59;
-    // Depth ordering uses root height so distant grass sits behind near grass.
-    for(const item of grass)paintSprite(c,item,t);
-    for(const item of leaves)paintSprite(c,item,t);
-    c.restore();
+    if(!gpuAttempted){
+      gpuAttempted=true;
+      try{gpu=window.FoliageGPU?.create(asset,[...grass,...leaves])||null;}
+      catch(e){console.warn('Continuous foliage unavailable:',e.message);}
+      state.gpu=Boolean(gpu);
+    }
+    if(gpu){
+      gpu.draw(t);
+      c.save();
+      c.globalAlpha=personal?.54:1;
+      c.drawImage(gpu.canvas,transform.x,transform.y,transform.width,transform.height);
+      c.restore();
+    }else{
+      c.save();c.translate(transform.x,transform.y);
+      c.scale(transform.width/ART_W,transform.height/ART_H);
+      c.globalAlpha=personal?.54:1;
+      for(const item of grass)paintSprite(c,item,t);
+      for(const item of leaves)paintSprite(c,item,t);
+      c.restore();
+    }
     state.drawCalls++;
   }
   function debugAt(ms=0){
