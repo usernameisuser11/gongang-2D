@@ -653,9 +653,12 @@
     const art=window.GongangPainterly;
     if(art?.readyToDraw){
       const relative=clamp((state.x-1600)/1600,-1,1);
-      art.draw(c,viewT,now,{
+      // The ordinary 1st-person camera was designed for the procedural
+      // meadow. With a painterly panorama it zooms into the ground instead
+      // of looking up. Use the uncropped scene transform for this sky view.
+      art.draw(c,personal?t:viewT,now,{
         personal,scroll:relative,
-        onSky:()=>drawSkyEffects(c,viewT,now)
+        onSky:skyTransform=>drawSkyEffects(c,skyTransform,now)
       });
       metrics.rendered++;
       return;
