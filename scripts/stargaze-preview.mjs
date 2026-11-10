@@ -28,6 +28,28 @@ try{
   await page.waitForFunction(()=>window.__stargazeDebug?.get().art?.ready && window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
   await page.waitForTimeout(400);
   if(!(await page.locator('#skyDock').isVisible()))throw Error('Sky controls not visible');
+  const motionScript=await fetch(origin+'/nature-motion.js');
+  if(!motionScript.ok||!(await motionScript.text()).includes('grassTip('))
+    throw Error('Fixed-root vegetation module not served');
+  const vegetation=await page.evaluate(()=>{
+    const motion=window.GongangNature;
+    if(!motion)return null;
+    return {state:{...motion.state},first:motion.debugAt(0),
+      second:motion.debugAt(2400),third:motion.debugAt(8300)};
+  });
+  if(!vegetation||vegetation.state.grassCount<100||vegetation.state.leafCount<35)
+    throw Error('Expected sparse but present botanical elements: '+JSON.stringify(vegetation));
+  for(const later of [vegetation.second,vegetation.third]){
+    if(JSON.stringify(later.grassRoot)!==JSON.stringify(vegetation.first.grassRoot)
+       ||JSON.stringify(later.leafRoot)!==JSON.stringify(vegetation.first.leafRoot))
+      throw Error('Botanical root points must not move in the wind');
+  }
+  const tips=[vegetation.first.grassTip.x,vegetation.second.grassTip.x,
+    vegetation.third.grassTip.x];
+  if(Math.max(...tips)-Math.min(...tips)<.06)
+    throw Error('Grass tips should bend over time: '+tips.join(','));
+  console.log('Anchored wind: '+vegetation.state.grassCount+' stems / '+
+    vegetation.state.leafCount+' leaves; roots fixed and tips moving');
   const grains=await page.evaluate(()=>window.__stargazeDebug?.get().grains);
   if(!grains||grains.textureSize!==128)
     throw Error('Original Quasar v129 grain renderer missing: '+JSON.stringify(grains));
@@ -94,6 +116,10 @@ try{
   await mobile.goto(origin+'/?map=stargaze',{waitUntil:'domcontentloaded'});
   await mobile.waitForFunction(()=>window.__stargazeDebug?.get().art?.ready && window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
   await mobile.screenshot({path:'artifacts/stargaze/mobile.png'});
+  await mobile.emulateMedia({reducedMotion:'reduce'});
+  await mobile.waitForFunction(()=>window.GongangNature?.state.reducedMotion===true);
+  await mobile.emulateMedia({reducedMotion:'no-preference'});
+  await mobile.waitForFunction(()=>window.GongangNature?.state.reducedMotion===false);
   for(const target of [page,mobile]){
     const info=await target.evaluate(()=>window.__stargazeDebug.get());
     if(!info.art?.ready||info.art.failed.length)
