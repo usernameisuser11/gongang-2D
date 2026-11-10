@@ -22,6 +22,7 @@ const natureMotionScript = await readFile(join(ROOT, 'public', 'nature-motion.js
 const dioramaScript = await readFile(join(ROOT, 'public', 'diorama-3d.js'));
 const scenicModelLoader = await readFile(join(ROOT, 'public', 'scenic-model-loader.js'));
 const cinematicAtmosphere = await readFile(join(ROOT, 'public', 'cinematic-atmosphere.js'));
+const livingEnvironment = await readFile(join(ROOT, 'public', 'living-environment-3d.js'));
 const rockMaterials = await readFile(join(ROOT, 'public', 'rock-materials-3d.js'));
 const foliageBillboards3d = await readFile(join(ROOT, 'public', 'foliage-billboards-3d.js'));
 const hybridScenicProps = await readFile(join(ROOT, 'public', 'hybrid-scenic-props.js'));
@@ -150,12 +151,14 @@ const server = createServer((req, res) => {
   // The browser loads the editable 3D meshes as static content; no path traversal.
   if (path === '/scenic-model-loader.js' ||
       path === '/cinematic-atmosphere.js' ||
+      path === '/living-environment-3d.js' ||
       path === '/rock-materials-3d.js' ||
       path === '/foliage-billboards-3d.js' ||
       path === '/hybrid-scenic-props.js' ||
       path === '/painterly-clouds-3d.js') {
     const script = path === '/scenic-model-loader.js' ? scenicModelLoader
       : path === '/cinematic-atmosphere.js' ? cinematicAtmosphere
+      : path === '/living-environment-3d.js' ? livingEnvironment
       : path === '/rock-materials-3d.js' ? rockMaterials
       : path === '/foliage-billboards-3d.js' ? foliageBillboards3d
       : path === '/hybrid-scenic-props.js' ? hybridScenicProps
