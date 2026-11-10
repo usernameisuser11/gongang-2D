@@ -606,7 +606,7 @@
       c.restore();
     }
   }
-  function drawSkyEffects(c,t,now){
+  function drawSkyEffects(c,t,now,{threeD=false}={}){
     c.save();c.translate(t.x,t.y);c.scale(t.width/WIDTH,t.height/HEIGHT);
     const time=(Date.now()+clockOffset)/1000;
     const naturalWindow=Math.floor(time/47);
@@ -615,11 +615,15 @@
       const r=seeded(naturalWindow+474);
       drawMeteor(c,naturalTime,.13+r()*.61,.10+r()*.27,.85,'#ccdcff');
     }
-    if(window.StellarGrains)window.StellarGrains.animate(c,now);
-    else for(const st of stars){
-      const lum=.10+.48*(.5+.5*Math.sin(now*.0016+st.phase));
-      c.fillStyle='rgba(236,240,255,'+lum.toFixed(3)+')';
-      c.beginPath();c.arc(st.x,st.y,st.r,0,TAU);c.fill();
+    // The 3D sky already has independent, depth-positioned twinkling stars.
+    // Never draw the legacy 2D dust field on top: it reads as falling snow.
+    if(!threeD){
+      if(window.StellarGrains)window.StellarGrains.animate(c,now);
+      else for(const st of stars){
+        const lum=.10+.48*(.5+.5*Math.sin(now*.0016+st.phase));
+        c.fillStyle='rgba(236,240,255,'+lum.toFixed(3)+')';
+        c.beginPath();c.arc(st.x,st.y,st.r,0,TAU);c.fill();
+      }
     }
     if(event){
       const elapsed=(Date.now()+clockOffset-event.startsAt)/1000;
@@ -658,7 +662,7 @@
       c.beginPath();
       c.rect(outputT.x,outputT.y,outputT.width,outputT.height*.62);
       c.clip();
-      drawSkyEffects(c,outputT,now);
+      drawSkyEffects(c,outputT,now,{threeD:true});
       c.restore();
       metrics.rendered++;
       return;
