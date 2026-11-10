@@ -104,26 +104,44 @@ function sky(){
 }
 let rockPattern;
 function mountainTexture(){
+ const hash2=(x,y,seed)=>{
+   let n=Math.imul(x,374761393)^Math.imul(y,668265263)^seed;
+   n=Math.imul(n^(n>>>13),1274126177);
+   return ((n^(n>>>16))>>>0)/4294967295;
+ };
+ const n2=(x,y,seed)=>{
+   const ix=Math.floor(x),iy=Math.floor(y),fx=smooth(x-ix),fy=smooth(y-iy);
+   const a=lerp(hash2(ix,iy,seed),hash2(ix+1,iy,seed),fx);
+   const b=lerp(hash2(ix,iy+1,seed),hash2(ix+1,iy+1,seed),fx);
+   return lerp(a,b,fy)*2-1;
+ };
  return texture((c,w,h)=>{
-  const img=c.createImageData(w,h);
-  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-   const broad=noise(x*.018+y*.022,71)*.53;
-   const strata=noise(x*.082-y*.047,16)*.27;
-   const grain=noise(x*.38+y*.24,32)*.14;
-   const seam=Math.sin(y*.11+x*.055+broad*3)*.035;
-   const value=Math.max(.58,Math.min(1,.83+(broad+strata+grain)*.26+seam));
-   const n=(y*w+x)*4,v=Math.round(value*255);
-   img.data[n]=v;img.data[n+1]=v;img.data[n+2]=v;img.data[n+3]=255;
-  }
-  c.putImageData(img,0,0);
-  const r=(()=>{let a=4617;return()=>((a=(Math.imul(a,1664525)+1013904223)>>>0)/4294967296)})();
-  for(let i=0;i<1100;i++){
-   const x=r()*w,y=r()*h,len=6+r()*35;
-   c.strokeStyle=i%4===0?'rgba(247,247,255,.13)':'rgba(23,42,60,.075)';
-   c.lineWidth=.35+r()*1.6;c.beginPath();
-   c.moveTo(x,y);c.quadraticCurveTo(x-len*.25,y+len*.3,x-len*.39,y+len);
-   c.stroke();
-  }
+   const pixels=c.createImageData(w,h);
+   for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+     // Independent 2D noise prevents the long diagonal stripes of 1D noise.
+     const large=n2(x*.010,y*.014,71);
+     const fold=n2(x*.046+y*.010,y*.035,16);
+     const rock=n2(x*.16,y*.15,34);
+     const fine=n2(x*.44,y*.43,93);
+     const shaded=.78+large*.15+fold*.10+rock*.05+fine*.017;
+     const v=Math.max(.52,Math.min(1,shaded));
+     const i=(y*w+x)*4;
+     pixels.data[i]=Math.round(v*248);
+     pixels.data[i+1]=Math.round(v*251);
+     pixels.data[i+2]=Math.round(Math.min(255,v*258));
+     pixels.data[i+3]=255;
+   }
+   c.putImageData(pixels,0,0);
+   const random=(()=>{let seed=10319;return()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296)})();
+   c.lineCap='round';
+   for(let i=0;i<1550;i++){
+     const x=random()*w,y=random()*h,len=4+random()*28;
+     c.strokeStyle=i%5===0?'rgba(220,235,249,.08)':'rgba(11,33,58,.08)';
+     c.lineWidth=.35+random()*1.3;
+     c.beginPath();c.moveTo(x,y);
+     c.bezierCurveTo(x+len*.12,y+len*.2,x-len*.32,y+len*.7,x-len*.25,y+len);
+     c.stroke();
+   }
  },768,384);
 }
 function mountain(z,base,seed,top,bottom){
@@ -156,18 +174,29 @@ function water(){
     float a=sin(p.x*.6+p.y*.18+uTime*.6);float b=sin(p.y*.74-p.x*.2-uTime*.41);
     p.z+=a*.055+b*.035;vPos=p.xy;vRipple=.6*a+.4*b;
     gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0);}`,
-  fragmentShader:`precision highp float;uniform float uTime;varying vec2 vPos;varying float vRipple;
+  fragmentShader:`precision highp float;
+    uniform float uTime;varying vec2 vPos;varying float vRipple;
     void main(){
-      float depth=smoothstep(-45.,20.,vPos.y);
-      vec3 c=mix(vec3(.036,.103,.19),vec3(.045,.26,.30),depth*.82);
-      float broad=sin(vPos.x*.72+vPos.y*.34-uTime*.80);
-      float rip=sin(vPos.y*2.65-vPos.x*.73+uTime*1.30);
-      float fine=sin(vPos.x*1.71+vPos.y*5.6-uTime*.86);
-      c+=vec3(.07,.15,.17)*max(0.,broad*.27+rip*.2+fine*.08);
-      float reflection=exp(-abs(vPos.x*.17+sin(vPos.y*.075+uTime*.12)*.4+vRipple*.16)*1.7);
-      float sparkle=pow(max(0.,sin(vPos.y*.36+uTime*.55)),6.);
-      c+=vec3(.52,.37,.34)*reflection*(.025+.22*sparkle)*(.4+depth*.6);
-      gl_FragColor=vec4(c,1.);
+      vec2 p=vPos;
+      float slow=sin(p.x*.21+p.y*.18-uTime*.27);
+      float warp=.52*sin(p.y*.11+uTime*.21)+.20*sin(p.x*.33-uTime*.36);
+      float wave=sin(p.x*.69+p.y*.35-uTime*.83+warp);
+      float cross=sin(p.y*2.13-p.x*.61+uTime*1.19+slow*.42);
+      float micro=sin(p.x*2.41+p.y*4.12-uTime*.94+cross*.31);
+      float deep=smoothstep(-48.,28.,p.y);
+      vec3 col=mix(vec3(.018,.070,.119),vec3(.037,.155,.185),deep*.90);
+      col+=vec3(.037,.105,.113)*max(0.,wave*.18+cross*.14+micro*.07);
+      // The reflected moon scatters into a broken vertical path.
+      float refX=(p.x-9.)*.18+sin(p.y*.20+uTime*.22)*.45
+        +sin(p.y*.62-uTime*.50)*.10;
+      float moonBand=exp(-abs(refX)*1.42);
+      float rippleLine=pow(max(0.,.5+.5*sin(p.y*1.94+p.x*.28+uTime*.69+warp)),9.);
+      float glint=moonBand*(.018+.38*rippleLine)*(1.-deep*.34);
+      col+=vec3(.48,.45,.39)*glint;
+      float tiny=pow(max(0.,sin(p.x*1.43+p.y*4.6+uTime*.56)),22.);
+      col+=vec3(.16,.23,.24)*tiny*moonBand*.085;
+      col+=vec3(.02,.038,.046)*max(0.,vRipple*.35);
+      gl_FragColor=vec4(col,1.);
     }`
  });
  const mesh=new THREE.Mesh(g,mat);mesh.rotation.x=-Math.PI/2;
@@ -191,11 +220,23 @@ function land(side){
  scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})));
 }
 function foreground(){
- const g=new THREE.PlaneGeometry(125,46,70,28);g.rotateX(-Math.PI/2);
- const p=g.getAttribute('position');
- for(let i=0;i<p.count;i++)p.setY(i,-3.35+noise(p.getX(i)*.24+p.getZ(i)*.16,2)*.13);
- p.needsUpdate=true;g.computeVertexNormals();
- scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:'#314737',side:THREE.DoubleSide}))).position.set(0,0,36);
+ const g=new THREE.PlaneGeometry(125,46,70,28);
+ g.rotateX(-Math.PI/2);
+ const p=g.getAttribute('position'),cols=[];
+ const dark=new THREE.Color('#223a39'),light=new THREE.Color('#536a52');
+ for(let i=0;i<p.count;i++){
+   const x=p.getX(i),z=p.getZ(i);
+   const b=noise(x*.24+z*.16,2);
+   p.setY(i,-3.35+b*.16);
+   const organic=noise(x*.25+z*.22,47)*.27+noise(x*.71-z*.31,61)*.15;
+   const v=Math.max(.10,Math.min(.90,.45+organic));
+   const col=dark.clone().lerp(light,v);
+   cols.push(col.r,col.g,col.b);
+ }
+ p.needsUpdate=true;g.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
+ g.computeVertexNormals();
+ const mat=new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide});
+ scene.add(new THREE.Mesh(g,mat)).position.set(0,0,36);
 }
 function cloudTexture(){
  return texture((c,w,h)=>{
@@ -295,7 +336,7 @@ function plants(){
   const geo=new THREE.PlaneGeometry(1,1,1,18);geo.translate(0,.5,0);
   const uv=geo.getAttribute('uv');for(let i=0;i<uv.count;i++)uv.setX(i,(uv.getX(i)+type)/5);
   const mat=new THREE.MeshBasicMaterial({
-   map:t,color:'#d3d9be',alphaTest:.075,transparent:true,depthWrite:false,side:THREE.DoubleSide,fog:false
+   map:t,color:'#adbbb0',alphaTest:.075,transparent:true,depthWrite:false,side:THREE.DoubleSide,fog:false
   });
   mat.onBeforeCompile=shader=>{
    shader.uniforms.uWindTime=windClock;
