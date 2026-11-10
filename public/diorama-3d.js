@@ -297,27 +297,58 @@ function foreground(){
  const mat=new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide});
  scene.add(new THREE.Mesh(g,mat)).position.set(0,0,49);
 }
-function cloudTexture(){
+// Alto-style horizontal atmospheric layers; wind flows but terrain stays fixed.
+function cloudTexture(seed){
  return texture((c,w,h)=>{
-  for(let i=0;i<46;i++){
-   const x=w*(.08+rng()*.84),y=h*(.28+rng()*.44),r=18+rng()*64;
-   const g=c.createRadialGradient(x,y,1,x,y,r);
-   g.addColorStop(0,'rgba(186,196,222,.12)');g.addColorStop(.5,'rgba(135,164,206,.055)');
-   g.addColorStop(1,'rgba(165,181,229,0)');c.fillStyle=g;
-   c.beginPath();c.ellipse(x,y,r,r*.30,0,0,TAU);c.fill();
+  let n=seed;const random=()=>((n=(Math.imul(n,1664525)+1013904223)>>>0)/4294967296);
+  const bg=c.createLinearGradient(0,0,0,h);
+  bg.addColorStop(0,'rgba(125,157,200,0)');
+  bg.addColorStop(.52,'rgba(125,157,200,.026)');
+  bg.addColorStop(1,'rgba(125,157,200,0)');
+  c.fillStyle=bg;c.fillRect(0,0,w,h);
+  c.globalCompositeOperation='screen';
+  for(let i=0;i<126;i++){
+    const x=random()*w,y=h*(.15+random()*.70),radius=12+random()*47;
+    c.save();c.translate(x,y);c.scale(1,.15+random()*.31);
+    const haze=c.createRadialGradient(0,0,0,0,0,radius);
+    haze.addColorStop(0,'rgba(156,175,209,.058)');
+    haze.addColorStop(.55,'rgba(125,154,195,.026)');
+    haze.addColorStop(1,'rgba(125,154,195,0)');
+    c.fillStyle=haze;c.fillRect(-radius,-radius,radius*2,radius*2);c.restore();
   }
- },512,180);
+  c.globalCompositeOperation='source-over';
+ },768,192);
 }
 function cloudField(){
- const t=cloudTexture();
- for(let i=0;i<5;i++){
-  const m=new THREE.Mesh(new THREE.PlaneGeometry(24+rng()*29,7+rng()*7),
-   new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,fog:false,opacity:.40+rng()*.20}));
-  const x=-100+rng()*200;
-  m.position.set(x,-5+rng()*11,-104+rng()*19);
-  m.userData={x,speed:.10+rng()*.4,phase:rng()*TAU};
+ for(let i=0;i<7;i++){
+  const t=cloudTexture(3041+i*37);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(35+rng()*28,5+rng()*7),
+   new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,
+    fog:false,opacity:.35+rng()*.16,side:THREE.DoubleSide}));
+  const x=-72+rng()*144;
+  m.position.set(x,-6+rng()*11,-120+i*7.2);
+  m.userData={x,speed:.08+rng()*.28,phase:rng()*TAU};
   scene.add(m);clouds.push(m);
- }state.clouds=clouds.length;
+ }
+ state.clouds=clouds.length;
+}
+function aerialPerspective(){
+ const positions=[[-109,-4,11,.17],[-88,-4.8,9,.14],[-67,-5.5,8,.11]];
+ for(const [z,y,height,opacity] of positions){
+  const tex=texture((c,w,h)=>{
+   const g=c.createLinearGradient(0,0,0,h);
+   g.addColorStop(0,'rgba(125,161,192,0)');
+   g.addColorStop(.38,'rgba(137,157,177,.12)');
+   g.addColorStop(.70,'rgba(171,168,178,.22)');
+   g.addColorStop(1,'rgba(115,155,164,0)');
+   c.fillStyle=g;c.fillRect(0,0,w,h);
+  },256,64);
+  const veil=new THREE.Mesh(new THREE.PlaneGeometry(260,height),
+   new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,
+    depthTest:true,opacity,side:THREE.DoubleSide,fog:false}));
+  veil.position.set(0,y,z);scene.add(veil);
+ }
+ state.aerialLayers=positions.length;
 }
 function forest(){
  const tex=texture((c,w,h)=>{
@@ -546,7 +577,7 @@ function init(){
   mountain(-94,-.9,37,'#617f9f','#264863');
   mountain(-73,-1.7,81,'#376d7c','#14394a');
   mountain(-56,-4.1,45,'#326772','#0b2938');
-  water();land(-1);land(1);foreground();cloudField();plants();forest();buildFramingTrees();
+  water();land(-1);land(1);foreground();cloudField();aerialPerspective();plants();forest();buildFramingTrees();
   state.ready=true;
  }catch(e){state.failed=true;state.error=String(e?.message||e);console.warn('Diorama fallback',e);}
 }
