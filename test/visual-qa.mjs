@@ -13,7 +13,8 @@ const ROOT = 'http://127.0.0.1:' + PORT;
 const snapshots = [
   { name: 'desktop-cinematic', width: 1440, height: 900, query: '?map=stargaze', threeD: true },
   { name: 'mobile-cinematic', width: 390, height: 844, query: '?map=stargaze', threeD: true },
-  { name: 'desktop-old-baseline', width: 1440, height: 900, query: '?map=stargaze&models=off&cinema=off', threeD: false }
+  { name: 'desktop-old-baseline', width: 1440, height: 900, query: '?map=stargaze&models=off&cinema=off', threeD: false },
+  { name: 'desktop-painterly-2d', width: 1440, height: 900, query: '?map=stargaze&renderer=2d', threeD: false }
 ];
 
 const server = spawn(process.execPath, ['server.mjs'], {
@@ -68,10 +69,16 @@ try {
     });
     try {
       await page.goto(ROOT + '/' + config.query, { waitUntil: 'domcontentloaded' });
-      await page.waitForFunction(() => {
-        const s = window.GongangDiorama3D?.state;
-        return Boolean(s?.renderCount > 2 || s?.failed);
-      }, null, { timeout: 30000 });
+      const painterly = config.query.includes('renderer=2d');
+      if (painterly) {
+        await page.waitForFunction(() => window.GongangPainterly?.readyToDraw,
+          null, { timeout: 30000 });
+      } else {
+        await page.waitForFunction(() => {
+          const s = window.GongangDiorama3D?.state;
+          return Boolean(s?.renderCount > 2 || s?.failed);
+        }, null, { timeout: 30000 });
+      }
       if (config.threeD) {
         await page.waitForFunction(() => {
           const s = window.GongangDiorama3D?.state;
@@ -95,9 +102,11 @@ try {
       const canvas = page.locator('#game');
       await canvas.screenshot({ path: 'artifacts/landscape/' + config.name + '.png' });
       results.push({ name: config.name, state, errors });
-      assert.equal(state.ready, true, config.name + ': renderer is not ready');
-      assert.equal(state.failed, false, config.name + ': ' + state.error);
-      assert.ok(state.renderCount > 2, config.name + ': not rendering frames');
+      if (!painterly) {
+        assert.equal(state.ready, true, config.name + ': renderer is not ready');
+        assert.equal(state.failed, false, config.name + ': ' + state.error);
+        assert.ok(state.renderCount > 2, config.name + ': not rendering frames');
+      }
       if (config.threeD) {
         assert.ok(state.terrainLoaded, 'Terrain model failed: ' + state.terrainError);
         assert.ok(state.groveLoaded, '3D pine forest failed: ' + state.groveError);
