@@ -3,6 +3,7 @@
  * Uses the project's existing /vendor/three.module.js instance; no CDN.
  */
 import { applyRockStrata } from '/rock-materials-3d.js';
+import { addPainterlyPineCrowns } from '/foliage-billboards-3d.js';
 const ASSET = '/assets/models/moonlit-lookout.obj';
 const MATERIALS = '/assets/models/moonlit-lookout.mtl';
 
@@ -297,6 +298,7 @@ export async function loadAlpineGrove(THREE, scene) {
     if (draw.instanceColor) draw.instanceColor.needsUpdate = true;
     root.add(draw);
   }
+  addPainterlyPineCrowns(THREE,root,trees);
   root.userData.count = trees.length;
   root.userData.parts = root.children.length;
   scene.add(root);
