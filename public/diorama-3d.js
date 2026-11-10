@@ -166,6 +166,58 @@ function cloudField(){
   scene.add(m);clouds.push(m);
  }state.clouds=clouds.length;
 }
+function forest(){
+ const tex=texture((c,w,h)=>{
+  let seed=92161;const r=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
+  c.lineCap='round';const cx=w/2;
+  for(let j=0;j<7;j++){
+   c.strokeStyle=j%2?'rgba(29,67,64,.85)':'rgba(60,101,84,.52)';
+   c.lineWidth=.7+r()*2;c.beginPath();c.moveTo(cx+(r()-.5)*4,h);
+   c.lineTo(cx+(r()-.5)*3,h*.08);c.stroke();
+  }
+  for(let i=0;i<110;i++){
+   const t=i/110,y=h*(.12+t*.8),len=4+t*.95*95;
+   for(const dir of [-1,1]){
+    const tx=cx+dir*len*(.65+r()*.38),ty=y+(r()-.5)*13+t*18;
+    c.strokeStyle=i%5===0?'rgba(110,149,129,.53)':'rgba(27,77,71,.8)';
+    c.lineWidth=.8+r()*1.6;c.beginPath();c.moveTo(cx,y);
+    c.quadraticCurveTo(cx+dir*len*.55,y-5,tx,ty);c.stroke();
+    for(let k=0;k<8;k++){
+     const v=r(),x=lerp(cx,tx,v),yy=lerp(y,ty,v),p=5+r()*11;
+     c.strokeStyle=k%3===0?'rgba(149,177,142,.35)':'rgba(25,73,70,.73)';
+     c.lineWidth=.5+r()*1;c.beginPath();c.moveTo(x,yy);
+     c.lineTo(x+dir*p*.42,yy-p);c.stroke();
+    }
+   }
+  }
+ },256,384);
+ const g=new THREE.PlaneGeometry(1,1,1,12);g.translate(0,.5,0);
+ const mat=new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,
+  alphaTest:.065,side:THREE.DoubleSide,fog:false});
+ mat.onBeforeCompile=shader=>{
+  shader.uniforms.uWindTime=windClock;
+  shader.vertexShader=shader.vertexShader.replace('#include <common>',
+   '#include <common>\nuniform float uWindTime;');
+  shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
+   `#include <begin_vertex>
+    #ifdef USE_INSTANCING
+      transformed.x+=pow(max(position.y,0.),1.8)*.06*
+        sin(uWindTime*.65-instanceMatrix[3].x*.15);
+    #endif`);
+ };
+ mat.customProgramCacheKey=()=> 'gongang-forest-breeze';
+ const count=330,mesh=new THREE.InstancedMesh(g,mat,count),obj=new THREE.Object3D();
+ const colA=new THREE.Color('#9abbb0'),colB=new THREE.Color('#56848a');
+ for(let i=0;i<count;i++){
+  const x=-102+rng()*204,crest=-1.6+ridge(x,45)*1.15,h=1.3+rng()*2.9;
+  obj.position.set(x,crest-.25,-55+rng()*3);
+  obj.rotation.set(0,(rng()-.5)*.4,0);obj.scale.set(h*(.33+rng()*.13),h,1);
+  obj.updateMatrix();mesh.setMatrixAt(i,obj.matrix);
+  mesh.setColorAt(i,colA.clone().lerp(colB,rng()*.8));
+ }
+ mesh.instanceMatrix.needsUpdate=true;mesh.frustumCulled=false;
+ scene.add(mesh);state.trees=count;
+}
 function plants(){
  const t=new THREE.TextureLoader().load('/assets/foliage-atlas.svg');
  t.colorSpace=THREE.SRGBColorSpace;t.minFilter=THREE.LinearFilter;t.magFilter=THREE.LinearFilter;
@@ -235,7 +287,7 @@ function init(){
   mountain(-94,1.0,37,'#7189b4','#294b69');
   mountain(-73,.1,81,'#3f7082','#173d50');
   mountain(-56,-1.6,45,'#305e69','#0c2938');
-  water();land(-1);land(1);foreground();cloudField();plants();
+  water();land(-1);land(1);foreground();cloudField();plants();forest();
   state.ready=true;
  }catch(e){state.failed=true;state.error=String(e?.message||e);console.warn('Diorama fallback',e);}
 }
