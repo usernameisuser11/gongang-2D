@@ -24,9 +24,10 @@ try{
   const errors=[];
   page.on('pageerror',e=>errors.push(String(e)));
   page.on('console',msg=>{if(msg.type()==='error'&&!msg.text().includes('favicon'))errors.push(msg.text())});
-  await page.goto(origin+'/?map=stargaze',{waitUntil:'domcontentloaded'});
+  await page.goto(origin+'/?map=stargaze&renderer=3d',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>window.__stargazeDebug?.get().art?.ready && window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
   await page.waitForTimeout(400);
+  // The legacy 3D regression test explicitly opts in; public default is painted art.
   await page.waitForFunction(()=>window.GongangDiorama3D?.state?.ready || window.GongangDiorama3D?.state?.failed,{timeout:20000});
   const threeState=await page.evaluate(()=>window.GongangDiorama3D?.state);
   if(!threeState?.ready)throw Error('Fixed 3D renderer failed to initialize: '+JSON.stringify(threeState));
@@ -153,7 +154,7 @@ try{
   await page.screenshot({path:'artifacts/stargaze/fireworks.png'});
   const mobile=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
   mobile.on('pageerror',e=>errors.push(String(e)));
-  await mobile.goto(origin+'/?map=stargaze',{waitUntil:'domcontentloaded'});
+  await mobile.goto(origin+'/?map=stargaze&renderer=3d',{waitUntil:'domcontentloaded'});
   await mobile.waitForFunction(()=>window.__stargazeDebug?.get().art?.ready && window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
   await mobile.waitForFunction(()=>window.GongangDiorama3D?.state?.moonUV);
   const moon=await mobile.evaluate(()=>window.GongangDiorama3D.state.moonUV);
