@@ -11,11 +11,15 @@ import { chromium } from 'playwright';
 const PORT = 43117;
 const ROOT = 'http://127.0.0.1:' + PORT;
 const snapshots = [
-  { name: 'desktop-painterly', width: 1440, height: 900, query: '?map=stargaze', kind: 'painterly' },
-  { name: 'mobile-painterly', width: 390, height: 844, query: '?map=stargaze', kind: 'painterly' },
-  { name: 'desktop-hybrid', width: 1440, height: 900, query: '?map=stargaze&hybrid=on', kind: 'hybrid' },
-  { name: 'mobile-hybrid', width: 390, height: 844, query: '?map=stargaze&hybrid=on', kind: 'hybrid' },
-  { name: 'desktop-sculpted-3d', width: 1440, height: 900, query: '?map=stargaze&renderer=3d', kind: '3d' }
+  { name: 'desktop-live-dawn', width: 1440, height: 900, query: '?map=stargaze&time=06:10&weather=clear', kind: 'live', expectedHour: 6.1667, expectedWeather: 'clear' },
+  { name: 'desktop-live-day', width: 1440, height: 900, query: '?map=stargaze&time=13:20&weather=cloudy', kind: 'live', expectedHour: 13.3333, expectedWeather: 'cloudy' },
+  { name: 'desktop-live-sunset', width: 1440, height: 900, query: '?map=stargaze&time=18:10&weather=clear', kind: 'live', expectedHour: 18.1667, expectedWeather: 'clear' },
+  { name: 'desktop-live-night', width: 1440, height: 900, query: '?map=stargaze&time=23:20&weather=clear', kind: 'live', expectedHour: 23.3333, expectedWeather: 'clear' },
+  { name: 'mobile-live-rain', width: 390, height: 844, query: '?map=stargaze&time=16:10&weather=rain', kind: 'live', expectedHour: 16.1667, expectedWeather: 'rain' },
+  { name: 'mobile-live-snow', width: 390, height: 844, query: '?map=stargaze&time=08:10&weather=snow', kind: 'live', expectedHour: 8.1667, expectedWeather: 'snow' },
+  { name: 'desktop-painterly-baseline', width: 1440, height: 900, query: '?map=stargaze&renderer=2d', kind: 'painterly' },
+  { name: 'desktop-hybrid-baseline', width: 1440, height: 900, query: '?map=stargaze&renderer=2d&hybrid=on', kind: 'hybrid' },
+  { name: 'desktop-sculpted-3d-baseline', width: 1440, height: 900, query: '?map=stargaze&renderer=3d', kind: '3d' }
 ];
 
 const server = spawn(process.execPath, ['server.mjs'], {
@@ -70,12 +74,12 @@ try {
     });
     try {
       await page.goto(ROOT + '/' + config.query, { waitUntil: 'domcontentloaded' });
-      if (config.kind === '3d') {
+      if (config.kind === '3d' || config.kind === 'live') {
         await page.waitForFunction(() => {
           const s = window.GongangDiorama3D?.state;
           return Boolean(s?.renderCount > 2 || s?.failed);
         }, null, { timeout: 30000 });
-        await page.waitForFunction(() => {
+        if (config.kind === '3d') await page.waitForFunction(() => {
           const s = window.GongangDiorama3D?.state;
           return Boolean(s?.failed || ((s?.modelLoaded || s?.modelError)
             && (s?.terrainLoaded || s?.terrainError)
@@ -103,13 +107,15 @@ try {
           groveLoaded: s.groveLoaded, groveError: s.groveError,
           cinemaError: s.cinemaError, pineCount: s.pineCount,
           painterly: window.GongangPainterly?.state || null,
-          hybrid: window.GongangHybrid3D?.state || null
+          hybrid: window.GongangHybrid3D?.state || null,
+          environment: s.environment || null,
+          liveMode: s.liveMode
         };
       });
       const canvas = page.locator('#game');
       await canvas.screenshot({ path: 'artifacts/landscape/' + config.name + '.png' });
       results.push({ name: config.name, state, errors });
-      if (config.kind !== '3d') {
+      if (config.kind === 'painterly' || config.kind === 'hybrid') {
         assert.equal(state.painterly?.ready, true, config.name + ': painted art missing');
         assert.ok(state.painterly.renderCount > 2, config.name + ': art not rendering');
       }
@@ -118,15 +124,24 @@ try {
         assert.equal(state.hybrid?.failed, false, config.name + ': hybrid overlay failed');
         assert.ok(state.hybrid.frames > 2, config.name + ': hybrid overlay did not draw');
       }
-      if (config.kind === '3d') {
+      if (config.kind === '3d' || config.kind === 'live') {
         assert.equal(state.ready, true, config.name + ': 3D renderer is not ready');
         assert.equal(state.failed, false, config.name + ': ' + state.error);
         assert.ok(state.renderCount > 2, config.name + ': 3D not rendering');
+        if (config.kind === 'live') {
+          assert.equal(state.liveMode, true, 'Live scene not activated');
+          assert.equal(state.environment?.ready, true, 'No living environment');
+          assert.equal(state.environment?.weather, config.expectedWeather, 'Weather preset mismatch');
+          assert.ok(Math.abs(state.environment.hour-config.expectedHour)<.025, 'Incorrect time-of-day');
+          assert.ok(state.environment.renderCount > 2, 'Sky/lighting did not advance');
+        }
         assert.ok(state.terrainLoaded, 'Terrain model failed: ' + state.terrainError);
         assert.ok(state.groveLoaded, '3D pine forest failed: ' + state.groveError);
         assert.ok(state.modelLoaded, 'Lookout failed: ' + state.modelError);
-        assert.ok(state.hazeLayers >= 2, 'No atmospheric depth layers rendered');
-        assert.ok(state.clouds >= 4, 'No painterly cloud banks');
+        if (config.kind === '3d') {
+          assert.ok(state.hazeLayers >= 2, 'No atmospheric depth layers rendered');
+          assert.ok(state.clouds >= 4, 'No painterly cloud banks');
+        }
         assert.equal(state.cinemaError, null, 'Cinematic atmosphere failed');
       }
       assert.equal(errors.length, 0, config.name + ': page script failures: ' + errors.join('; '));
