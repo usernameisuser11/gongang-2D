@@ -649,8 +649,29 @@
     return {x,y,width,height};
   }
   function drawBackground(c,t,now,personal=false){
-    if(!scenicLayers)build();
     const viewT=makeTransform(t,personal);
+    const art=window.GongangPainterly;
+    if(art?.readyToDraw){
+      const relative=clamp((state.x-1600)/1600,-1,1);
+      // The ordinary 1st-person camera was designed for the procedural
+      // meadow. With a painterly panorama it zooms into the ground instead
+      // of looking up. Use the uncropped scene transform for this sky view.
+      art.draw(c,personal?t:viewT,now,{
+        personal,scroll:relative,
+        onSky:skyTransform=>drawSkyEffects(c,skyTransform,now)
+      });
+      metrics.rendered++;
+      return;
+    }
+    if(art?.state.loading){
+      // Avoid generating 9 expensive procedural canvases while compact
+      // first-party WebP art is decoding asynchronously.
+      c.fillStyle='#0b1630';
+      c.fillRect(viewT.x,viewT.y,viewT.width,viewT.height);
+      metrics.rendered++;
+      return;
+    }
+    if(!scenicLayers)build();
     const {sky,clouds,distant,mistFar,middle,mistNear,near,foreground,silhouettes}=scenicLayers;
     const relative=clamp((state.x-1600)/1600,-1,1);
     const subtle=personal?.32:1;
@@ -752,7 +773,7 @@
     buttonBar.querySelectorAll('[data-sky-event]').forEach(b=>b.addEventListener('click',()=>sendEvent(b.dataset.skyEvent)));
     setInterval(showControls,750);
     showControls();
-    window.__stargazeDebug={get:()=>({scene:state.scene,view,event,rendered:metrics.rendered,staticLayers:metrics.staticLayers,buildMs:metrics.buildMs,layerCount:metrics.layerCount||0,cachedMegabytes:metrics.cachedMegabytes||0,grains:window.StellarGrains?.getDebug()}),setView:(v)=>{view=v==='personal'?'personal':'wide';showControls()}};
+    window.__stargazeDebug={get:()=>({scene:state.scene,view,event,rendered:metrics.rendered,staticLayers:metrics.staticLayers,buildMs:metrics.buildMs,layerCount:metrics.layerCount||0,cachedMegabytes:metrics.cachedMegabytes||0,art:window.GongangPainterly?.state||null,grains:window.StellarGrains?.getDebug()}),setView:(v)=>{view=v==='personal'?'personal':'wide';showControls()}};
   }
   window.GongangStargaze={
     drawBackground,drawTraveler,receiveEvent,
