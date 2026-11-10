@@ -650,6 +650,19 @@
   }
   function drawBackground(c,t,now,personal=false){
     const viewT=makeTransform(t,personal);
+    const diorama=window.GongangDiorama3D;
+    const outputT=personal?t:viewT;
+    if(diorama?.ready && diorama.draw(c,outputT,now,{personal})){
+      // Sky effects remain shared with friends, but don't paint across the 3D lake.
+      c.save();
+      c.beginPath();
+      c.rect(outputT.x,outputT.y,outputT.width,outputT.height*.62);
+      c.clip();
+      drawSkyEffects(c,outputT,now);
+      c.restore();
+      metrics.rendered++;
+      return;
+    }
     const art=window.GongangPainterly;
     if(art?.readyToDraw){
       const relative=clamp((state.x-1600)/1600,-1,1);
@@ -773,7 +786,7 @@
     buttonBar.querySelectorAll('[data-sky-event]').forEach(b=>b.addEventListener('click',()=>sendEvent(b.dataset.skyEvent)));
     setInterval(showControls,750);
     showControls();
-    window.__stargazeDebug={get:()=>({scene:state.scene,view,event,rendered:metrics.rendered,staticLayers:metrics.staticLayers,buildMs:metrics.buildMs,layerCount:metrics.layerCount||0,cachedMegabytes:metrics.cachedMegabytes||0,art:window.GongangPainterly?.state||null,grains:window.StellarGrains?.getDebug()}),setView:(v)=>{view=v==='personal'?'personal':'wide';showControls()}};
+    window.__stargazeDebug={get:()=>({scene:state.scene,view,event,rendered:metrics.rendered,staticLayers:metrics.staticLayers,buildMs:metrics.buildMs,layerCount:metrics.layerCount||0,cachedMegabytes:metrics.cachedMegabytes||0,art:window.GongangPainterly?.state||null,diorama:window.GongangDiorama3D?.state||null,grains:window.StellarGrains?.getDebug()}),setView:(v)=>{view=v==='personal'?'personal':'wide';showControls()}};
   }
   window.GongangStargaze={
     drawBackground,drawTraveler,receiveEvent,
