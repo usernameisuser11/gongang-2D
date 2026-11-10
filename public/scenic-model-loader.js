@@ -74,7 +74,7 @@ function parseObj(text, THREE, materials) {
 
     const rgb = materials.get(name)?.rgb || [0.3, 0.3, 0.3];
     const mat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color().setRGB(...rgb, THREE.LinearSRGBColorSpace),
+      color: new THREE.Color().setRGB(...rgb, THREE.SRGBColorSpace),
       roughness: name.startsWith('Iron') || name === 'LanternMetal' ? 0.52 : 0.88,
       metalness: name.startsWith('Iron') || name === 'LanternMetal' ? 0.38 : 0,
       flatShading: name.startsWith('Stone'),
@@ -156,20 +156,95 @@ async function readLocalMesh(THREE, baseName) {
   return group;
 }
 
+
+/**
+ * One indexed terrain mesh instead of 24 disjoint material meshes.
+ *
+ * Original OBJ triangles are tagged by rock layer, but each material boundary
+ * split the geometry, producing the giant triangle patches seen in screenshots.
+ * Accumulate palette values at shared OBJ vertex indices, compute continuous
+ * normals and vary the lighting gently rather than exposing material polygons.
+ */
+function buildContinuousValley(THREE, objText, mtlText) {
+  const materialMap = parseMaterials(mtlText);
+  const vertices = [[0, 0, 0]];
+  const tris = [];
+  let current = 'FarBase';
+  for (const raw of objText.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (line.startsWith('v ')) {
+      const p = line.slice(2).split(/\s+/).map(Number);
+      if (p.length === 3 && p.every(Number.isFinite)) vertices.push(p);
+    } else if (line.startsWith('usemtl ')) current = line.slice(7).trim();
+    else if (line.startsWith('f ')) {
+      const face = line.slice(2).split(/\s+/).map(v => Number(v.split('/')[0]));
+      if (face.length === 3 && face.every(i => i > 0 && i < vertices.length)) {
+        tris.push({ face, material: current });
+      }
+    }
+  }
+  if (vertices.length < 100 || tris.length < 100) throw Error('Incomplete valley mesh');
+
+  const sums = new Float32Array(vertices.length * 3);
+  const counts = new Uint16Array(vertices.length);
+  const indices = [];
+  for (const {face, material} of tris) {
+    const rgb = materialMap.get(material)?.rgb || [.18,.28,.34];
+    const color = new THREE.Color().setRGB(...rgb, THREE.SRGBColorSpace);
+    for (const vertexIndex of face) {
+      const off = vertexIndex * 3;
+      sums[off] += color.r;
+      sums[off+1] += color.g;
+      sums[off+2] += color.b;
+      counts[vertexIndex]++;
+      indices.push(vertexIndex-1);
+    }
+  }
+  const xyz = new Float32Array((vertices.length-1)*3);
+  const colors = new Float32Array(xyz.length);
+  for (let i=1;i<vertices.length;i++) {
+    const p=vertices[i], off=(i-1)*3, si=i*3, count=Math.max(1,counts[i]);
+    xyz[off]=p[0];xyz[off+1]=p[1];xyz[off+2]=p[2];
+    const far = p[2] < -90;
+    const high = Math.max(0,Math.min(1,(p[1]+8)/20));
+    const light = .85 + .08*high + (far ? .04 : 0);
+    colors[off]=sums[si]/count*light;
+    colors[off+1]=sums[si+1]/count*light;
+    colors[off+2]=sums[si+2]/count*light;
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.BufferAttribute(xyz,3));
+  geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const material = new THREE.MeshBasicMaterial({
+    vertexColors: true, fog: true, side: THREE.DoubleSide
+  });
+  const mesh = new THREE.Mesh(geometry,material);
+  mesh.name = 'Continuous sculpted valley, blended lithology';
+  const group = new THREE.Group();
+  group.name = 'Gongang / alpine-valley';
+  group.add(mesh);
+  group.userData.faces = tris.length;
+  group.userData.vertices = vertices.length - 1;
+  return group;
+}
+
 /**
  * Mount an original 3D sculpted alpine valley. Keep the old backdrop visible
  * until this promise resolves; if loading fails the scene stays unchanged.
  * The four sculpted mountain ranges already carry their world coordinates.
  */
 export async function loadValleyTerrain(THREE, scene) {
-  const mountainGroup = await readLocalMesh(THREE, 'alpine-valley');
+  const [objResponse, matResponse] = await Promise.all([
+    fetch('/assets/models/alpine-valley.obj'),
+    fetch('/assets/models/alpine-valley.mtl')
+  ]);
+  if (!objResponse.ok || !matResponse.ok)
+    throw Error('Valley mesh missing: ' + objResponse.status + '/' + matResponse.status);
+  const [objText, mtlText] = await Promise.all([objResponse.text(),matResponse.text()]);
+  const mountainGroup = buildContinuousValley(THREE, objText, mtlText);
   applyRockStrata(THREE, mountainGroup);
-  for (const part of mountainGroup.children) {
-    part.material.roughness = 1;
-    part.material.metalness = 0;
-    part.material.flatShading = false;
-    part.material.needsUpdate = true;
-  }
   scene.add(mountainGroup);
   return mountainGroup;
 }
