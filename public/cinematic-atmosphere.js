@@ -71,18 +71,18 @@ const FRAGMENT = `
     vec3 shade = mix(uTint, uHighlight,
       smoothstep(0.34, 0.80, large) * 0.43
       + (1.0-uv.y) * 0.12);
-    gl_FragColor = vec4(shade, clamp(opacity, 0.0, 0.24));
+    gl_FragColor = vec4(shade, clamp(opacity, 0.0, 0.14));
   }
 `;
 
 const LAYERS = Object.freeze([
-  { z: -119, y: -4.0, width: 235, height: 21, opacity: 0.34,
+  { z: -119, y: -4.0, width: 235, height: 21, opacity: 0.17,
     tint: '#536e95', highlight: '#9fabc9', seed: 4.2 },
-  { z: -97, y: -5.1, width: 232, height: 16, opacity: 0.29,
+  { z: -97, y: -5.1, width: 232, height: 16, opacity: 0.15,
     tint: '#426a81', highlight: '#8caab7', seed: 11.8 },
-  { z: -77, y: -6.5, width: 224, height: 14, opacity: 0.25,
+  { z: -77, y: -6.5, width: 224, height: 14, opacity: 0.14,
     tint: '#366574', highlight: '#7eacac', seed: 17.4 },
-  { z: -48, y: -5.4, width: 208, height: 10, opacity: 0.18,
+  { z: -48, y: -5.4, width: 208, height: 10, opacity: 0.10,
     tint: '#315a6a', highlight: '#699a9a', seed: 29.2 }
 ]);
 
