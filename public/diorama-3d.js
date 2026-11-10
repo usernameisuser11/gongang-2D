@@ -201,13 +201,13 @@ function init(){
   scene=new THREE.Scene();scene.background=new THREE.Color('#121d3d');
   scene.fog=new THREE.FogExp2('#315b72',.006);
   camera=new THREE.OrthographicCamera(-20,20,12,-12,.1,500);
-  camera.position.set(0,11,39);camera.lookAt(0,1,-23);
+  camera.position.set(0,7,39);camera.lookAt(0,1,-23);
   scene.add(new THREE.HemisphereLight('#ddd9ef','#26403d',2.3));
   const key=new THREE.DirectionalLight('#c5d4ff',1.6);key.position.set(-8,26,9);scene.add(key);
   sky();
-  mountain(-116,9,12,'#9290b6','#39456d');
-  mountain(-94,5.2,37,'#6284a0','#29455e');
-  mountain(-73,2.1,81,'#3e6476','#18354b');
+  mountain(-116,6.2,12,'#aaa1c6','#48537b');
+  mountain(-94,3.0,37,'#7189b4','#294b69');
+  mountain(-73,.6,81,'#3f7082','#173d50');
   mountain(-56,-1.6,45,'#305e69','#0c2938');
   water();land(-1);land(1);foreground();cloudField();plants();
   state.ready=true;
@@ -222,7 +222,7 @@ function draw(ctx,t,now,{personal=false}={}){
   if(w!==state.width||h!==state.height){renderer.setSize(w,h,false);state.width=w;state.height=h;}
   const aspect=w/h;camera.left=-worldH*aspect/2;camera.right=worldH*aspect/2;
   camera.top=worldH/2;camera.bottom=-worldH/2;camera.updateProjectionMatrix();
-  if(personal!==state.personal){camera.position.set(0,personal?16:11,39);
+  if(personal!==state.personal){camera.position.set(0,personal?12:7,39);
    camera.lookAt(0,personal?8:1,-23);state.personal=personal;}
   state.reducedMotion=Boolean(reduced?.matches);
   const sec=state.reducedMotion?0:now/1000;
