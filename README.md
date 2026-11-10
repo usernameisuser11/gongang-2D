@@ -58,3 +58,9 @@ Stellar Explosion v31.9 / Quasar v129의 128px 입자 알파 프로필은 유지
 산 뒤나 구름에 가려진 별의 반짝임은 감쇠한다. 배경은 시점 변경·촬영 시 다시 생성하지 않는다.
 
 > 2026년 11월부터 상명대 단풍길은 공강 2D에서 제외했다. 예전 `/?map=campus` 링크는 별빛 전망대로 자동 전환되며, 기존 `gongang` 3D 프로젝트에는 영향이 없다. 공연·별빛 이벤트는 실제 접속자끼리만 공유된다.
+
+## 3D 모델링 실험 브랜치
+
+`threejs-model-assets`: Unity 없이 Blender에서 열어 편집할 수 있는 Wavefront OBJ 모델과 Three.js 장면 연동. `public/assets/models/`에 전망대 장식물·입체 산맥 4단·침엽수 모델을 추가하고 로더/서버에 연결함. 기존 2D 대체 배경은 모델 로딩 실패 시 유지됨. 관련 자세한 설명: `public/assets/models/README.md`.
+
+실제 브라우저 시각 검증이 끝나기 전에는 기존 `main`으로 병합하지 않음.
