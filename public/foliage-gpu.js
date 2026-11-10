@@ -18,16 +18,16 @@ out vec2 uv;
 out float alpha;
 uniform float time;
 float breeze(float t,float x,float phase){
- float front=sin(t*.61-x*.0024);
- float gust=.64+.25*sin(t*.16+1.1)+.11*sin(t*.095-.7);
- float flutter=.23*sin(t*1.17+x*.0047+phase);
- return (front*.82+.31*sin(t*.38-x*.0014+phase*.22)+flutter)
-   *clamp(gust,.36,1.03);
+ float front=sin(t*.88-x*.0081);
+ float pulse=pow(max(0.,sin(t*.35-x*.0032+.65)),3.);
+ float flutter=.19*sin(t*1.71+x*.012+phase);
+ float breathing=.73+.20*sin(t*.19+1.2)+.09*sin(t*.43-.8);
+ return (.27+front*.63+pulse*.42+flutter)*clamp(breathing,.40,1.04);
 }
 void main(){
  float q=corner.y;
- float bend=style.z*extra.x*pow(q,1.72)*
-   breeze(time-q*.27,place.x,style.w)*extra.y;
+ float bend=style.z*extra.x*pow(q,1.55)*
+   breeze(time-q*.34,place.x,style.w)*extra.y;
  vec2 a=vec2(corner.x*place.z+bend,-q*place.w);
  float cs=cos(extra.z),sn=sin(extra.z);
  vec2 p=place.xy+vec2(a.x*cs-a.y*sn,a.x*sn+a.y*cs);
@@ -59,8 +59,8 @@ void main(){
    if(!gl.getProgramParameter(program,gl.LINK_STATUS))
      throw Error(gl.getProgramInfoLog(program));
    const vertices=[];
-   for(let i=0;i<20;i++){
-     const a=i/20,b=(i+1)/20;
+   for(let i=0;i<24;i++){
+     const a=i/24,b=(i+1)/24;
      vertices.push(-.5,a,.5,a,-.5,b,.5,a,.5,b,-.5,b);
    }
    const vao=gl.createVertexArray();gl.bindVertexArray(vao);
@@ -95,6 +95,7 @@ void main(){
    gl.viewport(0,0,c.width,c.height);
    const uniform=gl.getUniformLocation(program,'time');
    return {canvas:c,draw(t){
+     if(gl.isContextLost())throw Error('Foliage WebGL context lost');
      gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
      gl.useProgram(program);gl.bindVertexArray(vao);
      gl.uniform1f(uniform,t);
