@@ -19,6 +19,7 @@ const stargazeScript = await readFile(join(ROOT, 'public', 'stargaze.js'));
 const stellarGrainScript = await readFile(join(ROOT, 'public', 'stellar-grains.js'));
 const painterlyScript = await readFile(join(ROOT, 'public', 'scenic-art.js'));
 const natureMotionScript = await readFile(join(ROOT, 'public', 'nature-motion.js'));
+const foliageGpuScript = await readFile(join(ROOT, 'public', 'foliage-gpu.js'));
 const foliageAtlas = await readFile(join(ROOT, 'public', 'assets', 'foliage-atlas.svg'));
 const artFileNames = [
   'scenic_overlook.webp', 'scenic_overlook_mobile.webp',
@@ -96,6 +97,15 @@ const server = createServer((req, res) => {
       'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox"
     });
     res.end(req.method === 'HEAD' ? undefined : foliageAtlas);
+    return;
+  }
+  if (path === '/foliage-gpu.js') {
+    res.writeHead(200, {
+      'Content-Type': 'text/javascript; charset=utf-8',
+      'Content-Length': foliageGpuScript.byteLength,
+      'Cache-Control': 'public, max-age=300'
+    });
+    res.end(req.method === 'HEAD' ? undefined : foliageGpuScript);
     return;
   }
   if (path === '/nature-motion.js') {
