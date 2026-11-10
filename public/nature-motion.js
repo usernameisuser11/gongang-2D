@@ -1,124 +1,134 @@
-/* Gongang 2D — restrained botanical motion over the painted panorama.
-   Roots stay fixed. Each tip bends in a smooth, spatially correlated gust.
-   No per-frame noise textures, filters, or image-data operations. */
+/* Gongang 2D — rigged painterly plants.
+ * Five independently painted transparent foliage brushes. A curved ten-bone
+ * deformation field keeps each plant's root fixed while the crown bends with
+ * correlated, traveling gusts. No per-frame noise textures or allocations. */
 (() => {
   'use strict';
-  const W=1672,H=941,TAU=Math.PI*2;
-  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-  const ease=x=>x*x*(3-2*x);
-  function seeded(value){
-    let n=value>>>0;
-    return ()=>{n=(Math.imul(n,1664525)+1013904223)>>>0;return n/4294967296};
-  }
-  const r=seeded(903214);
-  const grasses=[],leaves=[];
-  const grassColors=[
-    'rgba(174,190,149,.27)','rgba(120,157,135,.27)',
-    'rgba(205,180,134,.22)','rgba(99,142,119,.28)',
-    'rgba(169,169,141,.24)'
-  ];
-  const leafColors=[
-    'rgba(42,72,62,.37)','rgba(56,81,67,.34)',
-    'rgba(103,106,72,.23)','rgba(130,131,83,.18)',
-    'rgba(27,59,57,.39)'
-  ];
-  // The illustrated foreground already contains plants: draw only sparse,
-  // foreground botanical accents; never cover the seated visitors.
-  for(let i=0;i<116;i++){
-    const u=r(),x=u<.36?35+r()*485:u<.70?520+r()*565:1080+r()*565;
-    const gy=u<.36?710+r()*215:u<.70?790+r()*145:760+r()*170;
-    const depth=clamp((gy-650)/300,.12,1);
-    grasses.push({
-      x,y:gy,len:(12+r()*33)*(.63+depth*.62),
-      width:.5+r()*.9,lean:(r()-.5)*11,
-      phase:r()*TAU,stiffness:.40+r()*.8,
-      group:Math.floor(x/160),color:grassColors[Math.floor(r()*grassColors.length)],
-      seed:i%13===0
+  const ART_W=1672,ART_H=941,TW=240,TH=400,SEGMENTS=11;
+  const TAU=Math.PI*2;
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  function seeded(seed){let s=seed>>>0;return()=>((s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296);}
+  const random=seeded(113468);
+  const grass=[],leaves=[],asset=new Image();
+  const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
+  const state={assetReady:false,assetFailed:false,drawCalls:0,grassCount:0,leafCount:0,
+    reducedMotion:false,lastWind:0,rigSegments:SEGMENTS,mode:'painterly-mesh'};
+  asset.decoding='async';
+  asset.onload=()=>{state.assetReady=true;};
+  asset.onerror=()=>{state.assetFailed=true;};
+  asset.src='/assets/foliage-atlas.svg';
+
+  // Map plants to the existing meadow's near-edge geometry, with slight
+  // clusters rather than regular spacing. There are no artificial paths or
+  // repeated line-shaped reeds drawn in front of the painting.
+  function grassline(x){return 571+.146*x+17*Math.sin(x*.0047+.7);}
+  const anchors=[82,195,325,475,615,745,965,1070,1210,1360,1500,1610];
+  for(let i=0;i<44;i++){
+    const center=anchors[i%anchors.length];
+    const x=clamp(center+(random()-.5)*(i%4===0?164:115),35,ART_W-38);
+    const depth=.18+.82*random();
+    let rootY=grassline(x)+48+depth*190;
+    rootY=clamp(rootY,635,ART_H+16);
+    // Variants alternate lush leaves, silver-feather grasses and flowers.
+    const variant=[0,1,3,2,1,0,3,2,4][(i+Math.floor(random()*5))%9];
+    const height=(78+random()*92)*(0.65+depth*.52);
+    const width=(70+random()*70)*(0.72+depth*.37);
+    grass.push({
+      x,rootY,width,height,variant,
+      alpha:(.43+random()*.40)*(variant===4?.74:1),
+      amplitude:11+random()*26,
+      phase:random()*TAU,stiffness:.70+random()*.75,
+      direction:random()>.5?1:-1
     });
   }
-  // Only the outer left branches have movable leaf detail; central stars
-  // and the scenic silhouette remain free of extra synthetic decoration.
-  for(let i=0;i<58;i++){
-    const x=12+r()*467,y=4+r()*255;
-    if(x>360&&y>105)continue;
+  // A few distinct leafy sprays hang from the actual left-hand tree. The
+  // source illustration stays untouched: these are independent transparent
+  // branch tips above the background, not a duplicate translated canopy.
+  for(let i=0;i<12;i++){
+    const x=30+random()*350;
+    const rootY=36+random()*140;
     leaves.push({
-      x,y,ang:-.65+r()*2.1,len:5+r()*12,
-      width:1.1+r()*2.4,phase:r()*TAU,
-      stiffness:.5+r()*.65,group:Math.floor(x/105),
-      color:leafColors[Math.floor(r()*leafColors.length)]
+      x,rootY,width:56+random()*59,height:70+random()*73,
+      variant:4,alpha:.24+random()*.27,
+      amplitude:5+random()*11,phase:random()*TAU,
+      stiffness:.72+random()*.52,direction:1,
+      angle:1.0+(random()-.5)*.8
     });
   }
-  const state={drawCalls:0,grassCount:grasses.length,leafCount:leaves.length,
-    reducedMotion:false, lastWind:0};
-  const prefersReduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
-  function wind(t,x,phase=0){
-    // Slow air masses, small turbulent variations, and adjacent stems
-    // receiving similar gusts. All frequencies are low enough to avoid
-    // robotic synchronized swaying and random frame-to-frame jitter.
-    const large=Math.sin(t*.42+x*.0021);
-    const pulse=Math.sin(t*.17+1.4)+.34*Math.sin(t*.065+.3);
-    const detail=Math.sin(t*1.08+x*.009+phase)*.22;
-    const gust=Math.max(.12,.48+.28*pulse+.18*large);
-    return gust*(.63*large+.33*Math.sin(t*.76+x*.0033+phase*.12)+detail);
+  state.grassCount=grass.length;
+  state.leafCount=leaves.length;
+
+  // Coherent gusts travel across the hillside, affecting neighboring plants
+  // together without causing every stalk to mirror the same oscillation.
+  function wind(t,x,phase){
+    const passing=Math.sin(t*.61-x*.0024);
+    const longWave=.64+.25*Math.sin(t*.16+1.1)+.11*Math.sin(t*.095-.7);
+    const flutter=.23*Math.sin(t*1.17+x*.0047+phase);
+    return (passing*.82+.31*Math.sin(t*.38-x*.0014+phase*.22)+flutter)
+      *clamp(longWave,.36,1.03);
   }
-  function grassTip(g,t){
-    const displacement=wind(t,g.x,g.phase)*g.len*.16*g.stiffness;
-    return {x:g.x+g.lean+displacement,y:g.y-g.len};
+  function bend(item,t,q){
+    // The first (root) vertex is exactly stationary. The traveling phase
+    // introduces delayed motion toward the tip, like a flexible stalk.
+    if(q<=0)return 0;
+    const delayed=t-q*.27;
+    return item.amplitude*item.stiffness*Math.pow(q,1.72)
+      *wind(delayed,item.x,item.phase)*item.direction;
   }
-  function paintGrass(c,g,t){
-    const tip=grassTip(g,t);
-    // A cubic stem whose first control point stays near the stationary root.
-    c.strokeStyle=g.color;c.lineWidth=g.width;c.lineCap='round';
-    c.beginPath();c.moveTo(g.x,g.y);
-    c.bezierCurveTo(
-      g.x+g.lean*.11,g.y-g.len*.31,
-      g.x+g.lean*.7+(tip.x-g.x-g.lean)*.64,g.y-g.len*.80,
-      tip.x,tip.y
-    );
-    c.stroke();
-    if(!g.seed)return;
-    // Delicate feather heads respond to the same wind as their stems.
-    const dir=tip.x>g.x?1:-1;
-    c.save();c.translate(tip.x,tip.y);c.rotate(-.18*dir);
-    c.strokeStyle='rgba(208,200,171,.23)';c.lineWidth=.65;
-    for(let n=0;n<6;n++){
-      const yy=-n*1.8-.8,xx=dir*(1+n*.45);
-      c.beginPath();c.moveTo(0,yy+3);c.quadraticCurveTo(xx*1.8,yy+1,xx*2.7,yy-1);c.stroke();
+  function tip(item,t){
+    return {x:item.x+bend(item,t,1),y:item.rootY-item.height};
+  }
+  // The atlas is decoded once. Every frame, 11 overlapping source rows make
+  // a smooth deformation mesh, with the bottom source row anchored at zero.
+  function paintSprite(c,item,t){
+    const slice=TH/SEGMENTS;
+    const width=item.width,height=item.height;
+    c.save();
+    c.translate(item.x,item.rootY);
+    if(item.angle)c.rotate(item.angle);
+    c.globalAlpha=item.alpha;
+    for(let i=0;i<SEGMENTS;i++){
+      const sy=i*slice,sh=(i===SEGMENTS-1?TH-sy:slice);
+      const h0=height*(sy/TH),h1=height*((sy+sh)/TH);
+      const q=1-(sy+sh*.5)/TH;
+      const dx=bend(item,t,q);
+      c.drawImage(asset,item.variant*TW,sy,TW,sh,
+        -width*.5+dx,-height+h0,width,(h1-h0)+.42);
     }
     c.restore();
   }
-  function paintLeaf(c,l,t){
-    const gust=wind(t,l.x,l.phase);
-    const angle=l.ang+gust*.085*l.stiffness;
-    const dx=Math.cos(angle)*l.len,dy=Math.sin(angle)*l.len;
-    // Attachment remains at (x,y). Only the outer leaf surface bends.
-    c.fillStyle=l.color;c.beginPath();c.moveTo(l.x,l.y);
-    c.quadraticCurveTo(l.x+dx*.28-dy*.22,l.y+dy*.28+dx*.12,
-                       l.x+dx,l.y+dy);
-    c.quadraticCurveTo(l.x+dx*.36+dy*.16,l.y+dy*.36-dx*.11,
-                       l.x,l.y);
-    c.fill();
-  }
+  // If the atlas is unavailable, never replace the user's art with crude
+  // rectangles. The static painted meadow remains untouched.
   function draw(c,transform,now,{personal=false}={}){
-    if(!transform)return;
-    const t=now/1000,reduce=Boolean(prefersReduced?.matches);
-    state.reducedMotion=reduce;
-    const sceneTime=reduce?0:t;
-    state.lastWind=wind(sceneTime,720,.7);
+    if(!transform||!state.assetReady)return;
+    const isReduced=Boolean(reduced?.matches);
+    state.reducedMotion=isReduced;
+    const t=isReduced?0:now/1000;
+    state.lastWind=wind(t,900,0);
     c.save();
     c.translate(transform.x,transform.y);
-    c.scale(transform.width/W,transform.height/H);
-    // In close sky view the foreground is only a supporting element.
-    c.globalAlpha=personal?.48:1;
-    for(const g of grasses)paintGrass(c,g,sceneTime);
-    for(const l of leaves)paintLeaf(c,l,sceneTime);
+    c.scale(transform.width/ART_W,transform.height/ART_H);
+    if(personal)c.globalAlpha=.59;
+    // Depth ordering uses root height so distant grass sits behind near grass.
+    for(const item of grass)paintSprite(c,item,t);
+    for(const item of leaves)paintSprite(c,item,t);
     c.restore();
     state.drawCalls++;
   }
   function debugAt(ms=0){
-    const g=grasses[0],l=leaves[0];
-    return {grassRoot:{x:g.x,y:g.y},grassTip:grassTip(g,ms/1000),
-      leafRoot:{x:l.x,y:l.y},count:grasses.length+leaves.length};
+    const t=ms/1000,g=grass[0],l=leaves[0];
+    return {grassRoot:{x:g.x,y:g.rootY},grassTip:tip(g,t),
+      leafRoot:{x:l.x,y:l.rootY},leafTip:tip(l,t),
+      count:grass.length+leaves.length};
   }
-  window.GongangNature={draw,state,debugAt};
+  // A stable development hook for screenshot comparison, never a user control.
+  function debugDrawAt(c,transform,ms){
+    if(!state.assetReady)return;
+    c.save();c.translate(transform.x,transform.y);
+    c.scale(transform.width/ART_W,transform.height/ART_H);
+    for(const g of grass)paintSprite(c,g,ms/1000);
+    for(const l of leaves)paintSprite(c,l,ms/1000);
+    c.restore();
+  }
+  window.GongangNature={draw,state,debugAt,debugDrawAt};
 })();
