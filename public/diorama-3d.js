@@ -148,8 +148,15 @@ function mountainCrest(x,seed,base,z){
   let y=base+ridge(x,seed)*(z<-90?.72:1.15);
   // An open valley through the center reveals the real lake beyond. The
   // ridge rises naturally at the sides instead of forming a solid poster wall.
-  if(seed===45)y-=5.3*Math.exp(-Math.pow((x-4)/28,2));
+  if(seed===45)y-=6.7*Math.exp(-Math.pow((x-4)/28,2));
   if(seed===81)y-=2.1*Math.exp(-Math.pow((x+7)/33,2));
+  // Irregular narrow alpine summits break the rounded horizon.
+  const peak=(center,left,right,height)=>{
+    const d=x<center?(center-x)/left:(x-center)/right;
+    return height*Math.pow(Math.max(0,1-d),1.33);
+  };
+  if(seed===12)y+=peak(8,9,14,4.8)+peak(-12,7,12,2.4);
+  if(seed===37)y+=peak(-7,7,13,1.7);
   return y;
 }
 function mountain(z,base,seed,top,bottom){
@@ -162,6 +169,11 @@ function mountain(z,base,seed,top,bottom){
    pos.push(x,y,z+v*1.5);uvs.push(i/steps,1-v);
    const tone=.83+noise(x*.30+v*7,seed+3)*.12;
    const cc=ct.clone().lerp(cb,v*.9).multiplyScalar(tone);
+   if(seed===12){
+     const cap=Math.min(1,Math.max(0,(y-1.0)/3.4));
+     const snow=cap*Math.pow(1-v,1.6)*(.72+noise(x*.42+v*3,31)*.19);
+     cc.lerp(new THREE.Color('#f0eced'),Math.max(0,Math.min(.82,snow)));
+   }
    col.push(cc.r,cc.g,cc.b);
    if(j<rows&&i<steps){const a=j*(steps+1)+i,b=a+steps+1;indices.push(a,b,a+1,b,b+1,a+1);}
   }
@@ -406,8 +418,8 @@ function draw(ctx,t,now,{personal=false}={}){
   const eyeX=portrait?7:0;
   // A portrait composition looks toward the moon without rotating the view.
   if(personal!==state.personal || state.lastPortrait!==portrait){
-    camera.position.set(eyeX,personal?12:9,39);
-    camera.lookAt(eyeX,personal?8:0,-23);
+    camera.position.set(eyeX,personal?12:7,39);
+    camera.lookAt(eyeX,personal?8:1,-23);
     if(moonSprite){
       moonSprite.position.y=portrait?-4.1:-1;
       moonGlow.position.y=portrait?-4.1:-1;
