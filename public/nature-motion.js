@@ -24,20 +24,26 @@
   // repeated line-shaped reeds drawn in front of the painting.
   function grassline(x){return 571+.146*x+17*Math.sin(x*.0047+.7);}
   const anchors=[82,195,325,475,615,745,965,1070,1210,1360,1500,1610];
+  // Distinct illuminated foreground hero clumps make the wind perceptible
+  // at normal zoom. Smaller companion tufts supply depth without crowding.
+  const heroPoints=[150,345,525,1165,1365,1575];
   for(let i=0;i<27;i++){
-    const center=anchors[(i*5)%anchors.length];
-    const x=clamp(center+(random()-.5)*(i%4===0?164:115),35,ART_W-38);
-    const depth=.18+.82*random();
+    const hero=i<heroPoints.length;
+    const center=hero?heroPoints[i]:anchors[(i*5)%anchors.length];
+    const x=clamp(center+(random()-.5)*(hero?55:130),35,ART_W-38);
+    const depth=hero?.66+random()*.24:.18+.82*random();
     let rootY=grassline(x)+48+depth*190;
     rootY=clamp(rootY,635,ART_H+16);
-    // Variants alternate lush leaves, silver-feather grasses and flowers.
-    const variant=[0,1,3,2,1,0,3,2,4][(i+Math.floor(random()*5))%9];
-    const height=(78+random()*92)*(0.65+depth*.52);
-    const width=(70+random()*70)*(0.72+depth*.37);
+    const variant=hero?(i%2?3:0):
+      [0,1,3,2,1,0,3,2,4][(i+Math.floor(random()*5))%9];
+    const height=hero?155+random()*70:
+      (78+random()*92)*(.65+depth*.52);
+    const width=hero?112+random()*48:
+      (70+random()*70)*(.72+depth*.37);
     grass.push({
       x,rootY,width,height,variant,
-      alpha:(.33+random()*.31)*(variant===4?.74:1),
-      amplitude:18+random()*23,
+      alpha:hero?.69+random()*.14:(.31+random()*.30)*(variant===4?.74:1),
+      amplitude:hero?28+random()*16:18+random()*23,
       phase:random()*TAU,stiffness:.70+random()*.75,
       direction:random()>.5?1:-1
     });
