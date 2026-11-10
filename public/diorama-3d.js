@@ -1,6 +1,6 @@
 /* Gongang: fixed-camera living 3D diorama. Fallback: existing painterly Canvas2D. */
 import * as THREE from '/vendor/three.module.js';
-const TAU=Math.PI*2,worldH=24;
+const TAU=Math.PI*2,worldH=29;
 const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false};
 const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
 let renderer,scene,camera,waterClock,windClock,stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null;
@@ -246,14 +246,17 @@ function land(side){
  scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})));
 }
 function foreground(){
- const g=new THREE.PlaneGeometry(125,46,70,28);
+ const g=new THREE.PlaneGeometry(125,84,70,40);
  g.rotateX(-Math.PI/2);
  const p=g.getAttribute('position'),cols=[];
  const dark=new THREE.Color('#193331'),light=new THREE.Color('#46604b');
  for(let i=0;i<p.count;i++){
    const x=p.getX(i),z=p.getZ(i);
    const b=noise(x*.24+z*.16,2);
-   p.setY(i,-3.35+b*.16);
+   const frontEdge=9+2.8*Math.sin(x*.15)+1.6*noise(x*.08,29);
+   const shoreShift=Math.max(0,1-(z+42)/84);
+   p.setZ(i,z+shoreShift*(frontEdge-10)*.8);
+   p.setY(i,-3.22+b*.18);
    const organic=noise(x*.25+z*.22,47)*.27+noise(x*.71-z*.31,61)*.15;
    const v=Math.max(.10,Math.min(.90,.45+organic));
    const col=dark.clone().lerp(light,v);
@@ -262,7 +265,7 @@ function foreground(){
  p.needsUpdate=true;g.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
  g.computeVertexNormals();
  const mat=new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide});
- scene.add(new THREE.Mesh(g,mat)).position.set(0,0,36);
+ scene.add(new THREE.Mesh(g,mat)).position.set(0,0,49);
 }
 function cloudTexture(){
  return texture((c,w,h)=>{
@@ -340,6 +343,106 @@ function forest(){
  mesh.instanceMatrix.needsUpdate=true;mesh.frustumCulled=false;
  scene.add(mesh);state.trees=count;
 }
+
+/* Actual 3D foreground tree trunks and wind-reactive layered canopy cards.
+ * The forest is not baked into a sliding background image; only foliage bends.
+ */
+function buildFramingTrees(){
+  const crown=texture((ctx,w,h)=>{
+    const random=(()=>{let n=39028;return()=>((n=(Math.imul(n,1664525)+1013904223)>>>0)/4294967296)})();
+    const lobes=[];
+    for(let i=0;i<21;i++){
+      const a=random()*TAU,d=.04+Math.sqrt(random())*.31;
+      const x=w*(.5+Math.cos(a)*d),y=h*(.48+Math.sin(a)*d*.65);
+      lobes.push({x,y,rx:w*(.11+random()*.13),ry:h*(.09+random()*.13)});
+    }
+    // Irregular overlapping leaf masses produce no square sprite outline.
+    for(const l of lobes){
+      const g=ctx.createRadialGradient(l.x-l.rx*.15,l.y-l.ry*.13,0,l.x,l.y,l.rx);
+      g.addColorStop(0,'rgba(140,183,157,.68)');
+      g.addColorStop(.38,'rgba(63,126,120,.84)');
+      g.addColorStop(.78,'rgba(31,76,85,.84)');
+      g.addColorStop(1,'rgba(16,46,58,0)');
+      ctx.save();ctx.translate(l.x,l.y);ctx.scale(1,l.ry/l.rx);
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,l.rx,0,TAU);ctx.fill();ctx.restore();
+    }
+    for(let i=0;i<4600;i++){
+      const x=w*(.12+random()*.76),y=h*(.14+random()*.67);
+      const inside=lobes.some(l=>Math.pow((x-l.x)/l.rx,2)+Math.pow((y-l.y)/l.ry,2)<.74);
+      if(!inside)continue;
+      const len=1+random()*4.4,width=.45+random()*1.4;
+      ctx.strokeStyle=i%5===0?'rgba(210,218,166,.34)':i%3===0?
+        'rgba(108,165,154,.44)':'rgba(18,57,67,.56)';
+      ctx.lineWidth=width;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(x,y);
+      ctx.quadraticCurveTo(x+len*.15,y-len*.5,x+len*.65,y-len*.88);
+      ctx.stroke();
+    }
+  },512,512);
+  const leafGeo=new THREE.PlaneGeometry(1,1,1,12);
+  leafGeo.translate(0,.5,0);
+  const mat=new THREE.MeshBasicMaterial({map:crown,transparent:true,
+    alphaTest:.045,depthWrite:false,side:THREE.DoubleSide,color:'#bdc9b4',fog:false});
+  mat.onBeforeCompile=shader=>{
+    shader.uniforms.uWindTime=windClock;
+    shader.vertexShader=shader.vertexShader.replace('#include <common>',
+      '#include <common>\nuniform float uWindTime;');
+    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
+      `#include <begin_vertex>
+       #ifdef USE_INSTANCING
+       float phase=instanceMatrix[3].x*.27+instanceMatrix[3].z*.32;
+       float breeze=sin(uWindTime*.48+phase)+.21*sin(uWindTime*1.17+phase*2.1);
+       transformed.x+=pow(max(position.y,0.),1.45)*.11*breeze;
+       #endif`);
+  };
+  mat.customProgramCacheKey=()=> 'gongang-broadleaf-breeze-1';
+  const specs=[
+    [-23,15,6.0,.85],[-31,30,11,1.12],
+    [23,14,6.8,.89],[31,29,10.4,1.06],
+    [-15,3,4.3,.64],[16,2,4.0,.61]
+  ];
+  const clusters=[],bark=new THREE.MeshLambertMaterial({color:'#443d38'}),
+    bark2=new THREE.MeshLambertMaterial({color:'#514b42'});
+  const cylinder=new THREE.CylinderGeometry(.10,.16,1,7,1);
+  const dirY=new THREE.Vector3(0,1,0);
+  function branch(from,to,radius,material){
+    const delta=new THREE.Vector3().subVectors(to,from),len=delta.length();
+    const mesh=new THREE.Mesh(cylinder,material);
+    mesh.position.copy(from).addScaledVector(delta,.5);
+    mesh.scale.set(radius/.13,len,radius/.13);
+    mesh.quaternion.setFromUnitVectors(dirY,delta.multiplyScalar(1/len));
+    scene.add(mesh);
+  }
+  for(const [x,z,height,spread] of specs){
+    const base=new THREE.Vector3(x,-3.20,z);
+    const top=base.clone().add(new THREE.Vector3((rng()-.5)*.75,height,0));
+    branch(base,top,.20+(height/10)*.12,bark);
+    const n=height>8?10:7;
+    for(let k=0;k<n;k++){
+      const f=.49+.40*rng(),ang=TAU*k/n+rng()*.5,
+        len=(1.2+rng()*2.0)*spread*(height/7);
+      const start=base.clone().lerp(top,f);
+      const end=start.clone().add(new THREE.Vector3(
+        Math.cos(ang)*len,.25+rng()*1.5,Math.sin(ang)*len*.60));
+      branch(start,end,.08+(1-f)*.09,bark2);
+      clusters.push({x:end.x,y:end.y-.7,z:end.z,w:len*(1.35+rng()*.45),
+        h:height*(.29+rng()*.13),rot:(rng()-.5)*.42});
+    }
+    // A sparse top crown joins the branches without becoming a solid blob.
+    clusters.push({x:top.x,y:top.y-height*.22,z:top.z,w:height*.57,
+      h:height*.40,rot:(rng()-.5)*.20});
+  }
+  const leaves=new THREE.InstancedMesh(leafGeo,mat,clusters.length),o=new THREE.Object3D();
+  for(let i=0;i<clusters.length;i++){
+    const l=clusters[i];o.position.set(l.x,l.y,l.z);
+    o.rotation.set(0,l.rot,0);o.scale.set(l.w,l.h,1);o.updateMatrix();
+    leaves.setMatrixAt(i,o.matrix);
+  }
+  leaves.instanceMatrix.needsUpdate=true;leaves.frustumCulled=false;
+  leaves.renderOrder=9;scene.add(leaves);
+  state.foregroundTrees=specs.length;state.canopyClusters=clusters.length;
+}
+
 function plants(){
  const t=new THREE.TextureLoader().load('/assets/foliage-atlas.svg');
  t.colorSpace=THREE.SRGBColorSpace;t.minFilter=THREE.LinearFilter;t.magFilter=THREE.LinearFilter;
@@ -409,7 +512,7 @@ function init(){
   mountain(-94,-.9,37,'#617f9f','#264863');
   mountain(-73,-1.7,81,'#376d7c','#14394a');
   mountain(-56,-4.1,45,'#326772','#0b2938');
-  water();land(-1);land(1);foreground();cloudField();plants();forest();
+  water();land(-1);land(1);foreground();cloudField();plants();forest();buildFramingTrees();
   state.ready=true;
  }catch(e){state.failed=true;state.error=String(e?.message||e);console.warn('Diorama fallback',e);}
 }
