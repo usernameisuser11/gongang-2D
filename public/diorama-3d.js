@@ -3,7 +3,7 @@ import * as THREE from '/vendor/three.module.js';
 const TAU=Math.PI*2,worldH=24;
 const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false};
 const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
-let renderer,scene,camera,waterClock,windClock,stars,clouds=[],debugTimeMs=null;
+let renderer,scene,camera,waterClock,windClock,stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null;
 const rng=(()=>{let s=20261110;return()=>((s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296)})();
 const lerp=(a,b,t)=>a+(b-a)*t,smooth=t=>t*t*(3-2*t);
 const hash=n=>{n=Math.imul(n^(n>>>15),2246822519);n=Math.imul(n^(n>>>13),3266489917);return ((n^(n>>>16))>>>0)/4294967295};
@@ -60,7 +60,7 @@ function sky(){
   g.addColorStop(1,'rgba(213,180,255,0)');
   c.fillStyle=g;c.fillRect(0,0,w,h);
  },256,256);
- const moonGlow=new THREE.Sprite(new THREE.SpriteMaterial({
+ moonGlow=new THREE.Sprite(new THREE.SpriteMaterial({
    map:halo,transparent:true,depthWrite:false,depthTest:false,
    blending:THREE.AdditiveBlending,fog:false}));
  moonGlow.position.set(9,-1,-150);moonGlow.scale.set(12,12,1);
@@ -79,10 +79,10 @@ function sky(){
      c.beginPath();c.arc(x,y,radius,0,TAU);c.fill();
    }
  },128,128);
- const moon=new THREE.Sprite(new THREE.SpriteMaterial({
+ moonSprite=new THREE.Sprite(new THREE.SpriteMaterial({
    map:disc,transparent:true,depthWrite:false,depthTest:false,fog:false}));
- moon.position.set(9,-1,-149);moon.scale.set(1.36,1.36,1);
- moon.renderOrder=2;scene.add(moon);
+ moonSprite.position.set(9,-1,-149);moonSprite.scale.set(1.36,1.36,1);
+ moonSprite.renderOrder=2;scene.add(moonSprite);
  const xyz=[],phase=[];
  for(let i=0;i<2400;i++){
    xyz.push((rng()-.5)*112,-16+rng()*33,-139-rng()*3);
@@ -144,13 +144,21 @@ function mountainTexture(){
    }
  },768,384);
 }
+function mountainCrest(x,seed,base,z){
+  let y=base+ridge(x,seed)*(z<-90?.72:1.15);
+  // An open valley through the center reveals the real lake beyond. The
+  // ridge rises naturally at the sides instead of forming a solid poster wall.
+  if(seed===45)y-=5.3*Math.exp(-Math.pow((x-4)/28,2));
+  if(seed===81)y-=2.1*Math.exp(-Math.pow((x+7)/33,2));
+  return y;
+}
 function mountain(z,base,seed,top,bottom){
  const steps=240,rows=8,pos=[],col=[],uvs=[],indices=[],ct=new THREE.Color(top),cb=new THREE.Color(bottom);
  for(let j=0;j<=rows;j++){
   const v=j/rows;
   for(let i=0;i<=steps;i++){
    const x=-110+i/steps*220;
-   const y=lerp(base+ridge(x,seed)*(z<-90?.72:1.15),-25,v);
+   const y=lerp(mountainCrest(x,seed,base,z),-25,v);
    pos.push(x,y,z+v*1.5);uvs.push(i/steps,1-v);
    const tone=.83+noise(x*.30+v*7,seed+3)*.12;
    const cc=ct.clone().lerp(cb,v*.9).multiplyScalar(tone);
@@ -303,7 +311,7 @@ function forest(){
  const count=330,mesh=new THREE.InstancedMesh(g,mat,count),obj=new THREE.Object3D();
  const colA=new THREE.Color('#9abbb0'),colB=new THREE.Color('#56848a');
  for(let i=0;i<count;i++){
-  const x=-102+rng()*204,crest=-4.1+ridge(x,45)*1.15,h=.95+rng()*3.3;
+  const x=-102+rng()*204,crest=mountainCrest(x,45,-4.1,-56),h=.95+rng()*3.3;
   obj.position.set(x,crest-.25-Math.pow(rng(),1.4)*2.2,-55+rng()*7);
   obj.rotation.set(0,(rng()-.5)*.4,0);obj.scale.set(h*(.33+rng()*.13),h,1);
   obj.updateMatrix();mesh.setMatrixAt(i,obj.matrix);
@@ -398,8 +406,12 @@ function draw(ctx,t,now,{personal=false}={}){
   const eyeX=portrait?7:0;
   // A portrait composition looks toward the moon without rotating the view.
   if(personal!==state.personal || state.lastPortrait!==portrait){
-    camera.position.set(eyeX,personal?12:7,39);
-    camera.lookAt(eyeX,personal?8:1,-23);
+    camera.position.set(eyeX,personal?12:9,39);
+    camera.lookAt(eyeX,personal?8:0,-23);
+    if(moonSprite){
+      moonSprite.position.y=portrait?-4.1:-1;
+      moonGlow.position.y=portrait?-4.1:-1;
+    }
     state.personal=personal;state.lastPortrait=portrait;
   }
   state.reducedMotion=Boolean(reduced?.matches);
