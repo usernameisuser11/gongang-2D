@@ -20,6 +20,17 @@ const stellarGrainScript = await readFile(join(ROOT, 'public', 'stellar-grains.j
 const painterlyScript = await readFile(join(ROOT, 'public', 'scenic-art.js'));
 const natureMotionScript = await readFile(join(ROOT, 'public', 'nature-motion.js'));
 const dioramaScript = await readFile(join(ROOT, 'public', 'diorama-3d.js'));
+const scenicModelLoader = await readFile(join(ROOT, 'public', 'scenic-model-loader.js'));
+const scenicModelNames = [
+  'moonlit-lookout.obj', 'moonlit-lookout.mtl',
+  'alpine-valley.obj', 'alpine-valley.mtl',
+  'alpine-pine.obj', 'alpine-pine.mtl',
+  'alpine-grove.json'
+];
+const scenicModelAssets = new Map(await Promise.all(scenicModelNames.map(async name => [
+  '/assets/models/' + name,
+  await readFile(join(ROOT, 'public', 'assets', 'models', name))
+])));
 const threeModule = await readFile(join(ROOT, 'node_modules', 'three', 'build', 'three.module.js'));
 const threeCore = await readFile(join(ROOT, 'node_modules', 'three', 'build', 'three.core.js'));
 const foliageGpuScript = await readFile(join(ROOT, 'public', 'foliage-gpu.js'));
@@ -129,6 +140,27 @@ const server = createServer((req, res) => {
       'Cache-Control': 'public, max-age=300'
     });
     res.end(req.method === 'HEAD' ? undefined : source);
+    return;
+  }
+  // The browser loads the editable 3D meshes as static content; no path traversal.
+  if (path === '/scenic-model-loader.js') {
+    res.writeHead(200, {
+      'Content-Type': 'text/javascript; charset=utf-8',
+      'Content-Length': scenicModelLoader.byteLength,
+      'Cache-Control': 'public, max-age=300'
+    });
+    res.end(req.method === 'HEAD' ? undefined : scenicModelLoader);
+    return;
+  }
+  if (scenicModelAssets.has(path)) {
+    const asset = scenicModelAssets.get(path);
+    const type = path.endsWith('.json') ? 'application/json' : 'text/plain';
+    res.writeHead(200, {
+      'Content-Type': type + '; charset=utf-8',
+      'Content-Length': asset.byteLength,
+      'Cache-Control': 'public, max-age=300'
+    });
+    res.end(req.method === 'HEAD' ? undefined : asset);
     return;
   }
   if (path === '/scenic-art.js') {
