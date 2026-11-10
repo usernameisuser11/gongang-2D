@@ -592,8 +592,8 @@ function draw(ctx,t,now,{personal=false}={}){
     camera.position.set(eyeX,personal?12:7,39);
     camera.lookAt(eyeX,personal?8:1,-23);
     if(moonSprite){
-      moonSprite.position.set(portrait?-5:-2,portrait?0.4:-1,-149);
-      moonGlow.position.set(portrait?-5:-2,portrait?0.4:-1,-150);
+      moonSprite.position.set(portrait?-5:-2,portrait?-2.2:-1,-149);
+      moonGlow.position.set(portrait?-5:-2,portrait?-2.2:-1,-150);
     }
     state.personal=personal;state.lastPortrait=portrait;
   }
