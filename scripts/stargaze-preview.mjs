@@ -75,12 +75,22 @@ try{
     vegetation.state.leafCount+' branch tips; roots fixed and tips moving');
   // Capture synchronized test times so the plant motion can be compared in
   // real rendered frames instead of trusting coordinate-only assertions.
+  const measuredWind=[];
   for(const t of [0,2500,5000,7500]){
-    await page.evaluate(ms=>window.GongangNature.debugSetTime(ms),t);
+    await page.evaluate(ms=>{
+      window.GongangNature.debugSetTime(ms);
+      window.GongangDiorama3D.debugSetTime(ms);
+    },t);
     await page.waitForTimeout(140);
+    measuredWind.push(await page.evaluate(()=>window.GongangDiorama3D.state.lastWind));
     await page.screenshot({path:'artifacts/stargaze/wind-'+t+'.png'});
   }
-  await page.evaluate(()=>window.GongangNature.debugSetTime(null));
+  if(Math.max(...measuredWind)-Math.min(...measuredWind)<.4)
+    throw Error('3D wind did not change across captured frames: '+measuredWind);
+  await page.evaluate(()=>{
+    window.GongangNature.debugSetTime(null);
+    window.GongangDiorama3D.debugSetTime(null);
+  });
   const grains=await page.evaluate(()=>window.__stargazeDebug?.get().grains);
   if(!grains||grains.textureSize!==128)
     throw Error('Original Quasar v129 grain renderer missing: '+JSON.stringify(grains));
