@@ -25,18 +25,28 @@ try{
   page.on('pageerror',e=>errors.push(String(e)));
   page.on('console',msg=>{if(msg.type()==='error'&&!msg.text().includes('favicon'))errors.push(msg.text())});
   await page.goto(origin+'/?map=stargaze',{waitUntil:'domcontentloaded'});
-  await page.waitForFunction(()=>window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
+  await page.waitForFunction(()=>window.__stargazeDebug?.get().art?.ready && window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
   await page.waitForTimeout(400);
   if(!(await page.locator('#skyDock').isVisible()))throw Error('Sky controls not visible');
   const grains=await page.evaluate(()=>window.__stargazeDebug?.get().grains);
-  if(!grains||grains.grainCount<20000||grains.textureSize!==128){
-    throw new Error('Original Quasar v129 128px grain profile was not loaded: '+JSON.stringify(grains));
+  if(!grains||grains.textureSize!==128)
+    throw Error('Original Quasar v129 grain renderer missing: '+JSON.stringify(grains));
+  for(const [name,minSize] of [
+    ['scenic_overlook.webp',200000],['scenic_overlook_mobile.webp',50000],
+    ['meadow_foreground.webp',40000],['mountain_depth.webp',40000],
+    ['mist_high.webp',1000],['mist_low.webp',1000]
+  ]){
+    const asset=await fetch(origin+'/assets/'+name);
+    if(!asset.ok||!asset.headers.get('content-type')?.includes('image/webp'))
+      throw Error('Painterly art asset not served: '+name);
+    const bytes=(await asset.arrayBuffer()).byteLength;
+    if(bytes<minSize)throw Error('Unexpectedly small art asset '+name+': '+bytes);
   }
   const grainScript=await fetch(origin+'/stellar-grains.js');
   if(!grainScript.ok||!(await grainScript.text()).includes('11.4')){
     throw new Error('Native Stellar Explosion profile missing from public script');
   }
-  console.log('Original Quasar texture and '+grains.grainCount+' star grains verified');
+  console.log('Original Quasar profile preserved; first-party compressed painterly art assets verified');
 
   if(await page.locator('[data-map="campus"]').count())throw Error('Retired autumn campus is still listed');
   const retired=await browser.newPage({viewport:{width:900,height:640}});
@@ -78,18 +88,18 @@ try{
   const mobile=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
   mobile.on('pageerror',e=>errors.push(String(e)));
   await mobile.goto(origin+'/?map=stargaze',{waitUntil:'domcontentloaded'});
-  await mobile.waitForFunction(()=>window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
+  await mobile.waitForFunction(()=>window.__stargazeDebug?.get().art?.ready && window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
   await mobile.screenshot({path:'artifacts/stargaze/mobile.png'});
   for(const target of [page,mobile]){
     const info=await target.evaluate(()=>window.__stargazeDebug.get());
-    if(info.staticLayers!==1||info.layerCount!==9)
-      throw Error('Expected nine cached scenic planes built once: '+JSON.stringify(info));
-    if(info.cachedMegabytes>60||info.cachedMegabytes<49)
-      throw Error('Canvas memory budget unexpectedly large or missing planes: '+info.cachedMegabytes);
-    if(info.buildMs>12000)
-      throw Error('Initial static scene generation too slow: '+info.buildMs+'ms');
+    if(!info.art?.ready||info.art.failed.length)
+      throw Error('Painterly art failed to load: '+JSON.stringify(info));
+    if(info.staticLayers!==0||info.cachedMegabytes>1)
+      throw Error('Heavy procedural scene must not be rebuilt when photo art loads: '+JSON.stringify(info));
+    if(info.art.renderCount<4)
+      throw Error('Painterly background did not repaint');
     if(info.grains.animatedGrains>155)throw Error('Animated star budget exceeded');
-    console.log('Nine cached planes using '+info.cachedMegabytes.toFixed(1)+' MiB: '+Math.round(info.buildMs)+' ms; '+info.grains.animatedGrains+' animated stars');
+    console.log('Painterly WebP panorama ready in '+info.art.loadMs+'ms, '+info.art.renderCount+' frames, procedural canvas caches: '+info.staticLayers);
   }
   for(const file of ['panorama','personal','fireworks','mobile']){
     const size=(await stat('artifacts/stargaze/'+file+'.png')).size;
