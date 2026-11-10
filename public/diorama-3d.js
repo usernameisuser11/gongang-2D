@@ -420,7 +420,9 @@ function draw(ctx,t,now,{personal=false}={}){
   if(w!==state.width||h!==state.height){renderer.setSize(w,h,false);state.width=w;state.height=h;}
   const aspect=w/h;camera.left=-worldH*aspect/2;camera.right=worldH*aspect/2;
   camera.top=worldH/2;camera.bottom=-worldH/2;camera.updateProjectionMatrix();
-  const portrait=aspect<.85;
+  // The canvas crop may be wider than the physical phone screen.
+  // Use viewport orientation to frame the moon and near-bank composition.
+  const portrait=innerWidth<700 && innerHeight>innerWidth*1.22;
   const eyeX=portrait?7:0;
   // A portrait composition looks toward the moon without rotating the view.
   if(personal!==state.personal || state.lastPortrait!==portrait){
