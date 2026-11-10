@@ -3,13 +3,16 @@ import * as THREE from '/vendor/three.module.js';
 import { loadLookoutModel, loadValleyTerrain, loadAlpineGrove } from '/scenic-model-loader.js';
 import { createCinematicAtmosphere } from '/cinematic-atmosphere.js';
 import { createPainterlyClouds } from '/painterly-clouds-3d.js';
+import { createLivingEnvironment } from '/living-environment-3d.js';
 const TAU=Math.PI*2,worldH=29;
 // QA: ?map=stargaze&models=off compares the old painted scenery to real 3D assets.
+const rendererChoice=new URLSearchParams(location.search).get('renderer');
+const liveMode=rendererChoice!=='3d'&&rendererChoice!=='2d'&&rendererChoice!=='painterly';
 const editableModelsEnabled=new URLSearchParams(location.search).get('models')!=='off';
 const cinemaEnabled=new URLSearchParams(location.search).get('cinema')!=='off';
-const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false,modelLoaded:false,modelParts:0,modelError:null,terrainLoaded:false,terrainParts:0,terrainError:null,groveLoaded:false,pineCount:0,groveError:null,editableModelsEnabled,cinemaEnabled,hazeLayers:0,cinemaError:null};
+const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false,modelLoaded:false,modelParts:0,modelError:null,terrainLoaded:false,terrainParts:0,terrainError:null,groveLoaded:false,pineCount:0,groveError:null,editableModelsEnabled,cinemaEnabled,hazeLayers:0,cinemaError:null,liveMode,environment:null};
 const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
-let renderer,scene,camera,waterClock,windClock,stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null,legacyMountains=[],legacyForest=null,cinematicAtmosphere=null,painterlyClouds=null;
+let renderer,scene,camera,waterClock,windClock,stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null,legacyMountains=[],legacyForest=null,cinematicAtmosphere=null,painterlyClouds=null,livingEnvironment=null,waterMaterial=null;
 const rng=(()=>{let s=20261110;return()=>((s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296)})();
 const lerp=(a,b,t)=>a+(b-a)*t,smooth=t=>t*t*(3-2*t);
 const hash=n=>{n=Math.imul(n^(n>>>15),2246822519);n=Math.imul(n^(n>>>13),3266489917);return ((n^(n>>>16))>>>0)/4294967295};
@@ -195,14 +198,14 @@ function water(){
  waterClock={value:0};
  const g=new THREE.PlaneGeometry(190,110,65,48);
  const mat=new THREE.ShaderMaterial({
-  uniforms:{uTime:waterClock},side:THREE.DoubleSide,
+  uniforms:{uTime:waterClock,uDaylight:{value:0},uTwilight:{value:0},uRain:{value:0}},side:THREE.DoubleSide,
   vertexShader:`uniform float uTime;varying vec2 vPos;varying float vRipple;
    void main(){vec3 p=position;
     float a=sin(p.x*.6+p.y*.18+uTime*.6);float b=sin(p.y*.74-p.x*.2-uTime*.41);
     p.z+=a*.055+b*.035;vPos=p.xy;vRipple=.6*a+.4*b;
     gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0);}`,
   fragmentShader:`precision highp float;
-    uniform float uTime;varying vec2 vPos;varying float vRipple;
+    uniform float uTime,uDaylight,uTwilight,uRain;varying vec2 vPos;varying float vRipple;
     void main(){
       vec2 p=vPos;
       float gust=sin(p.x*.12+p.y*.086-uTime*.16)*1.15
@@ -213,6 +216,8 @@ function water(){
         +sin(p.x*.47+p.y*.38-uTime*.20)*1.25);
       float depth=smoothstep(-52.,37.,p.y);
       vec3 col=mix(vec3(.020,.062,.110),vec3(.028,.143,.168),depth*.81);
+       col=mix(col,vec3(.12,.32,.40)+vec3(.09,.13,.16)*depth,uDaylight*.65);
+       col=mix(col,vec3(.22,.15,.28),uTwilight*.18);
       float waveLight=max(0.,swell*.28+current*.23+chop*.12);
       col+=vec3(.047,.115,.123)*waveLight;
       float softRipple=pow(max(0.,.52+.48*(swell*.55+current*.3+chop*.15)),5.);
@@ -227,12 +232,14 @@ function water(){
       float flecks=pow(max(0.,sin(p.x*3.25-p.y*4.4
         -uTime*.87+gust*2.0)),28.);
       float glint=moonColumn*(.022+.46*broken+.13*flecks)*(1.-depth*.32);
-      col+=vec3(.61,.50,.44)*glint;
+      col+=mix(vec3(.61,.50,.44),vec3(.90,.86,.65),uDaylight)*glint;
+       col+=vec3(.042,.085,.11)*uRain*abs(chop);
       col+=vec3(.035,.08,.09)*max(0.,vRipple*.30);
       gl_FragColor=vec4(col,1.);
     }`
  });
  const mesh=new THREE.Mesh(g,mat);mesh.rotation.x=-Math.PI/2;
+ waterMaterial=mat;
  mesh.position.set(0,-4,-10);scene.add(mesh);
 }
 function land(side){
@@ -514,9 +521,14 @@ function init(){
   scene.fog=new THREE.FogExp2('#315b72',.006);
   camera=new THREE.OrthographicCamera(-20,20,12,-12,.1,500);
   camera.position.set(0,7,39);camera.lookAt(0,1,-23);
-  scene.add(new THREE.HemisphereLight('#ddd9ef','#26403d',2.3));
-  const key=new THREE.DirectionalLight('#c5d4ff',1.6);key.position.set(-8,26,9);scene.add(key);
-  sky();
+  if(liveMode){
+    livingEnvironment=createLivingEnvironment(THREE,scene,{reducedMotion:Boolean(reduced?.matches)});
+    state.environment=livingEnvironment.state;
+  }else{
+    scene.add(new THREE.HemisphereLight('#ddd9ef','#26403d',2.3));
+    const key=new THREE.DirectionalLight('#c5d4ff',1.6);key.position.set(-8,26,9);scene.add(key);
+    sky();
+  }
   mountain(-116,-2.4,12,'#7c8cb1','#394968');
   mountain(-94,-.9,37,'#617f9f','#264863');
   mountain(-73,-1.7,81,'#376d7c','#14394a');
@@ -524,7 +536,7 @@ function init(){
   water();land(-1);land(1);foreground();plants();forest();buildFramingTrees();
   // Consciously restrained cloud and atmosphere passes: no moving rectangles,
   // no fluorescent glow; debug with ?cinema=off without changing the artwork.
-  if(cinemaEnabled){
+  if(cinemaEnabled&&!liveMode){
     try{
       const mobile=innerWidth<700;
       painterlyClouds=createPainterlyClouds(THREE,scene,{mobile});
@@ -601,7 +613,17 @@ function draw(ctx,t,now,{personal=false}={}){
   const sec=state.reducedMotion?0:(debugTimeMs===null?now:debugTimeMs)/1000;
   state.lastWind=Math.sin(sec*.86);
   waterClock.value=sec;windClock.value=sec;
-  stars.material.uniforms.uTime.value=sec;
+  if(stars)stars.material.uniforms.uTime.value=sec;
+  if(livingEnvironment){
+    const env=livingEnvironment.update(sec);
+    state.environment=livingEnvironment.state;
+    windClock.value=sec*(.58+env.wind*.32);
+    if(waterMaterial){
+      waterMaterial.uniforms.uDaylight.value=env.daylight;
+      waterMaterial.uniforms.uTwilight.value=env.twilight;
+      waterMaterial.uniforms.uRain.value=env.rain;
+    }
+  }
   if(moonSprite){
     const uv=moonSprite.position.clone().project(camera);
     state.moonUV={x:(uv.x+1)*.5,y:(1-uv.y)*.5};
@@ -616,7 +638,7 @@ function draw(ctx,t,now,{personal=false}={}){
 }
 // Painterly concept art is the production-quality default. Keep sculpted
 // Three.js terrain available for comparison via ?renderer=3d.
-const useThreeScene=new URLSearchParams(location.search).get('renderer')==='3d';
+const useThreeScene=rendererChoice!=='2d'&&rendererChoice!=='painterly';
 if(useThreeScene)init();
 window.GongangDiorama3D={draw,state,get ready(){return state.ready},
  debugSetTime(ms){debugTimeMs=Number.isFinite(ms)?ms:null;}};
