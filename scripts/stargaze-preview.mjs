@@ -72,6 +72,10 @@ try{
   await page.waitForFunction(()=>window.__photoUxDebug?.get().photo===false);
   await page.locator('[data-sky-view]').click();
   await page.waitForFunction(()=>window.__stargazeDebug?.get().view==='personal');
+  await page.waitForFunction(()=>window.__stargazeDebug?.get().art?.lastPersonalSourceTop!==null);
+  const skyViewTop=await page.evaluate(()=>window.__stargazeDebug.get().art.lastPersonalSourceTop);
+  if(skyViewTop>0.16)
+    throw Error('Personal viewpoint must prioritize the sky, got source top '+skyViewTop);
   for(const pose of ['sit','lie']){
     await page.locator('[data-pose="'+pose+'"]').click();
     if(!await page.locator('[data-pose="'+pose+'"]').evaluate(el=>el.classList.contains('active')))
