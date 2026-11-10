@@ -24,6 +24,7 @@ const scenicModelLoader = await readFile(join(ROOT, 'public', 'scenic-model-load
 const cinematicAtmosphere = await readFile(join(ROOT, 'public', 'cinematic-atmosphere.js'));
 const rockMaterials = await readFile(join(ROOT, 'public', 'rock-materials-3d.js'));
 const foliageBillboards3d = await readFile(join(ROOT, 'public', 'foliage-billboards-3d.js'));
+const hybridScenicProps = await readFile(join(ROOT, 'public', 'hybrid-scenic-props.js'));
 const painterlyClouds = await readFile(join(ROOT, 'public', 'painterly-clouds-3d.js'));
 const scenicModelNames = [
   'moonlit-lookout.obj', 'moonlit-lookout.mtl',
@@ -151,11 +152,13 @@ const server = createServer((req, res) => {
       path === '/cinematic-atmosphere.js' ||
       path === '/rock-materials-3d.js' ||
       path === '/foliage-billboards-3d.js' ||
+      path === '/hybrid-scenic-props.js' ||
       path === '/painterly-clouds-3d.js') {
     const script = path === '/scenic-model-loader.js' ? scenicModelLoader
       : path === '/cinematic-atmosphere.js' ? cinematicAtmosphere
       : path === '/rock-materials-3d.js' ? rockMaterials
       : path === '/foliage-billboards-3d.js' ? foliageBillboards3d
+      : path === '/hybrid-scenic-props.js' ? hybridScenicProps
       : painterlyClouds;
     res.writeHead(200, {
       'Content-Type': 'text/javascript; charset=utf-8',
