@@ -1,0 +1,169 @@
+# Gongang original alpine mountain lithology
+newmtl FarLight
+Ka 0.025 0.035 0.050
+Kd 0.4246 0.4998 0.5942
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl FarBase
+Ka 0.025 0.035 0.050
+Kd 0.3830 0.4595 0.5547
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl FarDeep
+Ka 0.025 0.035 0.050
+Kd 0.3228 0.4014 0.4976
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl FarShade
+Ka 0.025 0.035 0.050
+Kd 0.2627 0.3433 0.4405
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl FarStrata
+Ka 0.025 0.035 0.050
+Kd 0.3460 0.4238 0.5195
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl FarSnow
+Ka 0.025 0.035 0.050
+Kd 0.6508 0.7444 0.8129
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl HighLight
+Ka 0.025 0.035 0.050
+Kd 0.3231 0.4706 0.5545
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl HighBase
+Ka 0.025 0.035 0.050
+Kd 0.2914 0.4353 0.5227
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl HighDeep
+Ka 0.025 0.035 0.050
+Kd 0.2455 0.3843 0.4769
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl HighShade
+Ka 0.025 0.035 0.050
+Kd 0.1996 0.3333 0.4310
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl HighStrata
+Ka 0.025 0.035 0.050
+Kd 0.2631 0.4039 0.4945
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl HighSnow
+Ka 0.025 0.035 0.050
+Kd 0.6243 0.7366 0.8022
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl MiddleLight
+Ka 0.025 0.035 0.050
+Kd 0.2066 0.3926 0.4472
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl MiddleBase
+Ka 0.025 0.035 0.050
+Kd 0.1861 0.3672 0.4211
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl MiddleDeep
+Ka 0.025 0.035 0.050
+Kd 0.1565 0.3305 0.3834
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl MiddleShade
+Ka 0.025 0.035 0.050
+Kd 0.1270 0.2938 0.3456
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl MiddleStrata
+Ka 0.025 0.035 0.050
+Kd 0.1679 0.3446 0.3979
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl MiddleSnow
+Ka 0.025 0.035 0.050
+Kd 0.5939 0.7160 0.7747
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl NearLight
+Ka 0.025 0.035 0.050
+Kd 0.1677 0.3624 0.3875
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl NearBase
+Ka 0.025 0.035 0.050
+Kd 0.1479 0.3306 0.3592
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl NearDeep
+Ka 0.025 0.035 0.050
+Kd 0.1194 0.2847 0.3184
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl NearShade
+Ka 0.025 0.035 0.050
+Kd 0.0908 0.2388 0.2776
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl NearStrata
+Ka 0.025 0.035 0.050
+Kd 0.1304 0.3024 0.3341
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
+newmtl NearSnow
+Ka 0.025 0.035 0.050
+Kd 0.5841 0.7091 0.7600
+Ks 0.035 0.045 0.055
+Ns 7.0
+illum 2
+
