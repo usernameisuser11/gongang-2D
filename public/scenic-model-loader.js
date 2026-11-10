@@ -131,3 +131,95 @@ export async function loadLookoutModel(THREE, scene) {
   model.userData.geometryCount = model.children.filter(item => item.isMesh).length;
   return model;
 }
+
+
+/**
+ * Shared Wavefront reader. OBJ is a real model that can be opened in
+ * Blender and exported again. No Blender runtime or third-party CDN required.
+ */
+async function readLocalMesh(THREE, baseName) {
+  if (!/^[a-z0-9-]+$/i.test(baseName)) throw new Error('Invalid model name');
+  const base = '/assets/models/' + baseName;
+  const [objectResponse, materialResponse] = await Promise.all([
+    fetch(base + '.obj'), fetch(base + '.mtl')
+  ]);
+  if (!objectResponse.ok || !materialResponse.ok) {
+    throw new Error(baseName + ' mesh HTTP ' + objectResponse.status + '/' + materialResponse.status);
+  }
+  const [objectText, materialText] = await Promise.all([
+    objectResponse.text(), materialResponse.text()
+  ]);
+  const group = parseObj(objectText, THREE, parseMaterials(materialText));
+  if (!group.children.length) throw new Error(baseName + ': empty mesh');
+  group.name = 'Gongang / ' + baseName;
+  return group;
+}
+
+/**
+ * Mount an original 3D sculpted alpine valley. Keep the old backdrop visible
+ * until this promise resolves; if loading fails the scene stays unchanged.
+ * The four sculpted mountain ranges already carry their world coordinates.
+ */
+export async function loadValleyTerrain(THREE, scene) {
+  const mountainGroup = await readLocalMesh(THREE, 'alpine-valley');
+  for (const part of mountainGroup.children) {
+    part.material.roughness = 1;
+    part.material.metalness = 0;
+    part.material.flatShading = false;
+    part.material.needsUpdate = true;
+  }
+  scene.add(mountainGroup);
+  return mountainGroup;
+}
+
+/**
+ * Reuse one authored 3D pine with GPU instancing (5 draw calls instead of
+ * one draw call per tree). Places correspond to the authored mountain shape;
+ * skip bad entries rather than allowing corrupt JSON to stop the whole scene.
+ */
+export async function loadAlpineGrove(THREE, scene) {
+  const [model, layoutResponse] = await Promise.all([
+    readLocalMesh(THREE, 'alpine-pine'),
+    fetch('/assets/models/alpine-grove.json')
+  ]);
+  if (!layoutResponse.ok) throw new Error('Alpine placement HTTP ' + layoutResponse.status);
+  const layout = await layoutResponse.json();
+  const trees = Array.isArray(layout.trees) ? layout.trees.filter(tree =>
+    Array.isArray(tree.position) && tree.position.length === 3 &&
+    tree.position.every(Number.isFinite) &&
+    Number.isFinite(tree.scale) && tree.scale > 0 && tree.scale < 3 &&
+    Number.isFinite(tree.rotationY)
+  ) : [];
+  if (!trees.length || trees.length > 120) throw new Error('Invalid alpine grove layout');
+
+  const root = new THREE.Group();
+  root.name = 'Blender Pine Grove';
+  const transform = new THREE.Object3D();
+  const pos = new THREE.Vector3();
+  const groupTint = new THREE.Color();
+  for (const mesh of model.children) {
+    const draw = new THREE.InstancedMesh(mesh.geometry, mesh.material, trees.length);
+    draw.name = 'Instanced ' + mesh.name;
+    draw.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+    draw.frustumCulled = false;
+    for (let i = 0; i < trees.length; i++) {
+      const tree = trees[i];
+      pos.fromArray(tree.position);
+      transform.position.copy(pos);
+      transform.rotation.set(0, tree.rotationY, 0);
+      transform.scale.setScalar(tree.scale);
+      transform.updateMatrix();
+      draw.setMatrixAt(i, transform.matrix);
+      const lift = 0.84 + ((i * 31) % 11) / 70;
+      groupTint.setRGB(lift, lift, lift, THREE.LinearSRGBColorSpace);
+      draw.setColorAt(i, groupTint);
+    }
+    draw.instanceMatrix.needsUpdate = true;
+    if (draw.instanceColor) draw.instanceColor.needsUpdate = true;
+    root.add(draw);
+  }
+  root.userData.count = trees.length;
+  root.userData.parts = root.children.length;
+  scene.add(root);
+  return root;
+}
