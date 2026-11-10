@@ -18,6 +18,7 @@ const html = await readFile(join(ROOT, 'public', 'index.html'));
 const stargazeScript = await readFile(join(ROOT, 'public', 'stargaze.js'));
 const stellarGrainScript = await readFile(join(ROOT, 'public', 'stellar-grains.js'));
 const painterlyScript = await readFile(join(ROOT, 'public', 'scenic-art.js'));
+const natureMotionScript = await readFile(join(ROOT, 'public', 'nature-motion.js'));
 const artFileNames = [
   'scenic_overlook.webp', 'scenic_overlook_mobile.webp',
   'mountain_depth.webp', 'meadow_foreground.webp', 'mist_high.webp', 'mist_low.webp'
@@ -84,6 +85,15 @@ const server = createServer((req, res) => {
     });
     if (req.method === 'HEAD') res.end();
     else res.end(html);
+    return;
+  }
+  if (path === '/nature-motion.js') {
+    res.writeHead(200, {
+      'Content-Type': 'text/javascript; charset=utf-8',
+      'Content-Length': natureMotionScript.byteLength,
+      'Cache-Control': 'public, max-age=300'
+    });
+    res.end(req.method === 'HEAD' ? undefined : natureMotionScript);
     return;
   }
   if (path === '/scenic-art.js') {
