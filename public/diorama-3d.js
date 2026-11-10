@@ -425,14 +425,14 @@ function draw(ctx,t,now,{personal=false}={}){
   // The canvas crop may be wider than the physical phone screen.
   // Use viewport orientation to frame the moon and near-bank composition.
   const portrait=innerWidth<700 && innerHeight>innerWidth*1.22;
-  const eyeX=portrait?7:0;
+  const eyeX=portrait?-5:0;
   // A portrait composition looks toward the moon without rotating the view.
   if(personal!==state.personal || state.lastPortrait!==portrait){
     camera.position.set(eyeX,personal?12:7,39);
     camera.lookAt(eyeX,personal?8:1,-23);
     if(moonSprite){
-      moonSprite.position.set(portrait?8:-2,portrait?-4.1:-1,-149);
-      moonGlow.position.set(portrait?8:-2,portrait?-4.1:-1,-150);
+      moonSprite.position.set(portrait?-5:-2,portrait?-3.0:-1,-149);
+      moonGlow.position.set(portrait?-5:-2,portrait?-3.0:-1,-150);
     }
     state.personal=personal;state.lastPortrait=portrait;
   }
