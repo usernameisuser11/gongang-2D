@@ -32,7 +32,7 @@ function sky(){
   c.fillStyle=g;c.fillRect(0,0,w,h);
  },256,256);
  const moon=new THREE.Sprite(new THREE.SpriteMaterial({map:halo,transparent:true,depthWrite:false,fog:false,blending:THREE.AdditiveBlending}));
- moon.position.set(29,34,-153);moon.scale.set(28,28,1);scene.add(moon);
+ moon.position.set(12,18,-153);moon.scale.set(13,13,1);scene.add(moon);
  const xyz=[],phase=[];
  for(let i=0;i<2000;i++){xyz.push((rng()-.5)*260,9+rng()*73,-139-rng()*3);phase.push(rng()*TAU)}
  const geo=new THREE.BufferGeometry();
@@ -42,7 +42,7 @@ function sky(){
   transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
   uniforms:{uTime:{value:0},uDensity:{value:1}},
   vertexShader:`attribute float aPhase;varying float vPhase;uniform float uDensity;
-    void main(){vPhase=aPhase;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);gl_PointSize=2.1*uDensity;}`,
+    void main(){vPhase=aPhase;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);gl_PointSize=3.0*uDensity;}`,
   fragmentShader:`precision mediump float;uniform float uTime;varying float vPhase;
     void main(){float r=length(gl_PointCoord-.5);
       gl_FragColor=vec4(.85,.93,1.,pow(max(0.,1.-r*2.),2.4)*(.60+.40*sin(uTime*.9+vPhase)));}`
@@ -205,9 +205,9 @@ function init(){
   scene.add(new THREE.HemisphereLight('#ddd9ef','#26403d',2.3));
   const key=new THREE.DirectionalLight('#c5d4ff',1.6);key.position.set(-8,26,9);scene.add(key);
   sky();
-  mountain(-116,6.2,12,'#aaa1c6','#48537b');
-  mountain(-94,3.0,37,'#7189b4','#294b69');
-  mountain(-73,.6,81,'#3f7082','#173d50');
+  mountain(-116,-.3,12,'#aaa1c6','#48537b');
+  mountain(-94,1.0,37,'#7189b4','#294b69');
+  mountain(-73,.1,81,'#3f7082','#173d50');
   mountain(-56,-1.6,45,'#305e69','#0c2938');
   water();land(-1);land(1);foreground();cloudField();plants();
   state.ready=true;
