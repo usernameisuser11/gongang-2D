@@ -358,12 +358,14 @@ function buildFramingTrees(){
     }
     // Irregular overlapping leaf masses produce no square sprite outline.
     for(const l of lobes){
-      const g=ctx.createRadialGradient(l.x-l.rx*.15,l.y-l.ry*.13,0,l.x,l.y,l.rx);
+      ctx.save();ctx.translate(l.x,l.y);ctx.scale(1,l.ry/l.rx);
+      // Gradient coordinates must be local to the translated crown lobe.
+      // Otherwise most of the texture is transparent on actual devices.
+      const g=ctx.createRadialGradient(-l.rx*.15,-l.rx*.11,0,0,0,l.rx);
       g.addColorStop(0,'rgba(140,183,157,.68)');
       g.addColorStop(.38,'rgba(63,126,120,.84)');
       g.addColorStop(.78,'rgba(31,76,85,.84)');
       g.addColorStop(1,'rgba(16,46,58,0)');
-      ctx.save();ctx.translate(l.x,l.y);ctx.scale(1,l.ry/l.rx);
       ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,l.rx,0,TAU);ctx.fill();ctx.restore();
     }
     for(let i=0;i<4600;i++){
