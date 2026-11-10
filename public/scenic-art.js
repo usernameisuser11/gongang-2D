@@ -35,11 +35,19 @@
  function draw(c,view,now,options={}){
    if(!state.ready)return false;
    const scroll=clamp(options.scroll||0,-1,1);
-   const viewport=options.personal?1.19:1;
+   const viewport=options.personal?1.25:1;
    const w=view.width*viewport,h=view.height*viewport;
-   const t={x:view.x-(w-view.width)*(.5+scroll*.14),y:view.y-(h-view.height)*.58,width:w,height:h};
+   // A person looking at the sky should see the upper part of the
+   // panorama, not a magnified patch of the foreground meadow.
+   const t={
+     x:view.x-(w-view.width)*(.5+scroll*.10),
+     y:options.personal?view.y-(h-view.height)*.10:view.y,
+     width:w,height:h
+   };
+   state.lastPersonalSourceTop=options.personal
+     ?Math.max(0,-t.y/t.height):null;
    drawImage(c,assets.scene,t);
-   if(typeof options.onSky === 'function')options.onSky();
+   if(typeof options.onSky === 'function')options.onSky(t);
    const deep=scroll*t.width*.0034;
    drawImage(c,assets.valley,t,deep,1.014);
    const mistPhase=now*.000015;
