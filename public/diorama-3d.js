@@ -614,5 +614,7 @@ function draw(ctx,t,now,{personal=false}={}){
   state.renderCount++;return true;
  }catch(e){state.failed=true;state.ready=false;state.error=String(e?.message||e);return false;}
 }
-init();window.GongangDiorama3D={draw,state,get ready(){return state.ready},
+const usePainterly2D=new URLSearchParams(location.search).get('renderer')==='2d';
+if(!usePainterly2D)init();
+window.GongangDiorama3D={draw,state,get ready(){return state.ready},
  debugSetTime(ms){debugTimeMs=Number.isFinite(ms)?ms:null;}};
