@@ -2,6 +2,12 @@
 (() => {
   'use strict';
   const WIDTH=1920,HEIGHT=1080;
+  // The only place Three.js overlays the painterly panorama. Feature-gated
+  // for composition testing; no dependency required for the production art.
+  if(new URLSearchParams(location.search).get('hybrid')==='on'){
+    import('/hybrid-scenic-props.js').catch(error=>
+      console.warn('Hybrid 3D props could not load; painted scenery unaffected',error));
+  }
   const TAU=Math.PI*2;
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   const smooth=(a,b,t)=>{const q=clamp((t-a)/(b-a),0,1);return q*q*(3-2*q)};
@@ -677,6 +683,9 @@
         personal,scroll:relative,
         onSky:skyTransform=>drawSkyEffects(c,skyTransform,now)
       });
+      // Real Blender mesh overlays are composited on a transparent canvas,
+      // never allowed to replace the painted mountains, clouds or meadow.
+      window.GongangHybrid3D?.draw?.(c,personal?t:viewT,now,{personal});
       metrics.rendered++;
       return;
     }
