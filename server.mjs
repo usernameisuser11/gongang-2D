@@ -17,6 +17,14 @@ const dbKey = String(process.env.SUPABASE_ANON_KEY || '');
 const html = await readFile(join(ROOT, 'public', 'index.html'));
 const stargazeScript = await readFile(join(ROOT, 'public', 'stargaze.js'));
 const stellarGrainScript = await readFile(join(ROOT, 'public', 'stellar-grains.js'));
+const painterlyScript = await readFile(join(ROOT, 'public', 'scenic-art.js'));
+const artFileNames = [
+  'scenic_overlook.webp', 'scenic_overlook_mobile.webp',
+  'mountain_depth.webp', 'meadow_foreground.webp', 'mist_high.webp', 'mist_low.webp'
+];
+const painterlyAssets = new Map(await Promise.all(artFileNames.map(async name => [
+  '/assets/' + name, await readFile(join(ROOT, 'public', 'assets', name))
+])));
 
 let lastDbError = null;
 let dbWriteOk = false;
@@ -76,6 +84,25 @@ const server = createServer((req, res) => {
     });
     if (req.method === 'HEAD') res.end();
     else res.end(html);
+    return;
+  }
+  if (path === '/scenic-art.js') {
+    res.writeHead(200, {
+      'Content-Type': 'text/javascript; charset=utf-8',
+      'Content-Length': painterlyScript.byteLength,
+      'Cache-Control': 'public, max-age=300'
+    });
+    res.end(req.method === 'HEAD' ? undefined : painterlyScript);
+    return;
+  }
+  if (painterlyAssets.has(path)) {
+    const asset = painterlyAssets.get(path);
+    res.writeHead(200, {
+      'Content-Type': 'image/webp',
+      'Content-Length': asset.byteLength,
+      'Cache-Control': 'public, max-age=86400'
+    });
+    res.end(req.method === 'HEAD' ? undefined : asset);
     return;
   }
   if (path === '/stellar-grains.js') {
