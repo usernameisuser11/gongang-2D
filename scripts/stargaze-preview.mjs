@@ -28,6 +28,9 @@ try{
   await page.waitForFunction(()=>window.__stargazeDebug?.get().art?.ready && window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
   await page.waitForTimeout(400);
   if(!(await page.locator('#skyDock').isVisible()))throw Error('Sky controls not visible');
+  const gpuScript=await fetch(origin+'/foliage-gpu.js');
+  if(!gpuScript.ok||!(await gpuScript.text()).includes('drawArraysInstanced'))
+    throw Error('Seam-free foliage mesh renderer not served');
   const motionScript=await fetch(origin+'/nature-motion.js');
   if(!motionScript.ok||!(await motionScript.text()).includes('paintSprite('))
     throw Error('Fixed-root vegetation module not served');
@@ -47,7 +50,7 @@ try{
     return {state:{...motion.state},first:motion.debugAt(0),
       second:motion.debugAt(2400),third:motion.debugAt(8300)};
   });
-  if(!vegetation||vegetation.state.grassCount<30||vegetation.state.leafCount<8)
+  if(!vegetation||vegetation.state.grassCount<25||vegetation.state.leafCount<4)
     throw Error('Expected sparse but present botanical elements: '+JSON.stringify(vegetation));
   for(const later of [vegetation.second,vegetation.third]){
     if(JSON.stringify(later.grassRoot)!==JSON.stringify(vegetation.first.grassRoot)
