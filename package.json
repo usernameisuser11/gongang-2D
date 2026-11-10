@@ -8,10 +8,11 @@
   },
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check public/stargaze.js && node --check public/scenic-art.js && node --check public/foliage-gpu.js && node --check public/nature-motion.js && node --check public/stellar-grains.js && node --test test/*.test.mjs",
+    "check": "node --check server.mjs && node --check public/stargaze.js && node --check public/scenic-art.js && node --check public/diorama-3d.js && node --check public/foliage-gpu.js && node --check public/nature-motion.js && node --check public/stellar-grains.js && node --test test/*.test.mjs",
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
-    "ws": "8.22.1"
+    "ws": "8.22.1",
+    "three": "0.180.0"
   }
 }
