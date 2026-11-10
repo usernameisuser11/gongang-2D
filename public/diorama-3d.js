@@ -1,9 +1,10 @@
 /* Gongang: fixed-camera living 3D diorama. Fallback: existing painterly Canvas2D. */
 import * as THREE from '/vendor/three.module.js';
+import { loadLookoutModel } from '/scenic-model-loader.js';
 const TAU=Math.PI*2,worldH=29;
-const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false};
+const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false,modelLoaded:false,modelParts:0,modelError:null};
 const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
-let renderer,scene,camera,waterClock,windClock,stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null;
+let renderer,scene,camera,waterClock,windClock,stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null;
 const rng=(()=>{let s=20261110;return()=>((s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296)})();
 const lerp=(a,b,t)=>a+(b-a)*t,smooth=t=>t*t*(3-2*t);
 const hash=n=>{n=Math.imul(n^(n>>>15),2246822519);n=Math.imul(n^(n>>>13),3266489917);return ((n^(n>>>16))>>>0)/4294967295};
@@ -515,6 +516,15 @@ function init(){
   mountain(-73,-1.7,81,'#376d7c','#14394a');
   mountain(-56,-4.1,45,'#326772','#0b2938');
   water();land(-1);land(1);foreground();cloudField();plants();forest();buildFramingTrees();
+   // An actual mesh asset created for Gongang, also editable in Blender.
+   // Async loading cannot delay or break the original 3D/Canvas scene.
+   loadLookoutModel(THREE,scene).then(model=>{
+     lookoutModel=model;state.modelLoaded=true;
+     state.modelParts=model.userData.geometryCount;
+   }).catch(error=>{
+     state.modelError=String(error?.message||error);
+     console.warn('Gongang scenic model unavailable, original landscape retained:',error);
+   });
   state.ready=true;
  }catch(e){state.failed=true;state.error=String(e?.message||e);console.warn('Diorama fallback',e);}
 }
@@ -531,6 +541,11 @@ function draw(ctx,t,now,{personal=false}={}){
   // Use viewport orientation to frame the moon and near-bank composition.
   const portrait=innerWidth<700 && innerHeight>innerWidth*1.22;
   const eyeX=portrait?-5:0;
+   if(lookoutModel && lookoutModel.userData.portrait!==portrait){
+     lookoutModel.position.x=portrait?-4.0:7;
+     lookoutModel.scale.setScalar(portrait?.79:.82);
+     lookoutModel.userData.portrait=portrait;
+   }
   // A portrait composition looks toward the moon without rotating the view.
   if(personal!==state.personal || state.lastPortrait!==portrait){
     camera.position.set(eyeX,personal?12:7,39);
