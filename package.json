@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check public/stargaze.js && node --check public/stellar-grains.js && node --test test/*.test.mjs",
+    "check": "node --check server.mjs && node --check public/stargaze.js && node --check public/foliage-gpu.js && node --check public/nature-motion.js && node --check public/stellar-grains.js && node --test test/*.test.mjs",
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
