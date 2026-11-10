@@ -133,15 +133,22 @@
       state.gpu=Boolean(gpu);
     }
     if(gpu){
-      gpu.draw(t);
-      c.save();
-      c.globalAlpha=personal?.72:1;
-      c.drawImage(gpu.canvas,transform.x,transform.y,transform.width,transform.height);
-      c.restore();
-    }else{
+      try{
+        gpu.draw(t);
+        c.save();
+        c.globalAlpha=personal?.72:1;
+        c.drawImage(gpu.canvas,transform.x,transform.y,transform.width,transform.height);
+        c.restore();
+      }catch(error){
+        // Keep the landscape usable after GPU context loss.
+        console.warn('Foliage GPU unavailable; falling back to Canvas2D:',error);
+        gpu=null;state.gpu=false;
+      }
+    }
+    if(!gpu){
       c.save();c.translate(transform.x,transform.y);
       c.scale(transform.width/ART_W,transform.height/ART_H);
-      c.globalAlpha=personal?.54:1;
+      c.globalAlpha=personal?.72:1;
       for(const item of grass)paintSprite(c,item,t);
       for(const item of leaves)paintSprite(c,item,t);
       c.restore();
