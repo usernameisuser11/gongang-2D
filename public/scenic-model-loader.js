@@ -261,7 +261,9 @@ export async function loadAlpineGrove(THREE, scene) {
   ]);
   if (!layoutResponse.ok) throw new Error('Alpine placement HTTP ' + layoutResponse.status);
   const layout = await layoutResponse.json();
+  const portrait = innerWidth < 700 && innerHeight > innerWidth * 1.22;
   const trees = Array.isArray(layout.trees) ? layout.trees.filter(tree =>
+    (tree.view == null || tree.view === (portrait ? 'portrait' : 'wide')) &&
     Array.isArray(tree.position) && tree.position.length === 3 &&
     tree.position.every(Number.isFinite) &&
     Number.isFinite(tree.scale) && tree.scale > 0 && tree.scale < 3 &&
