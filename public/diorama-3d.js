@@ -3,7 +3,7 @@ import * as THREE from '/vendor/three.module.js';
 const TAU=Math.PI*2,worldH=24;
 const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false};
 const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
-let renderer,scene,camera,waterClock,windClock,stars,clouds=[];
+let renderer,scene,camera,waterClock,windClock,stars,clouds=[],debugTimeMs=null;
 const rng=(()=>{let s=20261110;return()=>((s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296)})();
 const lerp=(a,b,t)=>a+(b-a)*t,smooth=t=>t*t*(3-2*t);
 const hash=n=>{n=Math.imul(n^(n>>>15),2246822519);n=Math.imul(n^(n>>>13),3266489917);return ((n^(n>>>16))>>>0)/4294967295};
@@ -303,7 +303,8 @@ function draw(ctx,t,now,{personal=false}={}){
   if(personal!==state.personal){camera.position.set(0,personal?12:7,39);
    camera.lookAt(0,personal?8:1,-23);state.personal=personal;}
   state.reducedMotion=Boolean(reduced?.matches);
-  const sec=state.reducedMotion?0:now/1000;
+  const sec=state.reducedMotion?0:(debugTimeMs===null?now:debugTimeMs)/1000;
+  state.lastWind=Math.sin(sec*.86);
   waterClock.value=sec;windClock.value=sec;
   stars.material.uniforms.uTime.value=sec;
   for(const c of clouds)c.position.x=c.userData.x+Math.sin(sec*c.userData.speed*.04+c.userData.phase)*5.3;
@@ -312,4 +313,5 @@ function draw(ctx,t,now,{personal=false}={}){
   state.renderCount++;return true;
  }catch(e){state.failed=true;state.ready=false;state.error=String(e?.message||e);return false;}
 }
-init();window.GongangDiorama3D={draw,state,get ready(){return state.ready}};
+init();window.GongangDiorama3D={draw,state,get ready(){return state.ready},
+ debugSetTime(ms){debugTimeMs=Number.isFinite(ms)?ms:null;}};
