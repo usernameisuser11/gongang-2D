@@ -777,18 +777,52 @@
   function init(){
     const style=document.createElement('style');
     style.textContent='#skyDock{position:absolute;z-index:4;right:max(12px,env(safe-area-inset-right));bottom:max(84px,env(safe-area-inset-bottom));display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px;max-width:min(95vw,440px)}#skyDock[hidden],#app.photographing #skyDock{display:none!important}#skyDock button{border:1px solid rgba(237,232,221,.35);border-radius:24px;background:rgba(13,28,53,.57);backdrop-filter:blur(11px);padding:11px 14px;color:#f5f4e9;font-weight:650;font-size:12px;box-shadow:0 4px 17px rgba(9,15,34,.18)}#skyDock button:disabled{opacity:.42;cursor:not-allowed}@media(max-width:600px){#skyDock{bottom:max(133px,env(safe-area-inset-bottom));right:8px;max-width:calc(100vw - 16px);gap:5px}#skyDock button{padding:9px 10px;font-size:11px}}';
+    // Full-scene viewing mode keeps the artwork visible on narrow mobile screens.
+    style.textContent += `
+      #scenicExit{display:none;position:absolute;z-index:12;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));border:1px solid rgba(255,255,255,.38);border-radius:24px;padding:10px 15px;background:rgba(11,21,39,.52);backdrop-filter:blur(14px);color:#fff6e7;font:650 12px system-ui,sans-serif;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+      #app.scenic-mode .top,#app.scenic-mode .state,#app.scenic-mode .place,#app.scenic-mode .hint,#app.scenic-mode .joystick,#app.scenic-mode .actionbar,#app.scenic-mode .gmNormal,#app.scenic-mode .sheet,#app.scenic-mode #skyDock{display:none!important}
+      #app.scenic-mode #scenicExit{display:block}
+      #app.photographing #scenicExit{display:none!important}
+    `;
     document.head.appendChild(style);
     buttonBar=document.createElement('div');
     buttonBar.id='skyDock';buttonBar.setAttribute('aria-label','별빛 전망대 감상 및 함께 하는 이벤트');
-    buttonBar.innerHTML='<button type="button" data-sky-view>나만의 시점</button><button type="button" data-sky-event="meteor">☄ 유성우</button><button type="button" data-sky-event="fireworks">✦ 불꽃놀이</button>';
-    document.getElementById('app').appendChild(buttonBar);
+    buttonBar.innerHTML='<button type="button" data-sky-view>나만의 시점</button><button type="button" data-sky-event="meteor">☄ 유성우</button><button type="button" data-sky-event="fireworks">✦ 불꽃놀이</button><button type="button" data-sky-immersive aria-pressed="false">◌ 풍경만 보기</button>';
+    const app=document.getElementById('app');
+    app.appendChild(buttonBar);
+    const immersiveButton=buttonBar.querySelector('[data-sky-immersive]');
+    const exitButton=document.createElement('button');
+    exitButton.id='scenicExit';exitButton.type='button';
+    exitButton.textContent='✕ 감상 종료';
+    exitButton.setAttribute('aria-label','풍경 감상 모드 종료');
+    app.appendChild(exitButton);
+    function setImmersive(enabled){
+      const on=Boolean(enabled)&&state.scene==='stargaze'&&!state.photo;
+      app.classList.toggle('scenic-mode',on);
+      immersiveButton.setAttribute('aria-pressed',String(on));
+      if(on)for(const id of ['placeSheet','spotSheet','settingsSheet']){
+        const sheet=document.getElementById(id);if(sheet)sheet.hidden=true;
+      }
+    }
+    immersiveButton.addEventListener('click',()=>setImmersive(!app.classList.contains('scenic-mode')));
+    exitButton.addEventListener('click',()=>setImmersive(false));
+    window.addEventListener('keydown',e=>{
+      if(e.repeat||state.photo||state.scene!=='stargaze'||e.target?.closest?.('input,textarea,[contenteditable]'))return;
+      if(e.key.toLowerCase()==='h'){setImmersive(!app.classList.contains('scenic-mode'));}
+      else if(e.key==='Escape'&&app.classList.contains('scenic-mode'))setImmersive(false);
+    });
+    if(new URLSearchParams(location.search).get('view')==='clean')setImmersive(true);
     buttonBar.querySelector('[data-sky-view]').addEventListener('click',()=>{
       view=view==='wide'?'personal':'wide';
       showControls();
       toast(view==='personal'?'내 눈높이에서 하늘 바라보기':'함께하는 전망으로 돌아왔어');
     });
     buttonBar.querySelectorAll('[data-sky-event]').forEach(b=>b.addEventListener('click',()=>sendEvent(b.dataset.skyEvent)));
-    setInterval(showControls,750);
+    setInterval(()=>{
+      if(state.scene!=='stargaze' && app.classList.contains('scenic-mode'))setImmersive(false);
+      if(state.photo && app.classList.contains('scenic-mode'))setImmersive(false);
+      showControls();
+    },750);
     showControls();
     window.__stargazeDebug={get:()=>({scene:state.scene,view,event,rendered:metrics.rendered,staticLayers:metrics.staticLayers,buildMs:metrics.buildMs,layerCount:metrics.layerCount||0,cachedMegabytes:metrics.cachedMegabytes||0,art:window.GongangPainterly?.state||null,diorama:window.GongangDiorama3D?.state||null,grains:window.StellarGrains?.getDebug()}),setView:(v)=>{view=v==='personal'?'personal':'wide';showControls()}};
   }
