@@ -551,7 +551,7 @@ function init(){
       painterlyClouds=null;cinematicAtmosphere=null;
       cloudField();
     }
-  }else cloudField();
+  }else if(!liveMode)cloudField();
   if(editableModelsEnabled){
    // An actual mesh asset created for Gongang, also editable in Blender.
    // Async loading cannot delay or break the original 3D/Canvas scene.
@@ -636,8 +636,8 @@ function draw(ctx,t,now,{personal=false}={}){
   state.renderCount++;return true;
  }catch(e){state.failed=true;state.ready=false;state.error=String(e?.message||e);return false;}
 }
-// Painterly concept art is the production-quality default. Keep sculpted
-// Three.js terrain available for comparison via ?renderer=3d.
+// In this experimental branch the real-time WebGL world is the default.
+// ?renderer=3d is the former fixed-night version; ?renderer=2d is legacy fallback.
 const useThreeScene=rendererChoice!=='2d'&&rendererChoice!=='painterly';
 if(useThreeScene)init();
 window.GongangDiorama3D={draw,state,get ready(){return state.ready},
