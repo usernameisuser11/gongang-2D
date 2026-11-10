@@ -12,7 +12,7 @@ const editableModelsEnabled=new URLSearchParams(location.search).get('models')!=
 const cinemaEnabled=new URLSearchParams(location.search).get('cinema')!=='off';
 const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false,modelLoaded:false,modelParts:0,modelError:null,terrainLoaded:false,terrainParts:0,terrainError:null,groveLoaded:false,pineCount:0,groveError:null,editableModelsEnabled,cinemaEnabled,hazeLayers:0,cinemaError:null,liveMode,environment:null};
 const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
-let renderer,scene,camera,waterClock,windClock,stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null,legacyMountains=[],legacyForest=null,cinematicAtmosphere=null,painterlyClouds=null,livingEnvironment=null,waterMaterial=null;
+let renderer,scene,camera,waterClock,windClock,windStrength={value:1},stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null,legacyMountains=[],legacyForest=null,cinematicAtmosphere=null,painterlyClouds=null,livingEnvironment=null,waterMaterial=null;
 const rng=(()=>{let s=20261110;return()=>((s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296)})();
 const lerp=(a,b,t)=>a+(b-a)*t,smooth=t=>t*t*(3-2*t);
 const hash=n=>{n=Math.imul(n^(n>>>15),2246822519);n=Math.imul(n^(n>>>13),3266489917);return ((n^(n>>>16))>>>0)/4294967295};
@@ -333,12 +333,13 @@ function forest(){
   alphaTest:.065,side:THREE.DoubleSide,fog:false});
  mat.onBeforeCompile=shader=>{
   shader.uniforms.uWindTime=windClock;
+  shader.uniforms.uWindStrength=windStrength;
   shader.vertexShader=shader.vertexShader.replace('#include <common>',
-   '#include <common>\nuniform float uWindTime;');
+   '#include <common>\nuniform float uWindTime;uniform float uWindStrength;');
   shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
    `#include <begin_vertex>
     #ifdef USE_INSTANCING
-      transformed.x+=pow(max(position.y,0.),1.8)*.06*
+      transformed.x+=pow(max(position.y,0.),1.8)*.06*uWindStrength*
         sin(uWindTime*.65-instanceMatrix[3].x*.15);
     #endif`);
  };
@@ -401,14 +402,15 @@ function buildFramingTrees(){
     alphaTest:.045,depthWrite:false,side:THREE.DoubleSide,color:'#bdc9b4',fog:false});
   mat.onBeforeCompile=shader=>{
     shader.uniforms.uWindTime=windClock;
+  shader.uniforms.uWindStrength=windStrength;
     shader.vertexShader=shader.vertexShader.replace('#include <common>',
-      '#include <common>\nuniform float uWindTime;');
+      '#include <common>\nuniform float uWindTime;uniform float uWindStrength;');
     shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
       `#include <begin_vertex>
        #ifdef USE_INSTANCING
        float phase=instanceMatrix[3].x*.27+instanceMatrix[3].z*.32;
        float breeze=sin(uWindTime*.48+phase)+.21*sin(uWindTime*1.17+phase*2.1);
-       transformed.x+=pow(max(position.y,0.),1.45)*.11*breeze;
+       transformed.x+=pow(max(position.y,0.),1.45)*.11*breeze*uWindStrength;
        #endif`);
   };
   mat.customProgramCacheKey=()=> 'gongang-broadleaf-breeze-1';
@@ -487,8 +489,9 @@ function plants(){
   });
   mat.onBeforeCompile=shader=>{
    shader.uniforms.uWindTime=windClock;
+  shader.uniforms.uWindStrength=windStrength;
    shader.vertexShader=shader.vertexShader.replace('#include <common>',
-    '#include <common>\nuniform float uWindTime;');
+    '#include <common>\nuniform float uWindTime;uniform float uWindStrength;');
    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
     `#include <begin_vertex>
       #ifdef USE_INSTANCING
@@ -497,7 +500,7 @@ function plants(){
        float gust=pow(max(0.,sin(uWindTime*.35-wx*.075)),2.);
        float flutter=sin(uWindTime*1.89+wx*.77);
        transformed.x+=pow(max(position.y,0.),1.65)*
-         (.19*front+.08*gust+.017*flutter);
+         (.19*front+.08*gust+.017*flutter)*uWindStrength;
       #endif`
    );
   };
@@ -611,6 +614,7 @@ function draw(ctx,t,now,{personal=false}={}){
   }
   state.reducedMotion=Boolean(reduced?.matches);
   const sec=state.reducedMotion?0:(debugTimeMs===null?now:debugTimeMs)/1000;
+  windStrength.value=state.reducedMotion?0:1;
   state.lastWind=Math.sin(sec*.86);
   waterClock.value=sec;windClock.value=sec;
   if(stars)stars.material.uniforms.uTime.value=sec;
@@ -618,6 +622,7 @@ function draw(ctx,t,now,{personal=false}={}){
     const env=livingEnvironment.update(sec);
     state.environment=livingEnvironment.state;
     windClock.value=sec*(.58+env.wind*.32);
+    windStrength.value=state.reducedMotion?0:Math.max(.10,Math.min(2.3,env.wind));
     if(waterMaterial){
       waterMaterial.uniforms.uDaylight.value=env.daylight;
       waterMaterial.uniforms.uTwilight.value=env.twilight;
