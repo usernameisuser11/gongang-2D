@@ -224,7 +224,8 @@ function draw(ctx,t,now,{personal=false}={}){
   camera.top=worldH/2;camera.bottom=-worldH/2;camera.updateProjectionMatrix();
   if(personal!==state.personal){camera.position.set(0,personal?16:11,39);
    camera.lookAt(0,personal?8:1,-23);state.personal=personal;}
-  const sec=reduced?.matches?0:now/1000;
+  state.reducedMotion=Boolean(reduced?.matches);
+  const sec=state.reducedMotion?0:now/1000;
   waterClock.value=sec;windClock.value=sec;
   stars.material.uniforms.uTime.value=sec;
   for(const c of clouds)c.position.x=c.userData.x+Math.sin(sec*c.userData.speed*.04+c.userData.phase)*5.3;
