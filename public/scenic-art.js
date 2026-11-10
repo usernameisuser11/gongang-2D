@@ -41,7 +41,7 @@
    // panorama, not a magnified patch of the foreground meadow.
    const t={
      x:view.x-(w-view.width)*(.5+scroll*.10),
-     y:options.personal?view.y-(h-view.height)*.10:view.y,
+     y:options.personal?-(h-view.height)*.12:view.y,
      width:w,height:h
    };
    state.lastPersonalSourceTop=options.personal
