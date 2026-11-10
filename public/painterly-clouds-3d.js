@@ -30,7 +30,7 @@ function paintCloudTexture(THREE, seed, mobile) {
     ctx.rotate((random() - .5) * .19);
     ctx.scale(rx, ry);
     const fill = ctx.createRadialGradient(0, -0.19, .025, 0, 0, 1.0);
-    const strength = .18 + random() * .20;
+    const strength = .085 + random() * .16;
     const cool = 168 + Math.round(random() * 44);
     fill.addColorStop(0, 'rgba(' + (cool + 10) + ',' + (cool + 21) + ',230,' + strength.toFixed(3) + ')');
     fill.addColorStop(.36, 'rgba(' + cool + ',' + (cool + 14) + ',221,' + (strength * .56).toFixed(3) + ')');
@@ -90,12 +90,12 @@ export function createPainterlyClouds(THREE, scene, options = {}) {
 
   for (let i = 0; i < count; i++) {
     const tex = paintCloudTexture(THREE, 617 + 113 * i, mobile);
-    const geometry = new THREE.PlaneGeometry(27 + random() * 19,
+    const geometry = new THREE.PlaneGeometry(21 + random() * 17,
       6.5 + random() * 6.8);
     const material = new THREE.MeshBasicMaterial({
       map: tex,
       transparent: true,
-      opacity: .81 - i * .035,
+      opacity: .58 - i * .028,
       fog: false,
       depthWrite: false,
       side: THREE.FrontSide
@@ -103,7 +103,7 @@ export function createPainterlyClouds(THREE, scene, options = {}) {
     const cloud = new THREE.Mesh(geometry, material);
     const spread = (i + .5) / count;
     cloud.position.set(-32 + spread * 66 + (random() - .5) * 13,
-      -2.8 + random() * 5.4,
+      -1.4 + random() * 4.2,
       -121 - random() * 14);
     cloud.rotation.z = (random() - .5) * .11;
     cloud.name = 'Painted cloud bank / ' + (i + 1);
