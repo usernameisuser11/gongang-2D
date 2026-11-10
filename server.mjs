@@ -19,6 +19,9 @@ const stargazeScript = await readFile(join(ROOT, 'public', 'stargaze.js'));
 const stellarGrainScript = await readFile(join(ROOT, 'public', 'stellar-grains.js'));
 const painterlyScript = await readFile(join(ROOT, 'public', 'scenic-art.js'));
 const natureMotionScript = await readFile(join(ROOT, 'public', 'nature-motion.js'));
+const dioramaScript = await readFile(join(ROOT, 'public', 'diorama-3d.js'));
+const threeModule = await readFile(join(ROOT, 'node_modules', 'three', 'build', 'three.module.js'));
+const threeCore = await readFile(join(ROOT, 'node_modules', 'three', 'build', 'three.core.js'));
 const foliageGpuScript = await readFile(join(ROOT, 'public', 'foliage-gpu.js'));
 const foliageAtlas = await readFile(join(ROOT, 'public', 'assets', 'foliage-atlas.svg'));
 const artFileNames = [
@@ -115,6 +118,17 @@ const server = createServer((req, res) => {
       'Cache-Control': 'public, max-age=300'
     });
     res.end(req.method === 'HEAD' ? undefined : natureMotionScript);
+    return;
+  }
+  if (path === '/diorama-3d.js' || path === '/vendor/three.module.js' || path === '/vendor/three.core.js') {
+    const source = path === '/diorama-3d.js' ? dioramaScript :
+      path === '/vendor/three.module.js' ? threeModule : threeCore;
+    res.writeHead(200, {
+      'Content-Type': 'text/javascript; charset=utf-8',
+      'Content-Length': source.byteLength,
+      'Cache-Control': 'public, max-age=300'
+    });
+    res.end(req.method === 'HEAD' ? undefined : source);
     return;
   }
   if (path === '/scenic-art.js') {
