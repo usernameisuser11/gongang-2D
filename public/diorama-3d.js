@@ -614,7 +614,9 @@ function draw(ctx,t,now,{personal=false}={}){
   state.renderCount++;return true;
  }catch(e){state.failed=true;state.ready=false;state.error=String(e?.message||e);return false;}
 }
-const usePainterly2D=new URLSearchParams(location.search).get('renderer')==='2d';
-if(!usePainterly2D)init();
+// Painterly concept art is the production-quality default. Keep sculpted
+// Three.js terrain available for comparison via ?renderer=3d.
+const useThreeScene=new URLSearchParams(location.search).get('renderer')==='3d';
+if(useThreeScene)init();
 window.GongangDiorama3D={draw,state,get ready(){return state.ready},
  debugSetTime(ms){debugTimeMs=Number.isFinite(ms)?ms:null;}};
