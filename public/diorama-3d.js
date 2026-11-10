@@ -49,14 +49,38 @@ function sky(){
  }));
  scene.add(stars);
 }
+let rockPattern;
+function mountainTexture(){
+ return texture((c,w,h)=>{
+  const img=c.createImageData(w,h);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+   const broad=noise(x*.018+y*.022,71)*.53;
+   const strata=noise(x*.082-y*.047,16)*.27;
+   const grain=noise(x*.38+y*.24,32)*.14;
+   const seam=Math.sin(y*.11+x*.055+broad*3)*.035;
+   const value=Math.max(.58,Math.min(1,.83+(broad+strata+grain)*.26+seam));
+   const n=(y*w+x)*4,v=Math.round(value*255);
+   img.data[n]=v;img.data[n+1]=v;img.data[n+2]=v;img.data[n+3]=255;
+  }
+  c.putImageData(img,0,0);
+  const r=(()=>{let a=4617;return()=>((a=(Math.imul(a,1664525)+1013904223)>>>0)/4294967296)})();
+  for(let i=0;i<1100;i++){
+   const x=r()*w,y=r()*h,len=6+r()*35;
+   c.strokeStyle=i%4===0?'rgba(247,247,255,.13)':'rgba(23,42,60,.075)';
+   c.lineWidth=.35+r()*1.6;c.beginPath();
+   c.moveTo(x,y);c.quadraticCurveTo(x-len*.25,y+len*.3,x-len*.39,y+len);
+   c.stroke();
+  }
+ },768,384);
+}
 function mountain(z,base,seed,top,bottom){
- const steps=240,rows=8,pos=[],col=[],indices=[],ct=new THREE.Color(top),cb=new THREE.Color(bottom);
+ const steps=240,rows=8,pos=[],col=[],uvs=[],indices=[],ct=new THREE.Color(top),cb=new THREE.Color(bottom);
  for(let j=0;j<=rows;j++){
   const v=j/rows;
   for(let i=0;i<=steps;i++){
    const x=-110+i/steps*220;
    const y=lerp(base+ridge(x,seed)*(z<-90?.72:1.15),-25,v);
-   pos.push(x,y,z+v*1.5);
+   pos.push(x,y,z+v*1.5);uvs.push(i/steps,1-v);
    const tone=.83+noise(x*.30+v*7,seed+3)*.12;
    const cc=ct.clone().lerp(cb,v*.9).multiplyScalar(tone);
    col.push(cc.r,cc.g,cc.b);
@@ -64,8 +88,10 @@ function mountain(z,base,seed,top,bottom){
   }
  }
  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
- g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));g.setIndex(indices);
- scene.add(new THREE.Mesh(g,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide,fog:false})));
+ g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+ g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));g.setIndex(indices);
+ if(!rockPattern)rockPattern=mountainTexture();
+ scene.add(new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:rockPattern,vertexColors:true,side:THREE.DoubleSide,fog:false})));
 }
 function water(){
  waterClock={value:0};
