@@ -155,6 +155,10 @@ try{
   mobile.on('pageerror',e=>errors.push(String(e)));
   await mobile.goto(origin+'/?map=stargaze',{waitUntil:'domcontentloaded'});
   await mobile.waitForFunction(()=>window.__stargazeDebug?.get().art?.ready && window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
+  await mobile.waitForFunction(()=>window.GongangDiorama3D?.state?.moonUV);
+  const moon=await mobile.evaluate(()=>window.GongangDiorama3D.state.moonUV);
+  if(moon.x<.10||moon.x>.90||moon.y<.15||moon.y>.70)
+    throw Error('Moon must be visibly framed on a phone without being hidden by the top toolbar: '+JSON.stringify(moon));
   await mobile.screenshot({path:'artifacts/stargaze/mobile.png'});
   await mobile.emulateMedia({reducedMotion:'reduce'});
   await mobile.waitForFunction(()=>window.GongangDiorama3D?.state?.reducedMotion===true);
