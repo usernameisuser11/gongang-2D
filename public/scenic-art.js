@@ -54,6 +54,10 @@
    drawImage(c,assets.mistFar,t,Math.sin(mistPhase+1.2)*t.width*.009,1.026);
    drawImage(c,assets.mistNear,t,Math.cos(mistPhase*.83+.5)*t.width*.012,1.032);
    drawImage(c,assets.meadow,t,scroll*t.width*.008,1.02);
+   // Per-stem wind: the root remains fixed; only leaf tips and stalk ends bend.
+   // This is a light, independent embellishment to the painted foreground.
+   window.GongangNature?.draw(c,t,now,{personal:Boolean(options.personal)});
+   state.nature=window.GongangNature?.state||null;
    // Existing multiplayer world still paints real characters on top.
    // Most stars are baked into the art; only a few stars twinkle live.
    c.save();c.translate(t.x,t.y);c.scale(t.width/sizes.width,t.height/sizes.height);
