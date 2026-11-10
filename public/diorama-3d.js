@@ -1,12 +1,15 @@
 /* Gongang: fixed-camera living 3D diorama. Fallback: existing painterly Canvas2D. */
 import * as THREE from '/vendor/three.module.js';
 import { loadLookoutModel, loadValleyTerrain, loadAlpineGrove } from '/scenic-model-loader.js';
+import { createCinematicAtmosphere } from '/cinematic-atmosphere.js';
+import { createPainterlyClouds } from '/painterly-clouds-3d.js';
 const TAU=Math.PI*2,worldH=29;
 // QA: ?map=stargaze&models=off compares the old painted scenery to real 3D assets.
 const editableModelsEnabled=new URLSearchParams(location.search).get('models')!=='off';
-const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false,modelLoaded:false,modelParts:0,modelError:null,terrainLoaded:false,terrainParts:0,terrainError:null,groveLoaded:false,pineCount:0,groveError:null,editableModelsEnabled};
+const cinemaEnabled=new URLSearchParams(location.search).get('cinema')!=='off';
+const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false,modelLoaded:false,modelParts:0,modelError:null,terrainLoaded:false,terrainParts:0,terrainError:null,groveLoaded:false,pineCount:0,groveError:null,editableModelsEnabled,cinemaEnabled,hazeLayers:0,cinemaError:null};
 const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
-let renderer,scene,camera,waterClock,windClock,stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null,legacyMountains=[],legacyForest=null;
+let renderer,scene,camera,waterClock,windClock,stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null,legacyMountains=[],legacyForest=null,cinematicAtmosphere=null,painterlyClouds=null;
 const rng=(()=>{let s=20261110;return()=>((s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296)})();
 const lerp=(a,b,t)=>a+(b-a)*t,smooth=t=>t*t*(3-2*t);
 const hash=n=>{n=Math.imul(n^(n>>>15),2246822519);n=Math.imul(n^(n>>>13),3266489917);return ((n^(n>>>16))>>>0)/4294967295};
@@ -518,7 +521,25 @@ function init(){
   mountain(-94,-.9,37,'#617f9f','#264863');
   mountain(-73,-1.7,81,'#376d7c','#14394a');
   mountain(-56,-4.1,45,'#326772','#0b2938');
-  water();land(-1);land(1);foreground();cloudField();plants();forest();buildFramingTrees();
+  water();land(-1);land(1);foreground();plants();forest();buildFramingTrees();
+  // Consciously restrained cloud and atmosphere passes: no moving rectangles,
+  // no fluorescent glow; debug with ?cinema=off without changing the artwork.
+  if(cinemaEnabled){
+    try{
+      const mobile=innerWidth<700;
+      painterlyClouds=createPainterlyClouds(THREE,scene,{mobile});
+      cinematicAtmosphere=createCinematicAtmosphere(THREE,scene,{mobile});
+      state.clouds=painterlyClouds.count;
+      state.hazeLayers=cinematicAtmosphere.count;
+    }catch(error){
+      state.cinemaError=String(error?.message||error);
+      console.warn('Cinematic layers unavailable; using legacy clouds:',error);
+      painterlyClouds?.dispose();
+      cinematicAtmosphere?.dispose();
+      painterlyClouds=null;cinematicAtmosphere=null;
+      cloudField();
+    }
+  }else cloudField();
   if(editableModelsEnabled){
    // An actual mesh asset created for Gongang, also editable in Blender.
    // Async loading cannot delay or break the original 3D/Canvas scene.
@@ -585,7 +606,9 @@ function draw(ctx,t,now,{personal=false}={}){
     const uv=moonSprite.position.clone().project(camera);
     state.moonUV={x:(uv.x+1)*.5,y:(1-uv.y)*.5};
   }
-  for(const c of clouds)c.position.x=c.userData.x+Math.sin(sec*c.userData.speed*.04+c.userData.phase)*5.3;
+  if(painterlyClouds)painterlyClouds.update(sec);
+   else for(const c of clouds)c.position.x=c.userData.x+Math.sin(sec*c.userData.speed*.04+c.userData.phase)*5.3;
+   if(cinematicAtmosphere)cinematicAtmosphere.update(sec);
   renderer.render(scene,camera);
   ctx.drawImage(renderer.domElement,t.x,t.y,t.width,t.height);
   state.renderCount++;return true;
