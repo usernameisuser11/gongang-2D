@@ -53,7 +53,9 @@
    const mistPhase=now*.000015;
    drawImage(c,assets.mistFar,t,Math.sin(mistPhase+1.2)*t.width*.009,1.026);
    drawImage(c,assets.mistNear,t,Math.cos(mistPhase*.83+.5)*t.width*.012,1.032);
-   drawImage(c,assets.meadow,t,scroll*t.width*.008,1.02);
+   // Keep the painted ground fixed: vegetation moves on its own bone rigs.
+   // Sliding/scaling this whole image makes the entire meadow look like a poster.
+   drawImage(c,assets.meadow,t);
    // Per-stem wind: the root remains fixed; only leaf tips and stalk ends bend.
    // This is a light, independent embellishment to the painted foreground.
    window.GongangNature?.draw(c,t,now,{personal:Boolean(options.personal)});
