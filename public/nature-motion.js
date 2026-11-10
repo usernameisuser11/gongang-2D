@@ -10,6 +10,7 @@
   function seeded(seed){let s=seed>>>0;return()=>((s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296);}
   const random=seeded(113468);
   const grass=[],leaves=[],asset=new Image();
+  let debugClock=null;
   const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
   const state={assetReady:false,assetFailed:false,drawCalls:0,grassCount:0,leafCount:0,
     reducedMotion:false,lastWind:0,rigSegments:SEGMENTS,mode:'painterly-mesh'};
@@ -103,7 +104,7 @@
     if(!transform||!state.assetReady)return;
     const isReduced=Boolean(reduced?.matches);
     state.reducedMotion=isReduced;
-    const t=isReduced?0:now/1000;
+    const t=isReduced?0:(debugClock===null?now/1000:debugClock/1000);
     state.lastWind=wind(t,900,0);
     c.save();
     c.translate(transform.x,transform.y);
@@ -130,5 +131,6 @@
     for(const l of leaves)paintSprite(c,l,ms/1000);
     c.restore();
   }
-  window.GongangNature={draw,state,debugAt,debugDrawAt};
+  window.GongangNature={draw,state,debugAt,debugDrawAt,
+    debugSetTime(ms){debugClock=Number.isFinite(ms)?ms:null;}};
 })();
