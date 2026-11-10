@@ -59,8 +59,15 @@ Stellar Explosion v31.9 / Quasar v129의 128px 입자 알파 프로필은 유지
 
 > 2026년 11월부터 상명대 단풍길은 공강 2D에서 제외했다. 예전 `/?map=campus` 링크는 별빛 전망대로 자동 전환되며, 기존 `gongang` 3D 프로젝트에는 영향이 없다. 공연·별빛 이벤트는 실제 접속자끼리만 공유된다.
 
-## 3D 모델링 실험 브랜치
+## 2.5D 풍경 실험 브랜치 — 2026년 11월
 
-`threejs-model-assets`: Unity 없이 Blender에서 열어 편집할 수 있는 Wavefront OBJ 모델과 Three.js 장면 연동. `public/assets/models/`에 전망대 장식물·입체 산맥 4단·침엽수 모델을 추가하고 로더/서버에 연결함. 기존 2D 대체 배경은 모델 로딩 실패 시 유지됨. 관련 자세한 설명: `public/assets/models/README.md`.
+`threejs-model-assets`는 **완성도 높은 페인터리 원화가 기본 화면**이야. 입체 지형 전체를 표시하던 실험은 미적 완성도가 오히려 낮아 기본에서 제외했어. 대신 Blender 호환 `OBJ/MTL` 전망대 모델을 캔버스에 투명하게 합성하는 2.5D 방식을 테스트하고 있어.
 
-실제 브라우저 시각 검증이 끝나기 전에는 기존 `main`으로 병합하지 않음.
+- 기본 `/?map=stargaze`: 원화 + 바람 애니메이션 + 기존 동행/사진/하늘 이벤트
+- `/?map=stargaze&hybrid=on`: 원화 위에 실제 3D 벤치와 랜턴 배치 (현재 **실험 모드**, 기본은 아님)
+- `/?map=stargaze&renderer=3d`: 산·숲·호수까지 모두 Three.js로 만든 이전 3D 실험을 비교
+- `/?map=stargaze&renderer=3d&models=off&cinema=off`: 옛 Three.js 장면과 비교
+- `public/assets/models/`: Blender에서 열어 수정할 수 있는 Wavefront 소스 모델
+- `test/visual-qa.mjs`: 실전 Chromium으로 데스크톱/모바일 원화·2.5D·3D 캡처 및 로딩/오류 확인
+
+현재 자동 화면 검사는 모두 통과했으며, 2.5D 모델의 데스크톱/모바일 위치와 떠 있는 돌바닥 문제를 실제 캡처를 확인하며 수정했어. **이 검사는 기능/로딩 확인이지 Ori 수준의 예술적 완성도를 보증하지 않으며**, Blender 네이티브 파일과 장시간 모바일 성능은 추가 검증이 필요해. 운영 `main`에는 아직 반영하지 않았어.
