@@ -27,6 +27,16 @@ try{
   await page.goto(origin+'/?map=stargaze',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>window.__stargazeDebug?.get().art?.ready && window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
   await page.waitForTimeout(400);
+  await page.waitForFunction(()=>window.GongangDiorama3D?.state?.ready || window.GongangDiorama3D?.state?.failed,{timeout:20000});
+  const threeState=await page.evaluate(()=>window.GongangDiorama3D?.state);
+  if(!threeState?.ready)throw Error('Fixed 3D renderer failed to initialize: '+JSON.stringify(threeState));
+  await page.waitForFunction(()=>window.GongangDiorama3D?.state?.renderCount>=4,{timeout:25000});
+  for(const path of ['/vendor/three.module.js','/vendor/three.core.js','/diorama-3d.js']){
+    const res=await fetch(origin+path);
+    if(!res.ok||!res.headers.get('content-type')?.includes('javascript'))
+      throw Error('Local 3D module missing: '+path);
+  }
+  console.log('Fixed 3D living diorama active: '+threeState.plants+' animated plants / '+threeState.clouds+' drifting clouds');
   if(!(await page.locator('#skyDock').isVisible()))throw Error('Sky controls not visible');
   const gpuScript=await fetch(origin+'/foliage-gpu.js');
   if(!gpuScript.ok||!(await gpuScript.text()).includes('drawArraysInstanced'))
@@ -115,10 +125,9 @@ try{
   await page.waitForFunction(()=>window.__photoUxDebug?.get().photo===false);
   await page.locator('[data-sky-view]').click();
   await page.waitForFunction(()=>window.__stargazeDebug?.get().view==='personal');
-  await page.waitForFunction(()=>window.__stargazeDebug?.get().art?.lastPersonalSourceTop!==null);
-  const skyViewTop=await page.evaluate(()=>window.__stargazeDebug.get().art.lastPersonalSourceTop);
-  if(skyViewTop>0.16)
-    throw Error('Personal viewpoint must prioritize the sky, got source top '+skyViewTop);
+  await page.waitForFunction(()=>window.__stargazeDebug?.get().diorama?.personal===true);
+  const personalScene=await page.evaluate(()=>window.__stargazeDebug.get().diorama);
+  if(!personalScene.ready)throw Error('Personal viewpoint lost the 3D landscape');
   for(const pose of ['sit','lie']){
     await page.locator('[data-pose="'+pose+'"]').click();
     if(!await page.locator('[data-pose="'+pose+'"]').evaluate(el=>el.classList.contains('active')))
@@ -138,19 +147,19 @@ try{
   await mobile.waitForFunction(()=>window.__stargazeDebug?.get().art?.ready && window.__stargazeDebug?.get().rendered>=4,{timeout:25000});
   await mobile.screenshot({path:'artifacts/stargaze/mobile.png'});
   await mobile.emulateMedia({reducedMotion:'reduce'});
-  await mobile.waitForFunction(()=>window.GongangNature?.state.reducedMotion===true);
+  await mobile.waitForFunction(()=>window.GongangDiorama3D?.state?.reducedMotion===true);
   await mobile.emulateMedia({reducedMotion:'no-preference'});
-  await mobile.waitForFunction(()=>window.GongangNature?.state.reducedMotion===false);
+  await mobile.waitForFunction(()=>window.GongangDiorama3D?.state?.reducedMotion===false);
   for(const target of [page,mobile]){
     const info=await target.evaluate(()=>window.__stargazeDebug.get());
     if(!info.art?.ready||info.art.failed.length)
       throw Error('Painterly art failed to load: '+JSON.stringify(info));
     if(info.staticLayers!==0||info.cachedMegabytes>1)
       throw Error('Heavy procedural scene must not be rebuilt when photo art loads: '+JSON.stringify(info));
-    if(info.art.renderCount<4)
-      throw Error('Painterly background did not repaint');
+    if(!info.diorama?.ready || info.diorama.renderCount<4)
+      throw Error('Fixed-camera living 3D landscape did not repaint: '+JSON.stringify(info.diorama));
     if(info.grains.animatedGrains>155)throw Error('Animated star budget exceeded');
-    console.log('Painterly WebP panorama ready in '+info.art.loadMs+'ms, '+info.art.renderCount+' frames, procedural canvas caches: '+info.staticLayers);
+    console.log('Fixed 3D panorama: '+info.diorama.renderCount+' frames / '+info.diorama.plants+' wind-reactive plants; static cache: '+info.staticLayers);
   }
   for(const file of ['panorama','personal','fireworks','mobile']){
     const size=(await stat('artifacts/stargaze/'+file+'.png')).size;
