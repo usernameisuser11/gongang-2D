@@ -49,8 +49,10 @@ function terrainNoise2(x,y,seed){
  */
 function sculptedMountainPoint(x,t,layer){
  const depth=clamp((layer.z+172)/110);
- const cap=Math.sin(Math.PI*t);
- const envelope=Math.pow(Math.max(0,cap),.78);
+ // In a seated perspective only the upper 10-25% of each tall cliff
+ // is actually visible. Apply sculpting immediately below the ridge
+ // instead of wasting almost all relief below the camera.
+ const envelope=(1-Math.exp(-t*22.0))*(1-smooth(.76,1.,t));
  const warp=terrainNoise2(x*.047,t*2.5,layer.seed+31)*3.5
    +terrainNoise2(x*.135,t*4.1,layer.seed+17)*1.10;
  const u=x+warp*(.53+depth*.48);
@@ -59,14 +61,14 @@ function sculptedMountainPoint(x,t,layer){
  const chips=terrainNoise2(u*.53,t*4.1,layer.seed+89);
  const channel=terrainNoise2(u*.13+t*.21,t*.87+.71,layer.seed+73);
  // Broad twisting gullies are depressions in *both* height and depth.
- const gully=smooth(.30,.84,channel*.57+branch*.43);
- const protrusion=(spine*1.45+branch*1.05+chips*.20)*(1.10+depth*.90);
- const carve=gully*(2.7+depth*2.25);
+ const gully=smooth(.08,.60,channel*.57+branch*.43);
+ const protrusion=(spine*2.0+branch*1.65+chips*.34)*(1.30+depth*1.05);
+ const carve=gully*(3.4+depth*3.2);
  const y=crest(x,layer)-t*47+
-   envelope*(protrusion*.90-carve);
+   envelope*(protrusion*1.13-carve);
  const z=layer.z+t*(3.0+depth*7.9)+
-   envelope*(spine*(1.1+depth*2.0)+branch*(1.5+depth*2.6)
-     -gully*(1.65+depth*2.8));
+   envelope*(spine*(1.65+depth*2.65)+branch*(1.95+depth*3.40)
+     -gully*(2.05+depth*3.85));
  return {y,z,gully,spine,branch,chips,envelope};
 }
 function crest(x,l){
@@ -195,8 +197,27 @@ void main(){
   col*=1.-cutDepth*(.55+.45*uDay);
   // Connected geometry channels have their own pigment and shadow;
   // unlike procedurally painted cracks, they continue across the mesh.
-  col*=1.-vGeology.x*(.12+.16*nearby)*(.45+.55*uDay);
-  col*=.94+.13*vGeology.y;
+  col*=1.-vGeology.x*(.12+.22*nearby)*(.45+.55*uDay);
+  // Long asymmetric folds remain visible from across the valley.
+  // Their geometry drives the normal highlights, while these varied
+  // mineral pigments expose the forms even under cloudy ambient light.
+  float warpedX=vUV.x*7.0+vUV.y*2.1+
+    (rockNoise(vUV*vec2(9.2,3.4)+vec2(7.,13.))-.5)*1.3;
+  float broadFold=rockNoise(vec2(warpedX,vUV.y*3.2+4.0));
+  float sideCrease=rockNoise(vec2(warpedX*2.1+11.0,vUV.y*5.3));
+  float lithology=smoothstep(.22,.74,
+    .73*broadFold+.27*sideCrease);
+  float materialContrast=.76+.48*lithology;
+  col*=mix(1.,materialContrast,(.32+.58*nearby)*(.43+.57*uDay));
+  vec3 sunlitRock=vec3(.20,.18,.16);
+  vec3 deepForest=vec3(.045,.15,.13);
+  float geologicalFacet=smoothstep(.48,.75,
+    broadFold*.64+sideCrease*.36);
+  col=mix(col,col*.81+sunlitRock*.17,
+    geologicalFacet*nearby*uDay*.47);
+  col=mix(col,col*.79+deepForest*.25,
+    (1.-geologicalFacet)*nearby*uDay*.12);
+  col*=.93+.15*vGeology.y;
   float spill=clamp(dot(relief,lightVector),0.,1.);
   col+=vec3(.11,.12,.115)*fineCliffs*spill*uDay*(.08+.23*nearby);
   float cloudBand=rockNoise(vec2(
@@ -636,6 +657,7 @@ if(enabled)try{
  state.ridgeSurfaceVertices=ridges.reduce((n,r)=>n+r.vertexCount,0);
  state.ridgeReliefDepths=ridges.map(r=>Number(r.reliefDepth.toFixed(2)));
  state.ridgeGeometry='coherent-carved-3d-mountain-heightfields';
+ state.visibleCliffReliefVersion=2;
  state.forestAnchoredToSculptedRidges=true;
  state.ridgeMaterial='carved-drainage-v2-and-moving-cloud-shadows';
  state.forestSpecies=forest.species;
