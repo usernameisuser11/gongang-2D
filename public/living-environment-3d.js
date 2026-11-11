@@ -34,6 +34,7 @@ void main(){
  col=mix(col,vec3(1.18,.37,.18),twilight*gauss(h-.20,.20)*.89);
  col=mix(col,vec3(.008,.012,.065),twilight*smoothstep(.67,.98,h)*.82);
  col+=vec3(.20,.038,.11)*twilight*gauss(h-.22,.25)*gauss(sx-.55,.70);
+ col+=vec3(.54,.22,.078)*twilight*gauss(h-.06,.105)*gauss(sx-.51,.37);
  // Independent, advecting high-altitude cirrus and stratified lower clouds.
  vec2 flow=vec2(sx*5.8-t*(.003+.001*uWind),h*4.8);
  float n=fbm(flow+vec2(11.3,7.8));
@@ -65,41 +66,62 @@ void main(){
  vec2 id=floor(g),d=fract(g)-.5;
  d-=(vec2(hash(id+vec2(7.,3.)),hash(id+vec2(9.,18.)))-.5)*.64;
  float starProb=hash(id+vec2(13.,31.));
- float tiny=step(.986,starProb)*exp(-length(d)*34.);
+ float tiny=step(.982,starProb)*exp(-length(d)*34.);
  float shine=(.69+.31*sin(t*(.4+hash(id+vec2(7.,21.))*.63)+starProb*6.28));
  vec2 g2=vec2((p.x-.5)*245.,(p.y-.5)*280.);
  vec2 i2=floor(g2),d2=fract(g2)-.5;
  d2-=(vec2(hash(i2+vec2(1.,3.)),hash(i2+vec2(4.,8.)))-.5)*.62;
- float bright=step(.976,hash(i2+vec2(4.,19.)))*exp(-length(d2)*22.);
+ float bright=step(.966,hash(i2+vec2(4.,19.)))*exp(-length(d2)*21.);
  vec2 g3=vec2((p.x-.5)*83.,(p.y-.5)*96.);
  vec2 i3=floor(g3),d3=fract(g3)-.5;
  d3-=(vec2(hash(i3+vec2(2.,8.)),hash(i3+vec2(16.,1.)))-.5)*.50;
- float beacon=step(.992,hash(i3+vec2(12.,2.)))*exp(-length(d3)*15.);
- float stars= (tiny*shine*.74+bright*.62+beacon*.65)*
-   max(uNight,twilight*.62)*smoothstep(.12,.50,h)*(1.-clouds*.91);
+ float beacon=step(.990,hash(i3+vec2(12.,2.)))*exp(-length(d3)*14.);
+ float stars=(tiny*shine*.81+bright*.81+beacon*.88)*
+   max(uNight,twilight*.80)*smoothstep(.12,.47,h)*(1.-clouds*.83);
  col+=vec3(.78,.85,1.)*stars;
  col*=1.-uRain*.17;
  gl_FragColor=vec4(max(col,0.),1.);
 }`;
 const BODY=`
-precision mediump float;varying vec2 vUv;
+precision highp float;
+varying vec2 vUv;
 uniform float uMoon,uNight,uPhase;
+float hash(vec2 p){
+ return fract(sin(dot(p,vec2(123.3,371.7)))*43758.5453);
+}
+float textured(vec2 p){
+ vec2 g=p*16.0;
+ vec2 i=floor(g),f=fract(g);f=f*f*(3.-2.*f);
+ return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),
+  mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),f.x),f.y);
+}
 void main(){
- vec2 p=(vUv-.5)*2.;float d=length(p);
- float edge=1.-smoothstep(.44,.48,d);
- float haze=exp(-d*5.)*.24+exp(-d*17.)*.13;
+ vec2 p=(vUv-.5)*2.;
+ float r=length(p);
+ float edge=1.-smoothstep(.444,.466,r);
+ float halo=exp(-r*r*12.)*.052+exp(-r*r*56.)*.12;
  if(uMoon>.5){
-   // Geometry-backed terminator: waxing and waning naturally change the disc.
-   float halfWidth=sqrt(max(0.,.44*.44-p.y*p.y));
-   float terminator=cos(6.283185*uPhase)*halfWidth;
+   // A smoothly shaded genuine changing phase, not a flat C-shaped decal.
+   // The lunar surface remains very faint in shadow (earthshine).
+   float width=sqrt(max(0.,.445*.445-p.y*p.y));
+   float terminator=cos(6.283185*uPhase)*width;
    float waxing=1.-step(.5,uPhase);
-   float litWax=smoothstep(terminator-.018,terminator+.018,p.x);
-   float litWane=1.-smoothstep(-terminator-.018,-terminator+.018,p.x);
-   float illumination=mix(litWane,litWax,waxing);
-   float crescent=edge*illumination;
-   gl_FragColor=vec4(vec3(.97,.94,1.),crescent*.97+haze*uNight*.20);
+   float litRight=smoothstep(terminator-.012,terminator+.012,p.x);
+   float litLeft=1.-smoothstep(-terminator-.012,-terminator+.012,p.x);
+   float lit=mix(litLeft,litRight,waxing);
+   float surface=textured(p*1.4)+textured(p*3.9)*.31;
+   float mare=1.-.14*surface;
+   float edgeRim=pow(max(0.,1.-r/.46),.26);
+   vec3 ivory=vec3(1.0,.94,.82)*mare*(.85+.15*edgeRim);
+   vec3 dark=vec3(.058,.079,.116)*(1.-.15*surface);
+   float earthshine=edge*.064*uNight;
+   vec3 col=mix(dark,ivory,lit);
+   float alpha=edge*(lit*.96+(1.-lit)*earthshine);
+   col+=vec3(.25,.22,.27)*halo*.20;
+   gl_FragColor=vec4(col,alpha+halo*.29*uNight);
  }else{
-   gl_FragColor=vec4(vec3(1.,.84,.52),edge*.92+haze*.65);
+   float shine=1.-smoothstep(.43,.47,r);
+   gl_FragColor=vec4(vec3(1.,.83,.51),shine*.91+halo*.58);
  }
 }`;
 const PARTICLE_VERT=`
@@ -183,7 +205,7 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false,camera=
   const mat=new THREE.ShaderMaterial({vertexShader:VS,fragmentShader:BODY,
    uniforms:{uMoon:{value:moon?1:0},uNight:{value:1},uPhase:{value:.15}},transparent:true,
    depthWrite:false,depthTest:false,fog:false});
-  const mesh=new THREE.Mesh(new THREE.PlaneGeometry(moon?8.2:9.1,moon?8.2:9.1),mat);
+  const mesh=new THREE.Mesh(new THREE.PlaneGeometry(moon?9.2:9.1,moon?9.2:9.1),mat);
   mesh.renderOrder=-99;scene.add(mesh);return mesh;
  }
  const sun=celestial(false),moon=celestial(true);
@@ -279,10 +301,10 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false,camera=
   // orthographic overlook; -10 world Y projected onto the actual grass.
   moon.position.set(moonPreview?.8:-moonDiff*.95,
     moonPreview?-6.0:-7.2+Math.max(-1,Math.min(1,moonHeight/24))*2.8,-146);
-  moon.rotation.z=moonPreview?-.65:-.25-Math.sin(phase*6.283)*.25;
+  moon.rotation.z=moonPreview?-.53:-.30-Math.sin(phase*6.283)*.23;
   moon.visible=moonPreview||(night>.12&&Math.abs(moonDiff)<6.5&&phase>.015&&phase<.985);
   moon.material.uniforms.uNight.value=night;
-  moon.material.uniforms.uPhase.value=phase;
+  moon.material.uniforms.uPhase.value=moonPreview?.105:phase;
   state.moonPhase=phase;state.sunrise=sunrise;state.sunset=sunset;
   state.moonVisible=moon.visible;
   if(camera&&moon.visible){
