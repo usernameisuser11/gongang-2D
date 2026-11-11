@@ -7,6 +7,7 @@
 import * as THREE from '/vendor/three.module.js';
 import { createLivingEnvironment } from '/living-environment-3d.js';
 import { createAtmosphericDepth25D } from '/atmospheric-depth-25d.js';
+import { parallaxInput, parallaxShift } from '/parallax-25d.js';
 
 const HALF_HEIGHT=14.5;
 const state={
@@ -14,7 +15,9 @@ const state={
   frameCount:0, ridgeCount:0, treeCount:0, weather:null,
   retainsVisitors:true,screen:{width:0,height:0},
   timeMode:'Asia/Seoul',movingNature:true,
-  sceneType:'layered-3d-geometry-no-background-photo'
+  sceneType:'layered-3d-geometry-no-background-photo',
+  parallax:{x:0,y:0},nearShift:0,farShift:0,
+  lighting:{daylight:0,shadowStrength:0,azimuth:0},shadowCasters:0
 };
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const smooth=(a,b,v)=>{let t=clamp((v-a)/(b-a));return t*t*(3-2*t);};
@@ -39,52 +42,79 @@ const LAYERS=[
  {name:'near forest slopes',z:-62,center:-11.0,rise:13.7,turn:-1,peak:1.8,seed:67,base:'#0b294b',day:'#2a4e47'}
 ];
 const MOUNTAIN_VS=`
-varying vec3 vPigment;varying float vDepth;varying vec2 vUV;
+varying vec3 vPigment,vFaceNormal;
+varying float vDepth;varying vec2 vUV;
 void main(){
  vPigment=color;vDepth=position.y;vUV=uv;
+ vFaceNormal=normalize(normalMatrix*normal);
  gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
 }`;
 const MOUNTAIN_FS=`
-precision mediump float;
-varying vec3 vPigment;varying float vDepth;varying vec2 vUV;
-uniform float uDay,uTwilight,uStorm,uWind,uTime;
+precision highp float;
+varying vec3 vPigment,vFaceNormal;
+varying float vDepth;varying vec2 vUV;
+uniform float uDay,uTwilight,uStorm,uWind,uTime,uShadow,uSunAzimuth,uSunElevation;
+uniform vec3 uLightDir;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 void main(){
   float folded=sin(vUV.x*24.7+sin(vUV.y*6.9)*3.8);
-  float mineral=hash(floor(vUV*vec2(244.,37.)));
   float strata=sin(vUV.x*36.0+vUV.y*9.0+sin(vUV.x*13.)*1.9);
-  float texture=.86+.055*folded+.045*(mineral-.5)+.035*strata;
-  vec3 night=vPigment*vec3(.80,.91,1.18);
-  vec3 day=vPigment*vec3(1.12,1.30,.98);
-  vec3 col=mix(night,day,uDay);
-  // Twilight gives the same physical ridges a faint reflected sunset,
-  // instead of baking a pink mountain permanently into the landscape.
-  float lightBand=clamp((vUV.y-.36)*1.5,0.,1.);
-  // Warm reflected light only near sunset, keeping morning and day natural.
-  col+=vec3(.25,.082,.14)*uTwilight*lightBand;
-  float nearDepth=1.-smoothstep(.12,.85,vUV.y);
-  col*=1.-.045*nearDepth;
+  float mineral=hash(floor(vUV*vec2(244.,37.)));
+  float texture=.87+.051*folded+.042*(mineral-.5)+.029*strata;
+  // Ridgeline facets and fine gullies act like sculpted normal-map detail.
+  // They catch the sunrise/sunset direction differently at each hour.
+  vec3 relief=normalize(vFaceNormal+vec3(
+    .23*folded+.14*strata,
+    .07*folded,
+    .15*strata));
+  vec3 lightVector=normalize(uLightDir);
+  float incidence=max(0.,dot(relief,lightVector));
+  float diffuse=.58+.42*incidence;
+  float selfOcclusion=smoothstep(-.20,.54,
+    sin(vUV.x*19.4+strata*1.6+uSunAzimuth*1.8));
+  float ridgeShade=1.-uShadow*(1.-incidence)*(.20+.30*selfOcclusion);
+  float terrainShadow=1.-uShadow*(1.-selfOcclusion)*.14;
+  vec3 night=vPigment*vec3(.84,.91,1.15);
+  vec3 day=vPigment*vec3(1.12,1.25,1.00);
+  vec3 col=mix(night,day,clamp(uDay,0.,1.));
+  col*=mix(.72,1.,uDay*.78)*diffuse*ridgeShade*terrainShadow;
+  // Warm sun rim only when light comes from a low angle; night remains blue.
+  float horizon=clamp((vUV.y-.30)*1.45,0.,1.);
+  col+=vec3(.19,.069,.075)*uTwilight*horizon*(.4+.6*incidence);
   col*=texture*(1.-uStorm*.13);
   gl_FragColor=vec4(max(col,0.),1.);
 }`;
 const FIR_VS=`
 varying vec3 vTreeColor;
+varying float vTreeLight;
 uniform float uTime,uWind;
+uniform vec2 uParallax;
+uniform vec3 uLightDir;
 void main(){
   vec3 p=position;
   float phase=instanceMatrix[3].x*.43+instanceMatrix[3].z*.25;
   p.x+=pow(max(p.y,0.),1.7)*.018*uWind*sin(uTime*.45+phase+p.y*.38);
   p.z+=pow(max(p.y,0.),1.6)*.009*uWind*cos(uTime*.31+phase);
+  vec4 world=instanceMatrix*vec4(p,1.0);
+  float nearFactor=clamp((world.z+150.)/185.,0.,1.);
+  nearFactor=.026+.96*nearFactor*nearFactor;
+  world.x-=uParallax.x*5.6*nearFactor;
+  world.y-=uParallax.y*1.75*nearFactor;
   vTreeColor=instanceColor;
-  gl_Position=projectionMatrix*modelViewMatrix*instanceMatrix*vec4(p,1.0);
+  vTreeLight=clamp(.48+.30*uLightDir.x*(.5+.5*normal.x)+
+    .24*max(0.,dot(normalize(normal),uLightDir)),.23,1.);
+  gl_Position=projectionMatrix*modelViewMatrix*world;
 }`;
 const FIR_FS=`
-precision mediump float;varying vec3 vTreeColor;
-uniform float uDay,uTwilight,uStorm;
+precision mediump float;
+varying vec3 vTreeColor;
+varying float vTreeLight;
+uniform float uDay,uTwilight,uStorm,uShadow;
 void main(){
- vec3 day=vTreeColor*vec3(1.32,1.42,1.17);
+ vec3 day=vTreeColor*vec3(1.25,1.39,1.14);
  vec3 col=mix(vTreeColor*.81,day,uDay);
- col+=vec3(.13,.036,.09)*uTwilight*.25;
+ col*=mix(1.,vTreeLight,.64*uShadow);
+ col+=vec3(.11,.042,.052)*uTwilight*.24;
  gl_FragColor=vec4(col*(1.-uStorm*.10),1.);
 }`;
 function makeMountain(THREE,scene,layer,mobile){
@@ -119,9 +149,11 @@ function makeMountain(THREE,scene,layer,mobile){
  g.setAttribute('color',new THREE.BufferAttribute(rgb,3));
  g.setAttribute('uv',new THREE.BufferAttribute(uv,2));
  g.setIndex(new THREE.BufferAttribute(index,1));
+ g.computeVertexNormals();
  const u={
    uDay:{value:0},uTwilight:{value:0},uStorm:{value:0},
-   uWind:{value:0},uTime:{value:0}
+   uWind:{value:0},uTime:{value:0},uLightDir:{value:new THREE.Vector3(.1,.7,1).normalize()},
+   uSunAzimuth:{value:0},uSunElevation:{value:.5},uShadow:{value:0}
  };
  const mat=new THREE.ShaderMaterial({
    uniforms:u,vertexShader:MOUNTAIN_VS,fragmentShader:MOUNTAIN_FS,
@@ -131,7 +163,7 @@ function makeMountain(THREE,scene,layer,mobile){
  mesh.name='Real parallax mountain / '+layer.name;
  mesh.frustumCulled=false;
  scene.add(mesh);
- return {mesh,u,layer};
+ return {mesh,u,layer,basePosition:mesh.position.clone()};
 }
 // Original triangulated organic branch silhouette (geometry, not billboard photo).
 function firGeometry(THREE){
@@ -187,7 +219,9 @@ function makeForest(THREE,scene,mobile){
  for(const [x,z,scale] of front)push(x,-6.6,z,scale,'#071327');
  const geo=firGeometry(THREE);
  const u={uTime:{value:0},uWind:{value:0},uDay:{value:0},
-    uTwilight:{value:0},uStorm:{value:0}};
+    uTwilight:{value:0},uStorm:{value:0},uShadow:{value:0},
+    uLightDir:{value:new THREE.Vector3(.1,.7,1).normalize()},
+    uParallax:{value:new THREE.Vector2()}};
  const mat=new THREE.ShaderMaterial({
   uniforms:u,vertexShader:FIR_VS,fragmentShader:FIR_FS,
   side:THREE.DoubleSide,depthWrite:true
