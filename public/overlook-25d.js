@@ -57,7 +57,7 @@ precision highp float;
 varying vec3 vPigment,vFaceNormal;
 varying float vDepth;varying vec2 vUV;
 uniform float uDay,uTwilight,uStorm,uWind,uTime,uShadow,uSunAzimuth,uSunElevation;
-uniform vec3 uLightDir,uLightColor;
+uniform vec3 uLightDir,uLightColor,uDayHue;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 void main(){
   float folded=sin(vUV.x*24.7+sin(vUV.y*6.9)*3.8);
@@ -72,15 +72,16 @@ void main(){
     .15*strata));
   vec3 lightVector=normalize(uLightDir);
   float incidence=max(0.,dot(relief,lightVector));
-  float diffuse=.58+.42*incidence;
+  float diffuse=.70+.30*incidence;
   float selfOcclusion=smoothstep(-.20,.54,
     sin(vUV.x*19.4+strata*1.6+uSunAzimuth*1.8));
   float ridgeShade=1.-uShadow*(1.-incidence)*(.20+.30*selfOcclusion);
   float terrainShadow=1.-uShadow*(1.-selfOcclusion)*.14;
   vec3 night=vPigment*vec3(.84,.91,1.15);
-  vec3 day=vPigment*vec3(1.12,1.25,1.00);
+  vec3 day=mix(vPigment*vec3(1.12,1.25,1.0),
+    uDayHue*(.66+.29*vUV.y),.82);
   vec3 col=mix(night,day,clamp(uDay,0.,1.));
-  col*=mix(.72,1.,uDay*.78)*diffuse*ridgeShade*terrainShadow;
+  col*=mix(.76,1.07,uDay*.78)*diffuse*ridgeShade*terrainShadow;
   col*=mix(vec3(1.0),uLightColor,.54*uDay+.32*uTwilight);
   // Warm sun rim only when light comes from a low angle; night remains blue.
   float horizon=clamp((vUV.y-.30)*1.45,0.,1.);
@@ -160,7 +161,8 @@ function makeMountain(THREE,scene,layer,mobile){
    uDay:{value:0},uTwilight:{value:0},uStorm:{value:0},
    uWind:{value:0},uTime:{value:0},uLightDir:{value:new THREE.Vector3(.1,.7,1).normalize()},
    uSunAzimuth:{value:0},uSunElevation:{value:.5},uShadow:{value:0},
-   uLightColor:{value:new THREE.Vector3(1,1,1)}
+   uLightColor:{value:new THREE.Vector3(1,1,1)},
+   uDayHue:{value:new THREE.Color(layer.day)}
  };
  const mat=new THREE.ShaderMaterial({
    uniforms:u,vertexShader:MOUNTAIN_VS,fragmentShader:MOUNTAIN_FS,
