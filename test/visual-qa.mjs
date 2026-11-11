@@ -146,6 +146,8 @@ try {
         assert.ok(o.ridgeCount >= 6, 'Several depth-separated mountains are required');
         assert.ok(o.atmosphereLayers >= 4, 'Time-responsive depth mist layers are missing');
         assert.ok(o.shadowCasters >= 4, 'Foreground trees do not have projected shadows');
+        assert.ok(o.meadowPlants >= (config.width < 600 ? 90 : 200),
+          'Organic 2.5D wind-driven lookout vegetation is missing');
         assert.ok(Number.isFinite(o.lighting?.azimuth), 'Sun/moon lighting direction missing');
         assert.ok(Number.isFinite(o.lighting?.shadowStrength), 'Moving shadows missing');
         assert.ok(Number.isFinite(o.lighting?.shadowLength), 'Sun-angle shadow length missing');
