@@ -14,7 +14,7 @@ const CHUNKS=[
   {name:'distant peaks',back:-130,front:-104},
   {name:'inner highlands',back:-104,front:-79},
   {name:'near wooded slopes',back:-79,front:-52},
-  {name:'valley to seating overlook',back:-52,front:49}
+  {name:'valley to seating overlook',back:-52,front:142}
 ];
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const smooth=(a,b,v)=>{let t=clamp((v-a)/(b-a));return t*t*(3-2*t);};
@@ -52,7 +52,7 @@ export function sampleValleyHeight(x,z){
   const floor=-16.4+13.2*smooth(-74,-13,z);
   // Actual wide traversable terrain around camera, steep sidewalls in valley.
   const outer=smooth(6,61,sideways);
-  const mountainStrength=4+23.5*(1-smooth(-47,7,z));
+  const mountainStrength=3.5+18.0*(1-smooth(-47,7,z));
   const wall=mountainStrength*Math.pow(outer,1.33);
   const structural=peak(x,z,-34,-132,23,26,8.5)
     +peak(x,z,32,-122,19,29,9.8)
@@ -62,7 +62,7 @@ export function sampleValleyHeight(x,z){
     +peak(x,z,34,-59,21,23,4.7);
   // A broken central distant skyline, softened as the scene approaches.
   const far=smooth(-62,-120,z);
-  const distantPeaks=far*(peak(x,z,-11,-145,11,21,9.6)+
+  const distantPeaks=far*1.72*(peak(x,z,-11,-145,11,21,9.6)+
     peak(x,z,13,-146,13,24,11.3)+peak(x,z,1,-132,7,11,4.8));
   // Erosion follows each slope: broad gullies with nested rills.
   const erosion=fbm(x*.091,z*.12,21);
@@ -169,7 +169,7 @@ export function createDeepValley(THREE,scene,{mobile=false}={}){
   const twilight={value:0},daylight={value:0};
   const material=new THREE.MeshStandardMaterial({
     vertexColors:true,side:THREE.DoubleSide,metalness:0,roughness:.98,
-    flatShading:false
+    flatShading:false,emissive:'#233653',emissiveIntensity:.29
   });
   material.onBeforeCompile=shader=>{
     shader.uniforms.uValleyTwilight=twilight;
