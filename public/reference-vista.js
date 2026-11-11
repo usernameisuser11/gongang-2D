@@ -63,14 +63,27 @@
   materialGrain(c,.12);
   c.restore();
  }
- function sky(c){
-  c.fillStyle=lgrad(c,0,0,0,635,[
-   [0,'#050d29'],[.23,'#11194c'],[.43,'#39265f'],
-   [.61,'#804078'],[.77,'#e56880'],[.91,'#ff9770'],[1,'#f9af79']
-  ]);c.fillRect(0,0,W,H);
-  c.fillStyle=radial(c,845,365,560,[[0,'rgba(255,156,105,.46)'],[.53,'rgba(237,105,130,.13)'],[1,'rgba(238,94,113,0)']]);c.fillRect(0,0,W,620);
-  c.fillStyle=radial(c,930,110,450,[[0,'rgba(80,97,183,.14)'],[1,'rgba(30,61,134,0)']]);c.fillRect(0,0,W,600);
-
+ // Scene-specific sky materials: each is painted once then mixed using
+ // Seoul's seasonal solar times. The mountains, trees and photo composition
+ // do NOT change; only the light in the sky responds to time and weather.
+ function skyBase(c,kind){
+  const P={
+   night:[[0,'#040a22'],[.23,'#0c1741'],[.44,'#20275a'],[.70,'#343a67'],[1,'#4e5678']],
+   dawn:[[0,'#14234b'],[.24,'#52608a'],[.48,'#aa7597'],[.74,'#f3a191'],[1,'#ffd3a2']],
+   day:[[0,'#267db5'],[.24,'#4a9dc9'],[.47,'#7eb9d7'],[.72,'#b1d6e2'],[1,'#e3e9df']],
+   dusk:[[0,'#050d29'],[.23,'#11194c'],[.43,'#39265f'],[.61,'#804078'],[.77,'#e56880'],[.91,'#ff9770'],[1,'#f9af79']]
+  };
+  c.fillStyle=lgrad(c,0,0,0,635,P[kind]);c.fillRect(0,0,W,H);
+  if(kind==='dawn'||kind==='dusk'){
+   c.fillStyle=radial(c,845,365,560,[[0,kind==='dawn'?'rgba(255,188,129,.36)':'rgba(255,156,105,.46)'],[.53,'rgba(237,105,130,.12)'],[1,'rgba(238,94,113,0)']]);
+   c.fillRect(0,0,W,620);
+  }
+  if(kind==='night'){
+   c.fillStyle=radial(c,930,110,510,[[0,'rgba(79,83,169,.12)'],[1,'rgba(30,61,134,0)']]);
+   c.fillRect(0,0,W,600);
+  }
+ }
+ function skyStars(c){
   // THE GALAXY: this calls our existing Stellar Explosion v31.9 / Quasar
   // v129 particle engine (8500 sky grains + 15700 Milky Way grains).
   // The GPU-era round-core, colored-aura, 0.82..1.0 feather profile is
@@ -134,8 +147,20 @@
       c.fillRect(x,y,size,size);
     }
   }
+ }
+ function skyClouds(c,mode){
   // Wind-sheared, broken cloud families. Each is built from paths, not ellipses.
   function cloudBand(cx,cy,width,weight,shade,light,seed){
+   if(mode==='day'){
+     shade='rgba(112,145,167,.47)';
+     light='rgba(245,250,250,.72)';
+   }else if(mode==='night'){
+     shade='rgba(28,38,88,.61)';
+     light='rgba(110,127,180,.34)';
+   }else if(mode==='dawn'){
+     shade='rgba(136,112,159,.53)';
+     light='rgba(248,189,177,.57)';
+   }
    const r=rng(seed),steps=34,top=[],bottom=[];
    for(let j=0;j<=steps;j++){
     const t=j/steps,shape=Math.pow(Math.sin(t*Math.PI),.67);
@@ -163,23 +188,6 @@
   cloudBand(1104,362,477,24,'rgba(163,85,141,.30)','rgba(255,166,155,.21)',60);
   for(let i=0;i<90;i++){const t=R(),x=t*W,y=70+290*R(),span=14+R()*108;
    line(c,[x,y],[x+span,y-1-R()*12],color(i%3?'#e29abc':'#fe9baf',.014+R()*.055),.4+R()*1.1);}
-  // Gold crescent at x≈906 y≈185, aligned to the reference composition.
-  const mx=903,my=184;
-  c.fillStyle=radial(c,mx,my,113,[[0,'rgba(255,190,126,.17)'],[.42,'rgba(245,153,128,.075)'],[1,'rgba(237,152,126,0)']]);
-  c.fillRect(mx-120,my-120,240,240);
-  c.beginPath();
-  c.moveTo(mx+5,my-53);
-  c.bezierCurveTo(mx+45,my-35,mx+60,my+11,mx+28,my+42);
-  c.bezierCurveTo(mx+6,my+65,mx-32,my+61,mx-65,my+42);
-  c.bezierCurveTo(mx-12,my+59,mx+19,my+23,mx+23,my-13);
-  c.bezierCurveTo(mx+25,my-33,mx+16,my-46,mx+5,my-53);
-  c.closePath();
-  c.fillStyle=lgrad(c,mx-49,my-55,mx+49,my+50,[[0,'#fff2c8'],[.4,'#ffd9b0'],[1,'#cf8d9f']]);c.fill();
-  c.strokeStyle='rgba(255,240,205,.72)';c.lineWidth=1.2;c.stroke();
-  // Lunar granular details inside the illuminated crescent.
-  c.save();c.globalAlpha=.28;for(let i=0;i<60;i++){let x=mx-41+R()*82,y=my-50+R()*104;
-   if(Math.hypot(x-mx,y-my)>49)continue;ellipse(c,x,y,.4+R()*2,.4+R()*2,'rgba(144,88,124,.4)');
-  }c.restore();
  }
  const mountains=[
   {pts:[[0,388],[112,374],[235,379],[335,351],[410,336],[476,373],[523,365],[591,397],[667,397],[753,418],[828,414],[924,420],[1040,414],[1162,376],[1233,355],[1359,336],[1427,375],[1510,365],[1672,394]],a:'#6274b0',b:'#293e73',seed:11},
@@ -406,7 +414,7 @@
   line(c,[x-19,y-8],[x+19,y-8],'#252531',4);
  }
  const layerDefs=[
-  [sky],[(c)=>mountainLayer(c,0),(c)=>mountainLayer(c,1),(c)=>mountainLayer(c,2)],
+  [],[(c)=>mountainLayer(c,0),(c)=>mountainLayer(c,1),(c)=>mountainLayer(c,2)],
   [(c)=>mountainLayer(c,3),(c)=>mountainLayer(c,4)],
   [(c)=>mountainLayer(c,5),(c)=>mountainLayer(c,6),valley],
   [foreground]
