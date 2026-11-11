@@ -205,26 +205,32 @@ function water(){
    new THREE.PlaneGeometry(190,110,65,48);
  if(liveMode){
    const p=g.getAttribute('position');
+   const banks=new Float32Array(p.count);
    for(let i=0;i<p.count;i++){
-     const t=p.getY(i)+.5; // near river = 0; distant river = 1
-     const width=.65+Math.pow(1-t,1.7)*4.6;
+     const t=p.getY(i)+.5; // near pond = 0; distant pond = 1
+     banks[i]=Math.abs(p.getX(i))*2;
+     const width=.55+Math.pow(1-t,1.7)*4.3;
      const center=1.5*Math.sin(t*5.4+.20)+.35*Math.sin(t*12.5);
      const edge=(Math.abs(p.getX(i))-.36)*.18*
        Math.sin(t*85.+p.getX(i)*11.);
      p.setX(i,center+p.getX(i)*width*2.+edge);
-     p.setY(i,-21+t*82);
+     p.setY(i,-47+t*30);
    }
-   p.needsUpdate=true;g.computeVertexNormals();
+   p.needsUpdate=true;
+   g.setAttribute('aBank',new THREE.BufferAttribute(banks,1));
+   g.computeVertexNormals();
  }
  const mat=new THREE.ShaderMaterial({
-  uniforms:{uTime:waterClock,uDaylight:{value:0},uTwilight:{value:0},uRain:{value:0}},side:THREE.DoubleSide,
-  vertexShader:`uniform float uTime;varying vec2 vPos;varying float vRipple;
+  uniforms:{uTime:waterClock,uDaylight:{value:0},uTwilight:{value:0},uRain:{value:0}},
+  side:THREE.DoubleSide,transparent:liveMode,depthWrite:!liveMode,
+  vertexShader:`uniform float uTime;attribute float aBank;varying float vBank;
+   varying vec2 vPos;varying float vRipple;
    void main(){vec3 p=position;
     float a=sin(p.x*.6+p.y*.18+uTime*.6);float b=sin(p.y*.74-p.x*.2-uTime*.41);
-    p.z+=a*.055+b*.035;vPos=p.xy;vRipple=.6*a+.4*b;
+    p.z+=a*.055+b*.035;vPos=p.xy;vRipple=.6*a+.4*b;vBank=aBank;
     gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0);}`,
   fragmentShader:`precision highp float;
-    uniform float uTime,uDaylight,uTwilight,uRain;varying vec2 vPos;varying float vRipple;
+    uniform float uTime,uDaylight,uTwilight,uRain;varying vec2 vPos;varying float vRipple;varying float vBank;
     void main(){
       vec2 p=vPos;
       float gust=sin(p.x*.12+p.y*.086-uTime*.16)*1.15
@@ -254,12 +260,13 @@ function water(){
       col+=mix(vec3(.61,.50,.44),vec3(.90,.86,.65),uDaylight)*glint;
        col+=vec3(.042,.085,.11)*uRain*abs(chop);
       col+=vec3(.035,.08,.09)*max(0.,vRipple*.30);
-      gl_FragColor=vec4(col,1.);
+      float edgeFade=1.-smoothstep(.76,.99,vBank);
+      gl_FragColor=vec4(col,edgeFade);
     }`
  });
  const mesh=new THREE.Mesh(g,mat);mesh.rotation.x=-Math.PI/2;
  waterMaterial=mat;
- mesh.position.set(0,liveMode?-4.28:-4,-10);scene.add(mesh);
+ mesh.position.set(0,liveMode?-3.15:-4,-10);scene.add(mesh);
 }
 function land(side){
  const steps=95,rows=15,pos=[],col=[],idx=[];
