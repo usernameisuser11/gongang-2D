@@ -109,7 +109,8 @@ try {
           painterly: window.GongangPainterly?.state || null,
           hybrid: window.GongangHybrid3D?.state || null,
           environment: s.environment || null,
-          liveMode: s.liveMode
+          liveMode: s.liveMode,
+          sculptedRidges:s.sculptedRidges, groveAnchored:s.groveAnchored, freeSeating:s.freeSeating
         };
       });
       const canvas = page.locator('#game');
@@ -131,6 +132,9 @@ try {
         if (config.kind === 'live') {
           assert.equal(state.liveMode, true, 'Live scene not activated');
           assert.equal(state.environment?.ready, true, 'No living environment');
+          assert.equal(state.sculptedRidges, 5, 'The live world must show five actual 3D mountain ridges');
+          assert.equal(state.groveAnchored, true, '3D pine trees must follow actual ridge surfaces');
+          assert.equal(state.freeSeating, true, 'The middle of the vista must remain available for sitting');
           assert.equal(state.environment?.weather, config.expectedWeather, 'Weather preset mismatch');
           assert.ok(Math.abs(state.environment.hour-config.expectedHour)<.025, 'Incorrect time-of-day');
           assert.ok(state.environment.renderCount > 2, 'Sky/lighting did not advance');
