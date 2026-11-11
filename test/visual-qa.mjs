@@ -11,19 +11,19 @@ import { chromium } from 'playwright';
 const PORT = 43117;
 const ROOT = 'http://127.0.0.1:' + PORT;
 const snapshots = [
-  { name: 'desktop-25d-dawn', width: 1440, height: 900, query: '?map=stargaze&time=06:10&weather=clear', kind: '25d', expectedHour: 6.1667, expectedWeather: 'clear' },
-  { name: 'desktop-25d-day', width: 1440, height: 900, query: '?map=stargaze&time=13:20&weather=cloudy', kind: '25d', expectedHour: 13.3333, expectedWeather: 'cloudy' },
-  { name: 'desktop-25d-sunset', width: 1440, height: 900, query: '?map=stargaze&time=18:10&weather=clear', kind: '25d', expectedHour: 18.1667, expectedWeather: 'clear' },
-  { name: 'desktop-25d-night', width: 1440, height: 900, query: '?map=stargaze&time=23:20&weather=clear', kind: '25d', expectedHour: 23.3333, expectedWeather: 'clear' },
-  { name: 'desktop-25d-parallax', width: 1440, height: 900, query: '?map=stargaze&time=13:20&weather=clear', kind: '25d', expectedHour: 13.3333, expectedWeather: 'clear', checkParallax: true },
-  { name: 'desktop-25d-moon', width: 1440, height: 900, query: '?map=stargaze&time=18:10&weather=clear&moon=show', kind: '25d', expectedHour: 18.1667, expectedWeather: 'clear', expectedMoon: true },
-  { name: 'mobile-25d-rain', width: 390, height: 844, query: '?map=stargaze&time=16:10&weather=rain', kind: '25d', expectedHour: 16.1667, expectedWeather: 'rain' },
-  { name: 'mobile-25d-snow', width: 390, height: 844, query: '?map=stargaze&time=08:10&weather=snow', kind: '25d', expectedHour: 8.1667, expectedWeather: 'snow' },
-  { name: 'desktop-painted-baseline', width: 1440, height: 900, query: '?map=stargaze&renderer=2d', kind: 'painterly' },
+  { name: 'desktop-25d-dawn', width: 1440, height: 900, query: '?map=stargaze&time=06:10&weather=clear&renderer=procedural', kind: '25d', expectedHour: 6.1667, expectedWeather: 'clear' },
+  { name: 'desktop-25d-day', width: 1440, height: 900, query: '?map=stargaze&time=13:20&weather=cloudy&renderer=procedural', kind: '25d', expectedHour: 13.3333, expectedWeather: 'cloudy' },
+  { name: 'desktop-25d-sunset', width: 1440, height: 900, query: '?map=stargaze&time=18:10&weather=clear&renderer=procedural', kind: '25d', expectedHour: 18.1667, expectedWeather: 'clear' },
+  { name: 'desktop-25d-night', width: 1440, height: 900, query: '?map=stargaze&time=23:20&weather=clear&renderer=procedural', kind: '25d', expectedHour: 23.3333, expectedWeather: 'clear' },
+  { name: 'desktop-25d-parallax', width: 1440, height: 900, query: '?map=stargaze&time=13:20&weather=clear&renderer=procedural', kind: '25d', expectedHour: 13.3333, expectedWeather: 'clear', checkParallax: true },
+  { name: 'desktop-25d-moon', width: 1440, height: 900, query: '?map=stargaze&time=18:10&weather=clear&moon=show&renderer=procedural', kind: '25d', expectedHour: 18.1667, expectedWeather: 'clear', expectedMoon: true },
+  { name: 'mobile-25d-rain', width: 390, height: 844, query: '?map=stargaze&time=16:10&weather=rain&renderer=procedural', kind: '25d', expectedHour: 16.1667, expectedWeather: 'rain' },
+  { name: 'mobile-25d-snow', width: 390, height: 844, query: '?map=stargaze&time=08:10&weather=snow&renderer=procedural', kind: '25d', expectedHour: 8.1667, expectedWeather: 'snow' },
+  { name: 'desktop-painted-baseline', width: 1440, height: 900, query: '?map=stargaze&renderer=2d&hybrid=off', kind: 'painterly' },
   // Experimental art-first 2.5D: existing painterly layers and wind/mist
   // retain their parallax, while real Blender-model props render on top.
   { name: 'desktop-art-first-hybrid', width: 1440, height: 900,
-    query: '?map=stargaze&renderer=2d&hybrid=on', kind: 'hybrid' },
+    query: '?map=stargaze', kind: 'hybrid' },
   { name: 'desktop-legacy-3d', width: 1440, height: 900, query: '?map=stargaze&renderer=3d', kind: '3d' }
 ];
 
