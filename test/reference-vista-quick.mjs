@@ -14,11 +14,17 @@ try{
  browser=await chromium.launch({headless:true,args:['--enable-webgl','--enable-unsafe-swiftshader','--use-angle=swiftshader']});
  await mkdir('artifacts/reference-vista',{recursive:true});
  const results=[];
- for(const cfg of [{name:'reference-desktop',width:1440,height:900},{name:'reference-mobile',width:390,height:844}]){
+ const configs=[
+  {name:'reference-night-clear',width:1440,height:900,time:'23:20',weather:'clear',expectedLight:'night',minStars:.6},
+  {name:'reference-day-clear',width:1440,height:900,time:'13:20',weather:'clear',expectedLight:'day',maxStars:.03},
+  {name:'reference-dusk-cloudy',width:1440,height:900,time:'17:15',weather:'cloudy',expectedWeather:'cloudy'},
+  {name:'reference-mobile-rain',width:390,height:844,time:'16:10',weather:'rain',expectedWeather:'rain'}
+ ];
+ for(const cfg of configs){
   const page=await browser.newPage({viewport:{width:cfg.width,height:cfg.height},deviceScaleFactor:1});
   const failures=[];
   page.on('pageerror',e=>failures.push(String(e)));
-  await page.goto(base+'/?map=stargaze&renderer=reference&time=18:10&weather=clear',{waitUntil:'domcontentloaded'});
+  await page.goto(base+'/?map=stargaze&renderer=reference&time='+encodeURIComponent(cfg.time)+'&weather='+cfg.weather,{waitUntil:'domcontentloaded'});
   await page.waitForTimeout(3500);
   const state=await page.evaluate(()=>({
     ...(window.GongangReferenceVista?.state||{}),
@@ -34,6 +40,12 @@ try{
   assert.ok(state.frames>1,JSON.stringify({state,failures}));
   assert.equal(state.layers,5);
   assert.equal(state.mode,'coordinate-repaint-no-bitmap');
+  assert.equal(state.moonVisible,false,'Fixed moon must be removed');
+  assert.equal(state.weatherSource,'preview','Weather override must drive actual sky');
+  if(cfg.expectedLight)assert.equal(state.light,cfg.expectedLight,JSON.stringify(state));
+  if(cfg.expectedWeather)assert.equal(state.weather,cfg.expectedWeather,JSON.stringify(state));
+  if(cfg.minStars!==undefined)assert.ok(state.starVisibility>=cfg.minStars,JSON.stringify(state));
+  if(cfg.maxStars!==undefined)assert.ok(state.starVisibility<=cfg.maxStars,JSON.stringify(state));
   assert.deepEqual(failures,[],'Javascript errors '+JSON.stringify(failures));
   results.push({name:cfg.name,...state});
   await page.close();
