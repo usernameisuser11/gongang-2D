@@ -28,7 +28,7 @@ void main(){
   float r2=sin(vWorld.x*5.31-v*.92+sin(vWorld.z*.23)*1.6);
   float broken=pow(max(0.,r*.6+r2*.4),7.);
   float fleck=pow(max(0.,sin(vWorld.x*7.5+vWorld.z*.91-uTime*.76)),20.);
-  vec3 night=mix(vec3(.018,.050,.081),vec3(.039,.11,.16),.5+r*.5);
+  vec3 night=mix(vec3(.036,.086,.135),vec3(.066,.16,.22),.5+r*.5);
   vec3 day=mix(vec3(.080,.21,.24),vec3(.16,.37,.42),.5+r*.5);
   vec3 col=mix(night,day,uDay*.85);
   col+=vec3(.12,.16,.25)*broken*(.18+uTwilight*.22+uDay*.30);
@@ -39,15 +39,15 @@ void main(){
   gl_FragColor=vec4(col,edge*(.82+.08*uRain));
 }`;
 export function createTerrainStream(THREE,scene,{mobile=false}={}){
-  const length=116,sections=mobile?102:182,across=mobile?8:12;
+  const length=26,sections=mobile?38:76,across=mobile?8:12;
   const positions=new Float32Array((sections+1)*(across+1)*3);
   const uvs=new Float32Array((sections+1)*(across+1)*2);
   const indices=new Uint32Array(sections*across*6);
   for(let j=0;j<=sections;j++){
     const t=j/sections;
-    const z=-139+length*t;
+    const z=-55+length*t;
     const center=getValleyFlow(z);
-    const width=.60+2.25*Math.pow(t,1.65);
+    const width=.45+1.75*Math.pow(t,1.45);
     for(let i=0;i<=across;i++){
       const acrossT=i/across;
       const x=center+(acrossT*2-1)*width;
