@@ -4,6 +4,8 @@
  * outer banks, with varied silhouettes, subtle moss tint and real lighting.
  * Geometry and per-instance transforms are generated once on startup.
  */
+import { sampleValleyHeight } from '/valley-sculpt-3d.js';
+
 export function buildOverlookDetails(THREE,scene,{mobile=false}={}){
   let seed=202611111;
   const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
@@ -30,12 +32,12 @@ export function buildOverlookDetails(THREE,scene,{mobile=false}={}){
   const obj=new THREE.Object3D(),color=new THREE.Color();
   for(let i=0;i<count;i++){
     const side=i%2?1:-1;
-    const z=10+random()*66;
+    const z=7+random()*37;
     const edge=11.4+2.8*Math.sin(z*.16);
     const x=side*(edge+random()*12);
     const size=.11+Math.pow(random(),2)*.51;
     // Freshly exposed stone slabs on the grassy overlooking slopes.
-    obj.position.set(x,-3.21+size*.31,z);
+    obj.position.set(x,sampleValleyHeight(x,z)+size*.15,z);
     obj.rotation.set(random()*.23,random()*6.28318,(random()-.5)*.20);
     obj.scale.set(size*(1.35+random()*.7),size*(.37+random()*.23),
       size*(.85+random()*.75));
