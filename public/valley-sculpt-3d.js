@@ -106,15 +106,7 @@ function sculptOne(THREE,scene,c,mobile){
   shader.fragmentShader=shader.fragmentShader.replace('#include <common>',
     '#include <common>\nvarying vec3 vWorldRock;');
   shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',
-    '#include <color_fragment>\nfloat grain=sin(vWorldRock.x*1.9+sin(vWorldRock.z*2.1))*sin(vWorldRock.y*3.3+vWorldRock.x*.49);\nfloat speck=fract(sin(dot(floor(vWorldRock.xz*4.1),vec2(12.98,78.23)))*43758.5);\nfloat longCrevice=sin(vWorldRock.x*.92+sin(vWorldRock.y*.36+vWorldRock.z*.26)*2.4);
-float folded=sin(vWorldRock.y*1.65+sin(vWorldRock.x*.25)*1.5+
-  sin(vWorldRock.z*.37)*1.7);
-float faceTexture=.83+.13*grain+.10*longCrevice*.5+
-  .08*(speck-.5)+.10*folded*.5;
-float shadowCrack=pow(max(0.,1.-abs(longCrevice)),6.);
-diffuseColor.rgb*=faceTexture-.13*shadowCrack;
-diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(.81,.88,.97),
-  smoothstep(.35,.82,folded*.5+.5)*.14);');
+    '#include <color_fragment>\nfloat grain=sin(vWorldRock.x*1.9+sin(vWorldRock.z*2.1))*sin(vWorldRock.y*3.3+vWorldRock.x*.49);\nfloat speck=fract(sin(dot(floor(vWorldRock.xz*4.1),vec2(12.98,78.23)))*43758.5);\nfloat longCrevice=sin(vWorldRock.x*.92+sin(vWorldRock.y*.36+vWorldRock.z*.26)*2.4);\nfloat folded=sin(vWorldRock.y*1.65+sin(vWorldRock.x*.25)*1.5+\n  sin(vWorldRock.z*.37)*1.7);\nfloat faceTexture=.83+.13*grain+.10*longCrevice*.5+\n  .08*(speck-.5)+.10*folded*.5;\nfloat shadowCrack=pow(max(0.,1.-abs(longCrevice)),6.);\ndiffuseColor.rgb*=faceTexture-.13*shadowCrack;\ndiffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(.81,.88,.97),\n  smoothstep(.35,.82,folded*.5+.5)*.14);');
  };
  mat.customProgramCacheKey=()=> 'gongang-cinematic-stone-20261111';
  const mesh=new THREE.Mesh(geo,mat);
