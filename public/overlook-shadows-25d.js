@@ -56,7 +56,7 @@ export function createOverlookShadows25D(THREE,scene,{mobile=false}={}){
         // asymmetry from the direction of light. Shadows stay on real ground.
         const x=sx+shift.x-light.direction[0]*length*.62;
         const z=sz-length*.29;
-        actor.position.set(x,overlookGroundHeight(x-shift.x,z-26)+.08+shift.y,z);
+        actor.position.set(x,overlookGroundHeight(x-shift.x,z-77)+.08+shift.y,z);
         actor.rotation.set(0,light.azimuth*.75,0);
         actor.scale.set(size*.53,1,Math.max(size*.65,length*1.8));
         actor.updateMatrix();mesh.setMatrixAt(i,actor.matrix);
