@@ -64,10 +64,14 @@
      dx1=(n[1]-a[1])/(n[0]-a[0]||1);
    const h00=2*u*u*u-3*u*u+1,h10=u*u*u-2*u*u+u,
      h01=-2*u*u*u+3*u*u,h11=u*u*u-u*u;
-   const baseline=h00*a[1]+h10*len*dx0+h01*b[1]+h11*len*dx1;
+   const cubic=h00*a[1]+h10*len*dx0+h01*b[1]+h11*len*dx1;
+   // Sharpen existing headlands rather than replacing their original
+   // coordinates. Real rock crests contain asymmetric fracture edges.
+   const linear=a[1]+(b[1]-a[1])*u;
+   const baseline=lerp(cubic,linear,seed<=13?.30:.13);
    const t=Math.sin(u*Math.PI)**1.65;
    const ridgeIndex=Math.max(0,Math.min(6,seed-11));
-   const rough=[4.1,3.9,4.5,6.3,7.5,9.7,12.0][ridgeIndex];
+   const rough=[10.8,8.6,7.4,9.3,10.8,13.2,16.4][ridgeIndex];
    const noise=(ridgeNoise(x/116,seed+31)*.45+
      ridgeNoise(x/43,seed+87)*.31+
      ridgeNoise(x/15,seed+207)*.17+
@@ -330,8 +334,10 @@
   // horizontal lake strip. It receives the same late-sunset pink light.
   const path=[[937,513],[947,529],[926,548],[952,567],[930,583],[955,601],[934,619],[965,648]];
   c.save();c.lineCap='round';c.lineJoin='round';c.beginPath();smoothPath(c,path);
-  c.strokeStyle='rgba(233,150,153,.19)';c.lineWidth=8;c.shadowColor='#e994a2';c.shadowBlur=8;c.stroke();
-  c.shadowBlur=0;c.strokeStyle='rgba(255,178,146,.54)';c.lineWidth=1.9;c.stroke();c.restore();
+  c.strokeStyle='rgba(148,155,186,.18)';c.lineWidth=10;
+  c.shadowColor='#a6aeca';c.shadowBlur=5;c.stroke();
+  c.shadowBlur=0;c.strokeStyle='rgba(231,183,181,.34)';
+  c.lineWidth=1.25;c.stroke();c.restore();
   // Fog is a ragged transparent condensation layer, concentrated in valleys.
   const r=rng(4509);
   for(let i=0;i<115;i++){
@@ -339,9 +345,45 @@
    if(x<200&&i%2===0)continue;
    ellipse(c,x,y,rx,ry,color(i%3?'#8799c3':'#b2a1c9',.012+r()*.038),-.07);
   }
-  // Forest canopies are drawn against actual terrain at each mountain
-  // layer above, leaving no straight horizontal vegetation seam.
-  // Remove the row of repeated horizontal oval fog smudges.
+  // Forest canopies above follow the real ridge geometry. Below them,
+  // an irregular understory fills the 620-740px depth interval. The old
+  // script left this entire interval as a constant blue rectangle, which
+  // became the obvious ruler-straight seam in the user's screenshot.
+  const bottom=rng(14051);
+  const thickets=[132,338,545,858,1095,1350,1585];
+  for(let j=0;j<340;j++){
+   const center=thickets[Math.floor(bottom()*thickets.length)];
+   const x=clamp(center+(bottom()+bottom()+bottom()-1.5)*355,0,W);
+   const drift=Math.sin(x*.009+2.8)*20+Math.sin(x*.021)*10;
+   const y=clamp(668+drift+(bottom()-.5)*121,613,757);
+   const h=16+Math.pow(bottom(),.75)*75;
+   const tint=j%7===0?'#29465a':j%4===0?'#223b51':
+     j%5===0?'#1a334a':'#182e46';
+   // Small clumped understory, taller firs and shrubs occupy different
+   // elevations. No repeated y0 row and no uniform artificial cutoff.
+   if(bottom()<.70)fir(c,x,y,h,40381+j*17,tint,.42+bottom()*.33);
+   else{
+    const r=3+bottom()*10;
+    c.beginPath();c.moveTo(x-r*2,y);
+    c.bezierCurveTo(x-r*1.5,y-r*1.9,x-r*.6,y-r*1.5,x,y-r);
+    c.bezierCurveTo(x+r*.3,y-r*2.8,x+r*1.9,y-r*1.6,x+r*2,y);
+    c.closePath();c.fillStyle=color(tint,.19+bottom()*.26);c.fill();
+   }
+  }
+  // Finer vegetation and mist roll across the understory, hiding its
+  // roots in the ground instead of ending abruptly on a horizontal line.
+  for(let j=0;j<215;j++){
+   const x=bottom()*W,y=634+bottom()*108;
+   const h=3+bottom()*15,span=1+bottom()*5;
+   line(c,[x,y],[x+(bottom()-.5)*span,y-h],
+     color(j%4?'#39536a':'#70809a',.04+bottom()*.14),.4+bottom()*.7);
+  }
+  for(let i=0;i<95;i++){
+   const x=bottom()*W,y=636+bottom()*103;
+   const rad=20+bottom()*79;
+   ellipse(c,x,y,rad,4+bottom()*11,
+     color(i%4===0?'#92a4ba':'#6d819d',.012+bottom()*.026),-.04);
+  }
  }
  function foreground(c,lanternLit=true){
    // Left and right framing bluffs. Front and rear edges are separate
