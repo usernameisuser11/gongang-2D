@@ -315,8 +315,22 @@ function foreground(){
  g.computeVertexNormals();
  const mat=new THREE.MeshStandardMaterial({
    vertexColors:true,side:THREE.DoubleSide,roughness:1,
-   metalness:0,flatShading:false
+   metalness:0,flatShading:false,
+   emissive:'#17182c',emissiveIntensity:.60
  });
+ // Fine, material-space soil variation remains attached to the actual
+ // undulating 3D ground. No image or cached 2D background is involved.
+ mat.onBeforeCompile=shader=>{
+   shader.vertexShader=shader.vertexShader.replace('#include <common>',
+     '#include <common>\\nvarying vec3 vGroundWorld;');
+   shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
+     '#include <begin_vertex>\\nvGroundWorld=(modelMatrix*vec4(transformed,1.0)).xyz;');
+   shader.fragmentShader=shader.fragmentShader.replace('#include <common>',
+     '#include <common>\\nvarying vec3 vGroundWorld;');
+   shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',
+     '#include <color_fragment>\\nfloat speck=fract(sin(dot(floor(vGroundWorld.xz*15.),vec2(127.1,311.7)))*43758.54);\\nfloat grain=sin(vGroundWorld.x*4.1+sin(vGroundWorld.z*2.7))*sin(vGroundWorld.z*3.4);\\ndiffuseColor.rgb*=.81+.12*grain+.16*speck;');
+ };
+ mat.customProgramCacheKey=()=>'gongang-3d-meadow-soil';
  scene.add(new THREE.Mesh(g,mat)).position.set(0,0,49);
 }
 function cloudTexture(){
