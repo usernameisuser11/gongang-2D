@@ -15,7 +15,7 @@ const editableModelsEnabled=new URLSearchParams(location.search).get('models')!=
 const cinemaEnabled=new URLSearchParams(location.search).get('cinema')!=='off';
 const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false,modelLoaded:false,modelParts:0,modelError:null,terrainLoaded:false,terrainParts:0,terrainError:null,groveLoaded:false,pineCount:0,groveError:null,editableModelsEnabled,cinemaEnabled,hazeLayers:0,cinemaError:null,liveMode,environment:null,sculptedRidges:0,groveAnchored:false,freeSeating:true};
 const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
-let renderer,scene,camera,waterClock,windClock,windStrength={value:1},stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null,legacyMountains=[],legacyForest=null,cinematicAtmosphere=null,painterlyClouds=null,livingEnvironment=null,waterMaterial=null,deepValley=null,overlookDetails=null,cinematicForest=null;
+let renderer,scene,camera,waterClock,windClock,windStrength={value:1},stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null,legacyMountains=[],legacyForest=null,cinematicAtmosphere=null,painterlyClouds=null,livingEnvironment=null,waterMaterial=null,deepValley=null,overlookDetails=null,cinematicForest=null,plantMaterials=[];
 const rng=(()=>{let s=20261110;return()=>((s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296)})();
 const lerp=(a,b,t)=>a+(b-a)*t,smooth=t=>t*t*(3-2*t);
 const hash=n=>{n=Math.imul(n^(n>>>15),2246822519);n=Math.imul(n^(n>>>13),3266489917);return ((n^(n>>>16))>>>0)/4294967295};
@@ -279,25 +279,31 @@ function land(side){
  scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})));
 }
 function foreground(){
- const g=new THREE.PlaneGeometry(125,84,70,40);
+ const g=new THREE.PlaneGeometry(125,84,118,72);
  g.rotateX(-Math.PI/2);
  const p=g.getAttribute('position'),cols=[];
- const dark=new THREE.Color('#193331'),light=new THREE.Color('#46604b');
+ const dark=new THREE.Color('#111b33'),light=new THREE.Color('#40566a');
  for(let i=0;i<p.count;i++){
    const x=p.getX(i),z=p.getZ(i);
    const b=noise(x*.24+z*.16,2);
    const frontEdge=9+2.8*Math.sin(x*.15)+1.6*noise(x*.08,29);
    const shoreShift=Math.max(0,1-(z+42)/84);
    p.setZ(i,z+shoreShift*(frontEdge-10)*.8);
-   p.setY(i,-3.22+b*.18);
+   const farRim=Math.exp(-Math.pow((z+42)/12,2));
+   const undulation=noise(x*.13+z*.045,13)*.26+
+     noise(x*.39-z*.12,91)*.08;
+   p.setY(i,-3.25+undulation*.55+farRim*(.12+.35*b));
    const organic=noise(x*.25+z*.22,47)*.27+noise(x*.71-z*.31,61)*.15;
-   const v=Math.max(.10,Math.min(.90,.45+organic));
+   const v=Math.max(.08,Math.min(.88,.42+organic));
    const col=dark.clone().lerp(light,v);
    cols.push(col.r,col.g,col.b);
  }
  p.needsUpdate=true;g.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
  g.computeVertexNormals();
- const mat=new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide});
+ const mat=new THREE.MeshStandardMaterial({
+   vertexColors:true,side:THREE.DoubleSide,roughness:1,
+   metalness:0,flatShading:false
+ });
  scene.add(new THREE.Mesh(g,mat)).position.set(0,0,49);
 }
 function cloudTexture(){
@@ -504,8 +510,9 @@ function plants(){
   const geo=new THREE.PlaneGeometry(1,1,1,18);geo.translate(0,.5,0);
   const uv=geo.getAttribute('uv');for(let i=0;i<uv.count;i++)uv.setX(i,(uv.getX(i)+type)/5);
   const mat=new THREE.MeshBasicMaterial({
-   map:t,color:'#adbbb0',alphaTest:.075,transparent:true,depthWrite:false,side:THREE.DoubleSide,fog:false
+   map:t,color:'#708ba0',alphaTest:.09,transparent:true,depthWrite:false,side:THREE.DoubleSide,fog:true
   });
+  plantMaterials.push(mat);
   mat.onBeforeCompile=shader=>{
    shader.uniforms.uWindTime=windClock;
   shader.uniforms.uWindStrength=windStrength;
@@ -673,6 +680,10 @@ function draw(ctx,t,now,{personal=false}={}){
     state.environment=livingEnvironment.state;
     windClock.value=sec*(.58+env.wind*.32);
     windStrength.value=state.reducedMotion?0:Math.max(.10,Math.min(2.3,env.wind));
+    const grassTone=new THREE.Color('#53667d')
+      .lerp(new THREE.Color('#a4a991'),env.daylight*.75)
+      .lerp(new THREE.Color('#a27496'),env.twilight*.25);
+    for(const mat of plantMaterials)mat.color.copy(grassTone);
     if(waterMaterial){
       waterMaterial.uniforms.uDaylight.value=env.daylight;
       waterMaterial.uniforms.uTwilight.value=env.twilight;
