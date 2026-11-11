@@ -43,6 +43,8 @@ void main(){
  gl_FragColor=vec4(col,alpha);
 }`;
 
+import { parallaxShift } from '/parallax-25d.js';
+
 export function createAtmosphericDepth25D(THREE,scene){
   const sheets=[];
   const layers=[
@@ -69,10 +71,17 @@ export function createAtmosphericDepth25D(THREE,scene){
     mesh.name='Animated atmospheric depth '+i;
     mesh.frustumCulled=false;
     scene.add(mesh);
-    sheets.push({mesh,uniforms});
+    sheets.push({mesh,uniforms,baseX:mesh.position.x,baseY:mesh.position.y});
   });
   return{
     count:sheets.length,
+    applyParallax(view){
+      for(const sheet of sheets){
+        const shift=parallaxShift(view,sheet.mesh.position.z);
+        sheet.mesh.position.x=sheet.baseX+shift.x;
+        sheet.mesh.position.y=sheet.baseY+shift.y;
+      }
+    },
     update(seconds,env){
       for(const sheet of sheets){
         sheet.uniforms.uTime.value=seconds;
