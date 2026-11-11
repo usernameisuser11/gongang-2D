@@ -129,6 +129,7 @@ try {
         assert.equal(o?.ready, true, config.name + ': 2.5D renderer unavailable');
         assert.ok(o.frameCount > 2, config.name + ': world is not animating');
         assert.ok(o.ridgeCount >= 6, 'Several depth-separated mountains are required');
+        assert.ok(o.atmosphereLayers >= 4, 'Time-responsive depth mist layers are missing');
         assert.ok(o.treeCount > (config.width < 600 ? 250 : 700),
           '3D tree silhouettes not instanced correctly: '+o.treeCount);
         assert.equal(o.retainsVisitors, true, 'Real visitor compositing disabled');
