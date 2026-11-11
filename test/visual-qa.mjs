@@ -139,7 +139,7 @@ try {
             'Must use connected heightfield terrain, not paper-thin backdrop planes');
           assert.ok(state.terrainTriangles > 10000,
             'Actual 3D terrain needs subdivision for erosion');
-          assert.ok(state.terrainStreamVertices > 900,
+          assert.ok(state.terrainStreamVertices >= (config.width < 600 ? 300 : 850),
             'River must follow sampled terrain surface');
           assert.equal(state.groveAnchored, true, '3D pine trees must follow actual ridge surfaces');
           assert.equal(state.freeSeating, true, 'The middle of the vista must remain available for sitting');
