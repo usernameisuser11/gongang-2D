@@ -29,6 +29,8 @@ jobs:
           # apt downloads; apt mirrors have intermittent DNS failures.
           npx playwright install chromium
       - name: Capture coordinate-redrawn vista
+        env:
+          REFERENCE_QA_NIGHT_ONLY: '1'
         run: node test/reference-vista-quick.mjs
       - name: Upload screenshots
         if: always()
