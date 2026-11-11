@@ -323,7 +323,12 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false,camera=
   }catch(error){state.fetchError=String(error?.message||error);}
  }
  fetchWeather();
- let cloud=.25,rain=0,snow=0,wind=.25;
+ // Preview weather is visible from the first rendered frame.
+ // Otherwise the slow screenshot renderer captured a clear sky while
+ // the UI reported cloudy/rainy/snowy.
+ let cloud=weather.cloud,rain=weather.rain,snow=weather.snow;
+ let wind=clamp(weather.wind/28,.08,2.4);
+ let previousWeatherTick=performance.now();
  let lastClockRefresh=Date.now(),clockHour=koreaHour(lastClockRefresh);
  let lastSolarDate=-1,solar={sunrise:6.4,sunset:18.2};
  return {state,update(seconds){
@@ -339,7 +344,11 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false,camera=
   const night=clamp(1-daylight*1.29);
   const twilight=Math.max(Math.exp(-Math.pow((hour-(sunset+.02))/1.3,2)),
     .70*Math.exp(-Math.pow((hour-(sunrise-.10))/1.2,2)));
-  const smoothing=reducedMotion?1:.025;
+  // Time-based easing works at 60 fps and with slow software WebGL.
+  const weatherTick=performance.now();
+  const weatherDt=clamp((weatherTick-previousWeatherTick)/1000,0,.75);
+  previousWeatherTick=weatherTick;
+  const smoothing=reducedMotion?1:1-Math.exp(-weatherDt*1.70);
   cloud+=(weather.cloud-cloud)*smoothing;
   rain+=(weather.rain-rain)*smoothing;
   snow+=(weather.snow-snow)*smoothing;
