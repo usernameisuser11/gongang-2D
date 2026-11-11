@@ -24,7 +24,7 @@ function makeRockField(THREE,scene,mobile){
     vertexColors:true,roughness:.98,metalness:0,color:'#99a8bd',
     emissive:'#15223c',emissiveIntensity:.26
   });
-  const count=mobile?24:62,mesh=new THREE.InstancedMesh(geo,mat,count);
+  const count=mobile?5:10,mesh=new THREE.InstancedMesh(geo,mat,count);
   mesh.frustumCulled=false;mesh.name='Weather-lit sculpted overlook boulders';
   const positions=[];
   for(let i=0;i<count;i++){
