@@ -72,6 +72,12 @@ varying float vDepth;varying vec2 vUV;
 uniform float uDay,uTwilight,uStorm,uWind,uTime,uShadow,uSunAzimuth,uSunElevation,uDepthWeight;
 uniform vec3 uLightDir,uLightColor,uDayHue;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float rockNoise(vec2 p){
+  vec2 i=floor(p),f=fract(p);
+  f=f*f*(3.-2.*f);
+  return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),
+    mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),f.x),f.y);
+}
 void main(){
   float folded=sin(vUV.x*24.7+sin(vUV.y*6.9)*3.8);
   float strata=sin(vUV.x*36.0+vUV.y*9.0+sin(vUV.x*13.)*1.9);
@@ -79,14 +85,23 @@ void main(){
   float eroded=sin(vUV.x*83.5+sin(vUV.y*18.1)*2.4);
   float cracks=pow(1.-abs(eroded),8.0);
   float detail=sin(vUV.x*161.0+sin(vUV.y*31.)*4.0)*.032;
-  float texture=.92+.083*folded+.068*(mineral-.5)+.065*strata
-    -cracks*.11+detail;
+  // Nested rock weathering: broad fractures, eroded scree, fine
+  // crystalline pigment. Non-repeating 2D fields replace stripe textures.
+  float ravine=rockNoise(vUV*vec2(23.,7.)+vec2(8.,3.));
+  float scree=rockNoise(vUV*vec2(79.,31.)+vec2(17.,11.));
+  float mineralDust=rockNoise(vUV*vec2(211.,96.)+vec2(31.,7.));
+  float erosionBand=rockNoise(vUV*vec2(8.3,14.6)+vec2(4.,12.));
+  float brokenShale=pow(1.-abs(2.*scree-1.),7.);
+  float weathering=.79+.18*ravine+.07*scree+.055*mineralDust;
+  float cliffExposure=smoothstep(.51,.83,ravine*.65+erosionBand*.35);
+  float texture=(.94+.055*folded+.045*(mineral-.5)+.039*strata
+    -cracks*.072+detail*.60)*weathering;
   // Ridgeline facets and fine gullies act like sculpted normal-map detail.
   // They catch the sunrise/sunset direction differently at each hour.
   vec3 relief=normalize(vFaceNormal+vec3(
-    .23*folded+.14*strata,
-    .07*folded,
-    .15*strata));
+    .21*folded+.11*strata+.17*(ravine-.5),
+    .065*folded+.10*(scree-.5),
+    .15*strata+.16*(erosionBand-.5)));
   vec3 lightVector=normalize(uLightDir);
   float incidence=max(0.,dot(relief,lightVector));
   float diffuse=.70+.30*incidence;
@@ -107,7 +122,13 @@ void main(){
   // Warm sun rim only when light comes from a low angle; night remains blue.
   float horizon=clamp((vUV.y-.30)*1.45,0.,1.);
   col+=vec3(.19,.069,.075)*uTwilight*horizon*(.4+.6*incidence);
-  col*=texture*(1.-uStorm*.13);
+  // Cliff outcrops stay readable in moonlight; distant rock
+  // weathers more softly through haze instead of flashing white.
+  float stoneMask=cliffExposure*(.32+.68*brokenShale);
+  float nearby=1.-uDepthWeight;
+  col=mix(col,col*vec3(.77,.88,.98),
+    stoneMask*(.11+.17*nearby)*(1.-uStorm*.30));
+  col*=mix(1.,texture,.57+.39*nearby)*(1.-uStorm*.13);
   gl_FragColor=vec4(max(col,0.),1.);
 }`;
 const FIR_VS=`
