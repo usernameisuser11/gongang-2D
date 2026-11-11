@@ -591,6 +591,8 @@ function init(){
     // Do not replace their shapes with image textures or curtain polygons.
     deepValley=createDeepValley(THREE,scene,{mobile:innerWidth<700});
     state.sculptedRidges=deepValley.count;
+    state.terrainTopology='continuous-heightfield';
+    state.terrainTriangles=deepValley.triangleCount;
     state.terrainLoaded=true;
     state.terrainParts=deepValley.count;
   } else {
@@ -655,6 +657,7 @@ function init(){
        }
        model.position.x=18;
        model.position.z=14;
+       model.position.y=sampleValleyHeight(model.position.x,model.position.z);
        model.scale.setScalar(.72);
      }
    }).catch(error=>{
