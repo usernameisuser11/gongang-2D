@@ -274,7 +274,11 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false}={}){
   const moonTransit=(12+phase*24)%24;
   const moonDiff=((hour-moonTransit+36)%24)-12;
   const moonHeight=-14+Math.sin((moonDiff+6)*Math.PI/12)*37;
-  moon.position.set(moonPreview?.9:-moonDiff*1.20,moonPreview?-5.8:-10.0+Math.max(-4,moonHeight)*.52,-146);
+  // Keep the lunar disc within the visible upper third of the fixed
+  // orthographic overlook; -10 world Y projected onto the actual grass.
+  moon.position.set(moonPreview?3.5:-moonDiff*.95,
+    moonPreview?.4:-1.0+Math.max(-1,Math.min(1,moonHeight/24))*2.8,-146);
+  moon.rotation.z=moonPreview?-.65:-.25-Math.sin(phase*6.283)*.25;
   moon.visible=moonPreview||(night>.12&&Math.abs(moonDiff)<6.5&&phase>.015&&phase<.985);
   moon.material.uniforms.uNight.value=night;
   moon.material.uniforms.uPhase.value=phase;
