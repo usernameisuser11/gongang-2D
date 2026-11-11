@@ -255,13 +255,16 @@ export async function loadValleyTerrain(THREE, scene) {
  * one draw call per tree). Places correspond to the authored mountain shape;
  * skip bad entries rather than allowing corrupt JSON to stop the whole scene.
  */
-export async function loadAlpineGrove(THREE, scene) {
+export async function loadAlpineGrove(THREE, scene, {authoredTrees=null}={}) {
+  // Live sculpted world provides its own precisely on-surface tree locations.
+  // Older experimental mode retains its original JSON placements.
   const [model, layoutResponse] = await Promise.all([
     readLocalMesh(THREE, 'alpine-pine'),
-    fetch('/assets/models/alpine-grove.json')
+    authoredTrees ? Promise.resolve(null) : fetch('/assets/models/alpine-grove.json')
   ]);
-  if (!layoutResponse.ok) throw new Error('Alpine placement HTTP ' + layoutResponse.status);
-  const layout = await layoutResponse.json();
+  if (layoutResponse && !layoutResponse.ok)
+    throw new Error('Alpine placement HTTP ' + layoutResponse.status);
+  const layout = authoredTrees ? { trees: authoredTrees } : await layoutResponse.json();
   const portrait = innerWidth < 700 && innerHeight > innerWidth * 1.22;
   const trees = Array.isArray(layout.trees) ? layout.trees.filter(tree =>
     (tree.view == null || tree.view === (portrait ? 'portrait' : 'wide')) &&
