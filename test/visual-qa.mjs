@@ -108,24 +108,27 @@ try {
       }
       await page.waitForTimeout(1100);
       if(config.checkParallax){
-        // Headless Chromium may focus a previously opened/closed context;
-        // ensure physical keyboard events reach the active game window.
-        await page.bringToFront();
-        await page.evaluate(() => window.focus());
-        const initial=await page.evaluate(()=>window.GongangOverlook25D?.state.parallax.x||0);
-        const before=await page.evaluate(()=>window.GongangViewCamera?.sample?.());
-        await page.keyboard.down('d');
-        await page.waitForTimeout(1400);
-        await page.keyboard.up('d');
-        await page.waitForTimeout(300);
-        const shifted=await page.evaluate(()=>window.GongangOverlook25D?.state.parallax.x||0);
-        const after=await page.evaluate(()=>({
+        // Synthetic keydown exercises the actual window input listener
+        // without unreliable focus in headless Chromium. The condition is
+        // evaluated on the rendered parallax, not merely on event delivery.
+        const before=await page.evaluate(()=>({
           camera:window.GongangViewCamera?.sample?.(),
-          frames:window.GongangOverlook25D?.state.frameCount
+          frames:window.GongangOverlook25D?.state.frameCount,
+          parallax:window.GongangOverlook25D?.state.parallax.x
         }));
-        assert.ok(Math.abs(shifted-initial)>.009,
-          'Movement did not drive actual landscape parallax: '+
-          JSON.stringify({initial,shifted,before,after}));
+        await page.evaluate(()=>window.dispatchEvent(new KeyboardEvent(
+          'keydown',{key:'d',bubbles:true})));
+        try{
+          await page.waitForFunction(start=>{
+            const c=window.GongangViewCamera?.sample?.();
+            const p=window.GongangOverlook25D?.state.parallax.x;
+            return Number.isFinite(c?.x)&&c.x>(start.camera?.x||1600)+13
+              &&Math.abs(p-start.parallax)>.009;
+          },before,{timeout:24000,polling:250});
+        }finally{
+          await page.evaluate(()=>window.dispatchEvent(new KeyboardEvent(
+            'keyup',{key:'d',bubbles:true})));
+        }
       }
       const state = await page.evaluate(() => {
         const s = window.GongangDiorama3D?.state || {};
@@ -145,8 +148,13 @@ try {
           terrainTopology:s.terrainTopology, terrainTriangles:s.terrainTriangles, terrainStreamVertices:s.terrainStreamVertices
         };
       });
-      const canvas = page.locator('#game');
-      await canvas.screenshot({ path: 'artifacts/landscape/' + config.name + '.png' });
+      // Capturing the viewport avoids Playwright waiting for an "element
+      // stable" animation frame while the WebGL canvas is actively drawing.
+      await page.screenshot({
+        path: 'artifacts/landscape/' + config.name + '.png',
+        animations: 'disabled',
+        timeout: 60000
+      });
       results.push({ name: config.name, state, errors });
       if (config.kind === '25d') {
         const o=state.overlook25d;
