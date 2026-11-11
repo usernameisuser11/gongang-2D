@@ -33,6 +33,70 @@
   ]);c.fillRect(0,0,W,H);
   c.fillStyle=radial(c,845,365,560,[[0,'rgba(255,156,105,.46)'],[.53,'rgba(237,105,130,.13)'],[1,'rgba(238,94,113,0)']]);c.fillRect(0,0,W,620);
   c.fillStyle=radial(c,930,110,450,[[0,'rgba(80,97,183,.14)'],[1,'rgba(30,61,134,0)']]);c.fillRect(0,0,W,600);
+
+  // THE GALAXY: this calls our existing Stellar Explosion v31.9 / Quasar
+  // v129 particle engine (8500 sky grains + 15700 Milky Way grains).
+  // The GPU-era round-core, colored-aura, 0.82..1.0 feather profile is
+  // preserved: 95% tiny grains, very few bright stars, subtle twinkles.
+  // All geometry is reprojected into the reference's 1672x941 sky.
+  const galaxyRand=rng(301779);
+  const galaxyCenter=y=>1195-1.08*(y/.42);
+  const galaxyTransmission=(x,y)=>{
+    const u=y/.42,core=1195-1.08*u;
+    const side=x-core,rift=core-31+16*Math.sin(u*.014+1.5);
+    const dust=Math.exp(-Math.pow((x-rift)/(18+u*.020),2));
+    const soft=Math.exp(-Math.pow(side/258,2));
+    return {light:soft*(.23+.24*Math.cos(u*.007)),dust:dust*.91};
+  };
+  c.save();
+  c.globalCompositeOperation='screen';
+  // Broad, feathered luminous gas: cold cyan-blue edges surrounding
+  // warm ivory/rose substructures. These are fine transparent fibers,
+  // never single giant ellipse glows or an artificial laser stripe.
+  for(let j=0;j<420;j++){
+    const y=galaxyRand()*336;
+    const x=galaxyCenter(y)+(galaxyRand()+galaxyRand()+galaxyRand()-1.5)*285;
+    if(x<-50||x>W+50)continue;
+    const field=galaxyTransmission(x,y);
+    const ridge=(.09+.91*field.light)*(1-field.dust*.87);
+    const size=3+galaxyRand()*38;
+    const hue=galaxyRand();
+    const tone=hue<.18?'#f4dfb8':hue<.41?'#d2a3d3':hue<.69?'#9b9fe6':'#76b2e2';
+    const alpha=(.0018+galaxyRand()*.013)*ridge;
+    windingFiber(c,x,y,14+size*1.7,-2-galaxyRand()*size*.28,j+2121,
+      color(tone,alpha),size*(.19+galaxyRand()*.45));
+  }
+  // Fine luminous gas strands and a curving 'Great Rift' between the
+  // densely populated bands. Keep the rift transparent enough that the
+  // underlying midnight blue remains visible.
+  for(let k=0;k<265;k++){
+    const y=galaxyRand()*337;
+    const core=galaxyCenter(y);
+    const x=core+(galaxyRand()-.5)*385;
+    const q=galaxyTransmission(x,y);
+    const alpha=(.006+galaxyRand()*.035)*(1-q.dust)*(q.light+.14);
+    windingFiber(c,x,y,18+galaxyRand()*95,galaxyRand()*17-5,k+9182,
+      color(k%5===0?'#f1c5d1':k%4===0?'#dfdbf3':'#95b0f1',alpha),
+      .5+galaxyRand()*3.2);
+  }
+  c.restore();
+  // Quasar v129 native soft round-grain texture and the exact original
+  // six-color palette are reused from /stellar-grains.js, not recreated
+  // as square pixel stars. Starfield is separate from every cloud layer.
+  if(window.StellarGrains?.paint){
+    window.StellarGrains.paint(c,W,H,galaxyTransmission,()=>1,{
+      projectBackground:(x,y)=>[x,y*.58],
+      projectGalaxy:(x,y)=>[x,y*.42]
+    });
+  }else{
+    // Graceful native Canvas fallback if the stellar engine is blocked.
+    const fallback=rng(4328);
+    for(let i=0;i<10500;i++){
+      const x=fallback()*W,y=fallback()*338,r=fallback(),size=r>.995?1.7:.45;
+      c.fillStyle=color(r>.74?'#f4ddc0':r>.4?'#bbc6fa':'#7ca9ed',.12+fallback()*.45);
+      c.fillRect(x,y,size,size);
+    }
+  }
   // Wind-sheared, broken cloud families. Each is built from paths, not ellipses.
   function cloudBand(cx,cy,width,weight,shade,light,seed){
    const r=rng(seed),steps=34,top=[],bottom=[];
@@ -62,27 +126,6 @@
   cloudBand(1104,362,477,24,'rgba(163,85,141,.30)','rgba(255,166,155,.21)',60);
   for(let i=0;i<90;i++){const t=R(),x=t*W,y=70+290*R(),span=14+R()*108;
    line(c,[x,y],[x+span,y-1-R()*12],color(i%3?'#e29abc':'#fe9baf',.014+R()*.055),.4+R()*1.1);}
-  // The star fields are drawn in place, fixed to the skyline.
-  const stars=rng(35077);
-  for(let i=0;i<1330;i++){
-   const x=stars()*W,y=stars()*365;
-   if(y>260&&stars()<.72)continue;
-   const rad=stars()<.975?.38+stars()*.73:1.3+stars()*1.55;
-   const intensity=stars()*.72+.18;
-   c.fillStyle=color(i%5?'#dae4ff':'#f8cbf6',intensity);
-   c.fillRect(x,y,rad,rad);
-   if(rad>1.6){line(c,[x-5,y],[x+5,y],color('#c5d4ff',.26),.6);line(c,[x,y-5],[x,y+5],color('#d9d3ff',.27),.6);}
-  }
-  // Milky Way: thousands of tiny individually drawn dust particles along a
-  // drifting diagonal band. No baked artwork or composited photograph.
-  for(let j=0;j<3900;j++){
-   const x=420+R()*920;
-   const center=90-(x-850)*.19, yy=center+(R()+R()+R()-1.5)*103;
-   if(yy<4||yy>310)continue;
-   const dust=R(),radius=.25+R()*(dust>.98?1.5:.65);
-   c.fillStyle=color(dust>.80?'#dbcaf8':dust>.46?'#8796ea':'#697abd',.025+R()*.23);
-   c.fillRect(x,yy,radius,radius);
-  }
   // Gold crescent at x≈906 y≈185, aligned to the reference composition.
   const mx=903,my=184;
   c.fillStyle=radial(c,mx,my,113,[[0,'rgba(255,190,126,.17)'],[.42,'rgba(245,153,128,.075)'],[1,'rgba(237,152,126,0)']]);
@@ -323,7 +366,7 @@
    const ctx=canvas.getContext('2d',{alpha:true});for(const fn of fns)fn(ctx);return canvas;}
  const layers=[];
  let painted=false,failed=false,error='';
- const state={ready:false,frames:0,mode:'coordinate-repaint-no-bitmap',coordinates:'1672x941',layers:0,error:null,light:'twilight'};
+ const state={ready:false,frames:0,mode:'coordinate-repaint-no-bitmap',coordinates:'1672x941',layers:0,error:null,light:'twilight',galaxy:'quasar-v129-24200-soft-grains-great-rift'};
  function ensure(){if(painted)return;try{
   for(const defs of layerDefs)layers.push(paintLayer(defs));
   state.ready=true;state.layers=layers.length;painted=true;
@@ -337,6 +380,16 @@
    const parallax=[0,2.2,5.3,9.2,14.0][i]*relative;
    const drift= i===3?Math.sin(now*.00008)*.6:0;
    ctx.drawImage(layers[i],t.x-(parallax+drift)*scaleX,t.y, t.width,t.height);
+  }
+  // Only a few source grains shimmer. The rest of the 24,200
+  // original particles remain still, keeping the view restful.
+  // Clip to the clear upper sky so no stars float over mountains.
+  if(window.StellarGrains?.animate){
+    ctx.save();ctx.beginPath();
+    ctx.rect(t.x,t.y,t.width,t.height*.348);ctx.clip();
+    ctx.translate(t.x,t.y);ctx.scale(t.width/W,t.height/H);
+    window.StellarGrains.animate(ctx,now);
+    ctx.restore();
   }
   // Sparse real-time distant haze and firefly twinkle sit on top of
   // separately authored layers; the painted reference is never loaded.
