@@ -2,9 +2,14 @@
 (() => {
   'use strict';
   const WIDTH=1920,HEIGHT=1080;
-  // The only place Three.js overlays the painterly panorama. Feature-gated
-  // for composition testing; no dependency required for the production art.
-  if(new URLSearchParams(location.search).get('hybrid')==='on'){
+  // Art-first 2.5D is the default in the experimental branch: preserve
+  // the authored multi-layer scene, wind, fog, multiplayer and photography.
+  // The former geometric mountain simulator remains available explicitly.
+  const sceneQuery=new URLSearchParams(location.search);
+  const requestedRenderer=sceneQuery.get('renderer');
+  const artFirst=!['procedural','25d','3d','live3d'].includes(requestedRenderer);
+  if((artFirst && sceneQuery.get('hybrid')!=='off') ||
+      sceneQuery.get('hybrid')==='on'){
     import('/hybrid-scenic-props.js').catch(error=>
       console.warn('Hybrid 3D props could not load; painted scenery unaffected',error));
   }
@@ -662,9 +667,10 @@
     const viewT=makeTransform(t,personal);
     const outputT=personal?t:viewT;
     const livingOverlook=window.GongangOverlook25D;
-    // Default: live 2.5D mountains, weather, wind, stars and celestial bodies.
-    // Real visitor avatars remain on the existing shared Canvas layer.
-    if(livingOverlook?.ready && livingOverlook.draw(c,outputT,now,{
+    // Prefer the painterly layered vista. Only renderer=procedural opts
+    // into the old noise-heavy 3D mountain scene for development comparisons.
+    // Real avatars continue on the unchanged shared Canvas layer.
+    if(!artFirst && livingOverlook?.ready && livingOverlook.draw(c,outputT,now,{
       personal,view:window.GongangViewCamera?.sample?.()
     })){
       c.save();
