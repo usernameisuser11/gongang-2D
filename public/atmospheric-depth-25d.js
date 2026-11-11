@@ -48,6 +48,8 @@ void main(){
  vec3 col=mix(night,day,uDay);
  col=mix(col,dusk,clamp(uTwilight*.72,0.,.72));
  gl_FragColor=vec4(col,clamp(alpha,0.,.30));
+ #include <tonemapping_fragment>
+ #include <colorspace_fragment>
 }`;
 import { parallaxShift } from '/parallax-25d.js';
 
