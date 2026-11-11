@@ -394,6 +394,7 @@ function makeOverlookSoil(THREE,scene){
  p.needsUpdate=true;
  geometry.setAttribute('color',new THREE.BufferAttribute(rgb,3));
  geometry.computeVertexNormals();
+ const soilUniforms={uSoilWetness:{value:0}};
  const material=new THREE.MeshStandardMaterial({
    vertexColors:true,roughness:1,metalness:0,
    side:THREE.DoubleSide,transparent:true,depthWrite:false,
@@ -403,6 +404,7 @@ function makeOverlookSoil(THREE,scene){
  // edge visible in screenshots. Alpha only changes over the distant 30m
  // of the real Three.js soil mesh; shadows remain a separate later pass.
  material.onBeforeCompile=shader=>{
+   Object.assign(shader.uniforms,soilUniforms);
    shader.vertexShader=shader.vertexShader.replace(
      '#include <common>',
      '#include <common>\nvarying float vSoilBlend;\nvarying vec2 vSoilXZ;');
@@ -414,6 +416,7 @@ function makeOverlookSoil(THREE,scene){
      `#include <common>
      varying float vSoilBlend;
      varying vec2 vSoilXZ;
+     uniform float uSoilWetness;
      float gSoilHash(vec2 p){
        return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);
      }
@@ -428,12 +431,28 @@ function makeOverlookSoil(THREE,scene){
      `#include <color_fragment>
      // Dirt, patches of lichen and hundreds of tiny static pebbles are part
      // of the terrain material. They are not individually spawned meshes.
+     // Four scales of compacted soil stay fixed to the real terrain surface.
+     // Preserve low spatial frequencies so the ground reads naturally at
+     // both seated-player scale and distant photographic composition.
      float broad=gSoilNoise(vSoilXZ*.055);
      float fine=gSoilNoise(vSoilXZ*1.85);
      float rough=gSoilNoise(vSoilXZ*9.5);
-     float soilTone=.79+.18*broad+.115*fine+.045*rough;
-     vec3 soilHue=mix(vec3(.89,.91,.96),vec3(1.04,.99,.87),broad);
+     float clay=gSoilNoise(vSoilXZ*.31+vec2(12.6,-3.8));
+     float soilTone=.76+.20*broad+.12*fine+.040*rough;
+     vec3 soilHue=mix(vec3(.88,.92,.97),vec3(1.03,.99,.85),clay);
      diffuseColor.rgb*=soilTone*soilHue;
+     // Lichen actually grows in uneven, eroded colonies. No separate
+     // geometry, glowing circles, or repetitive oval patch sprites.
+     float colony=gSoilNoise(vSoilXZ*.13+vec2(8.7,-2.5));
+     float branch=gSoilNoise(vSoilXZ*.59+vec2(-3.1,5.4));
+     float grain=gSoilNoise(vSoilXZ*2.45+vec2(6.2,1.8));
+     float mossField=colony*.57+branch*.43;
+     float moss=smoothstep(.54,.73,mossField)
+       *(.24+.76*smoothstep(.31,.66,grain))
+       *(.18+.70*smoothstep(7.,24.,abs(vSoilXZ.x)));
+     vec3 mossPigment=mix(vec3(.44,.62,.55),vec3(.63,.74,.58),grain);
+     diffuseColor.rgb=mix(diffuseColor.rgb,
+       diffuseColor.rgb*mossPigment,moss*.72);
      vec2 cell=vSoilXZ*1.68;
      vec2 id=floor(cell);
      vec2 randomCenter=vec2(
@@ -452,17 +471,23 @@ function makeOverlookSoil(THREE,scene){
      diffuseColor.rgb=mix(diffuseColor.rgb,
        diffuseColor.rgb*.55,pebbleShadow*.18);
      diffuseColor.rgb=mix(diffuseColor.rgb,gravel,pebble*.57);
+     // Rain darkens exposed clay and gives the material a slight sheen,
+     // rather than adding an expensive transparent puddle mesh.
+     diffuseColor.rgb*=mix(1.,.72,uSoilWetness);
      diffuseColor.a*=vSoilBlend;
      `);
+   shader.fragmentShader=shader.fragmentShader.replace(
+     '#include <roughnessmap_fragment>',
+     '#include <roughnessmap_fragment>\nroughnessFactor=mix(roughnessFactor,.54,uSoilWetness*.78);');
  };
- material.customProgramCacheKey=()=>'gongang-dirt-gravel-material-v3';
+ material.customProgramCacheKey=()=>'gongang-dirt-moss-pebbles-wet-v4';
  const mesh=new THREE.Mesh(geometry,material);
  mesh.name='3D shared sitting platform, soft earthen hillside';
  mesh.position.z=77;
  mesh.renderOrder=2;
  mesh.frustumCulled=false;
  scene.add(mesh);
- return {mesh,baseX:mesh.position.x,baseY:mesh.position.y};
+ return {mesh,baseX:mesh.position.x,baseY:mesh.position.y,uniforms:soilUniforms};
 }
 let scene,camera,renderer,environment,ridges=[],forest,atmosphere,soil,shadows,meadow,vistaDetails;
 let smoothView={x:0,y:0},lastParallaxFrame=null;
@@ -500,7 +525,7 @@ if(enabled)try{
  state.shadowCasters=shadows.count;
  state.meadowPlants=meadow.count;
  state.rockCount=vistaDetails.rockCount;
- state.soilDetail='painted-dirt-lichen-pebbles';
+ state.soilDetail='four-scale-clay-colony-lichen-ground-pebbles-wetness';
  state.flowerCount=vistaDetails.flowerCount;
  state.weather=environment.state;
  state.ready=true;
@@ -551,6 +576,7 @@ function draw(ctx,t,now,{personal=false,view=null}={}){
     .lerp(soilDuskColor,env.twilight*.37);
   soil.mesh.material.emissiveIntensity=
     .42+env.daylight*.31+env.twilight*.21;
+  soil.uniforms.uSoilWetness.value=clamp(env.rain*.94+env.snow*.22);
   state.lighting={
     daylight:light.daylight,shadowStrength:light.shadowStrength,
     azimuth:light.azimuth,sunElevation:light.sunElevation,
