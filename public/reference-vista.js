@@ -35,18 +35,23 @@
   c.fillStyle=radial(c,930,110,450,[[0,'rgba(80,97,183,.14)'],[1,'rgba(30,61,134,0)']]);c.fillRect(0,0,W,600);
   // Wind-sheared, broken cloud families. Each is built from paths, not ellipses.
   function cloudBand(cx,cy,width,weight,shade,light,seed){
-   const r=rng(seed);const steps=18;const b=[];
-   for(let j=0;j<=steps;j++){const t=j/steps;const x=cx-width/2+t*width,phase=t*6.3+seed;
-    const h=weight*(.37+.63*Math.sin(t*Math.PI))*(.72+.28*r());
-    b.push([x,cy+Math.sin(phase)*8-h*.65]);
+   const r=rng(seed),steps=34,top=[],bottom=[];
+   for(let j=0;j<=steps;j++){
+    const t=j/steps,shape=Math.pow(Math.sin(t*Math.PI),.67);
+    const x=cx-width*.5+t*width,y=cy+Math.sin(t*10.4+seed)*8;
+    const h=weight*shape*(.64+.40*Math.sin(t*17+seed*.7)**2);
+    top.push([x,y-h*(.38+.32*r())]);
+    bottom.push([x,y+h*(.16+.17*r())]);
    }
-   c.beginPath();smoothPath(c,b);
-   for(let j=steps;j>=0;j--){const t=j/steps;
-    c.lineTo(cx-width/2+t*width,cy+weight*.48+8*Math.sin(t*7+seed));}
-   c.closePath();c.fillStyle=lgrad(c,cx,cy-weight,cx,cy+weight,[[0,light],[.52,shade],[1,'rgba(47,45,112,.12)']]);c.fill();
+   c.beginPath();smoothPath(c,top);
+   for(let j=steps;j>=0;j--)c.lineTo(...bottom[j]);
+   c.closePath();
+   c.fillStyle=lgrad(c,cx,cy-weight,cx,cy+weight,[[0,light],[.39,shade],[1,'rgba(47,45,112,0)']]);c.fill();
    c.save();c.lineCap='round';
-   for(let n=0;n<15;n++){const t=r(),x=cx+(t-.5)*width,y=cy+(r()-.5)*weight;
-    line(c,[x,y],[x+30+r()*145,y-4-r()*11],color('#ffb1a0',.03+r()*.11),.6+r()*1.5);
+   for(let n=0;n<55;n++){
+    const t=r(),edge=Math.sin(t*Math.PI),x=cx+(t-.5)*width,y=cy+(r()-.6)*weight*.73*edge;
+    const span=(14+r()*97)*edge;
+    line(c,[x,y],[x+span,y-3-r()*10],color('#ffb1a0',.018+r()*.084),.5+r()*1.35);
    }c.restore();
   }
   cloudBand(285,315,650,72,'rgba(169,75,135,.52)','rgba(250,116,158,.45)',10);
@@ -82,8 +87,12 @@
   const mx=903,my=184;
   c.fillStyle=radial(c,mx,my,113,[[0,'rgba(255,190,126,.17)'],[.42,'rgba(245,153,128,.075)'],[1,'rgba(237,152,126,0)']]);
   c.fillRect(mx-120,my-120,240,240);
-  c.beginPath();c.arc(mx,my,53,-1.07,2.57,false);
-  c.bezierCurveTo(mx-6,my+30,mx-10,my-19,mx-28,my-55);
+  c.beginPath();
+  c.moveTo(mx+5,my-53);
+  c.bezierCurveTo(mx+45,my-35,mx+60,my+11,mx+28,my+42);
+  c.bezierCurveTo(mx+6,my+65,mx-32,my+61,mx-65,my+42);
+  c.bezierCurveTo(mx-12,my+59,mx+19,my+23,mx+23,my-13);
+  c.bezierCurveTo(mx+25,my-33,mx+16,my-46,mx+5,my-53);
   c.closePath();
   c.fillStyle=lgrad(c,mx-49,my-55,mx+49,my+50,[[0,'#fff2c8'],[.4,'#ffd9b0'],[1,'#cf8d9f']]);c.fill();
   c.strokeStyle='rgba(255,240,205,.72)';c.lineWidth=1.2;c.stroke();
@@ -144,10 +153,10 @@
  function valley(c){
   // The thin winding river follows the photographed S-curve, not a
   // horizontal lake strip. It receives the same late-sunset pink light.
-  const path=[[943,498],[938,522],[912,544],[947,566],[917,591],[983,617],[938,640],[1013,668]];
+  const path=[[937,513],[947,529],[926,548],[952,567],[930,583],[955,601],[934,619],[965,648]];
   c.save();c.lineCap='round';c.lineJoin='round';c.beginPath();smoothPath(c,path);
-  c.strokeStyle='rgba(245,164,177,.31)';c.lineWidth=15;c.shadowColor='#e9989b';c.shadowBlur=17;c.stroke();
-  c.shadowBlur=0;c.strokeStyle='rgba(255,179,158,.63)';c.lineWidth=3.2;c.stroke();c.restore();
+  c.strokeStyle='rgba(233,150,153,.19)';c.lineWidth=8;c.shadowColor='#e994a2';c.shadowBlur=8;c.stroke();
+  c.shadowBlur=0;c.strokeStyle='rgba(255,178,146,.54)';c.lineWidth=1.9;c.stroke();c.restore();
   // Fog is a ragged transparent condensation layer, concentrated in valleys.
   const r=rng(4509);
   for(let i=0;i<115;i++){
@@ -155,8 +164,9 @@
    if(x<200&&i%2===0)continue;
    ellipse(c,x,y,rx,ry,color(i%3?'#8799c3':'#b2a1c9',.012+r()*.038),-.07);
   }
-  treeLine(c,565,640,751,'#193857',230,false);
-  treeLine(c,628,683,752,'#102c49',220,true);
+  treeLine(c,565,640,751,'#193857',260,false);
+  treeLine(c,622,685,752,'#102c49',310,true);
+  treeLine(c,690,727,753,'#0c2641',190,true);
   for(let i=0;i<12;i++){
    const x=430+i*73,y=640+(i%4)*7;
    ellipse(c,x,y,43+i%3*8,10,color('#647cab',.045+i%3*.012));
