@@ -30,20 +30,31 @@ const hash=(x,n)=>fract(Math.sin(x*127.1+n*311.7)*43758.5453123);
 const noise=(x,n)=>{let i=Math.floor(x),f=fract(x);f=f*f*(3-2*f);return (hash(i,n)*(1-f)+hash(i+1,n)*f)*2-1;};
 function crest(x,l){
  const axis=x-l.turn;
- const shoulder=l.rise*Math.pow(Math.abs(axis)/25,1.42);
+ const shoulder=l.rise*Math.pow(Math.abs(axis)/25,1.34);
  const hill=(cx,w,h)=>h*Math.exp(-Math.pow((x-cx)/w,2)*1.7);
- const rock=noise(x*.19,l.seed)*1.05+noise(x*.49,l.seed+11)*.41+
-   noise(x*1.15,l.seed+29)*.18;
- return l.center+shoulder+rock+hill(-23-l.turn,12,2.8)+
-    hill(18+l.turn,12,3.1)+hill(6+l.turn,6,l.peak);
+ // Asymmetric rocky range shoulders and distant serrated alpine summits.
+ // Different frequencies per z-depth avoid a stack of identical V-shaped hills.
+ const rock=noise(x*.16,l.seed)*1.08+noise(x*.49,l.seed+11)*.50+
+   noise(x*1.55,l.seed+29)*.24+noise(x*3.10,l.seed+44)*.09;
+ const alpine=l.alpine||0;
+ const summits=alpine*(
+   hill(-29-l.turn,8.3,1.15)+hill(-12-l.turn,6.2,1.30)+
+   hill(11+l.turn,7.8,1.25)+hill(29+l.turn,6.8,1.18))+
+   alpine*Math.pow(Math.max(0,noise(x*.42,l.seed+77)),3)*1.75;
+ const valleyOffset=1.15*Math.sin((x-l.turn)*.076+l.seed*.7);
+ return l.center+shoulder+rock+valleyOffset+
+   hill(-23-l.turn,11,2.2)+hill(18+l.turn,12,2.8)+
+   hill(6+l.turn,6,l.peak)+summits;
 }
 const LAYERS=[
- {name:'horizon',z:-143,center:-12.0,rise:4.6,turn:0,peak:3.0,seed:19,base:'#6274a5',day:'#799c9b'},
- {name:'lavender peaks',z:-126,center:-14.2,rise:6.2,turn:-4,peak:3.3,seed:27,base:'#677da8',day:'#647f94'},
- {name:'distant cobalt',z:-110,center:-12.5,rise:7.9,turn:3,peak:2.6,seed:33,base:'#3a6992',day:'#467c81'},
- {name:'teal valleys',z:-94,center:-12.6,rise:9.7,turn:-2,peak:2.4,seed:41,base:'#21567b',day:'#427d78'},
- {name:'deep fir hills',z:-78,center:-11.5,rise:11.8,turn:2,peak:2.0,seed:55,base:'#143d63',day:'#395d5a'},
- {name:'near forest slopes',z:-62,center:-11.0,rise:13.7,turn:-1,peak:1.8,seed:67,base:'#0b294b',day:'#2a4e47'}
+ {name:'far alpine snow',z:-172,center:-12.2,rise:4.2,turn:2,peak:2.5,alpine:2.6,seed:8,base:'#849bc9',day:'#9caeae'},
+ {name:'blue alpine summits',z:-157,center:-13.2,rise:4.8,turn:-1,peak:2.9,alpine:3.2,seed:13,base:'#758bc0',day:'#81a6b4'},
+ {name:'horizon foothills',z:-143,center:-13.5,rise:5.3,turn:0,peak:2.5,alpine:1.5,seed:19,base:'#6f86b5',day:'#7b9b9e'},
+ {name:'lavender peaks',z:-126,center:-14.2,rise:6.3,turn:-4,peak:3.3,alpine:.65,seed:27,base:'#6484ba',day:'#648e93'},
+ {name:'distant cobalt',z:-110,center:-13.8,rise:7.9,turn:3,peak:2.6,seed:33,base:'#386c9b',day:'#437a81'},
+ {name:'teal valleys',z:-94,center:-13.7,rise:9.8,turn:-2,peak:2.4,seed:41,base:'#28688d',day:'#427c75'},
+ {name:'deep fir hills',z:-78,center:-12.8,rise:11.2,turn:2,peak:2.0,seed:55,base:'#173d67',day:'#365d59'},
+ {name:'near forest slopes',z:-62,center:-12.0,rise:12.8,turn:-1,peak:1.8,seed:67,base:'#0d2c51',day:'#295348'}
 ];
 const MOUNTAIN_VS=`
 varying vec3 vPigment,vFaceNormal;
@@ -57,14 +68,18 @@ const MOUNTAIN_FS=`
 precision highp float;
 varying vec3 vPigment,vFaceNormal;
 varying float vDepth;varying vec2 vUV;
-uniform float uDay,uTwilight,uStorm,uWind,uTime,uShadow,uSunAzimuth,uSunElevation;
+uniform float uDay,uTwilight,uStorm,uWind,uTime,uShadow,uSunAzimuth,uSunElevation,uDepthWeight;
 uniform vec3 uLightDir,uLightColor,uDayHue;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 void main(){
   float folded=sin(vUV.x*24.7+sin(vUV.y*6.9)*3.8);
   float strata=sin(vUV.x*36.0+vUV.y*9.0+sin(vUV.x*13.)*1.9);
   float mineral=hash(floor(vUV*vec2(244.,37.)));
-  float texture=.87+.051*folded+.042*(mineral-.5)+.029*strata;
+  float eroded=sin(vUV.x*83.5+sin(vUV.y*18.1)*2.4);
+  float cracks=pow(1.-abs(eroded),8.0);
+  float detail=sin(vUV.x*161.0+sin(vUV.y*31.)*4.0)*.032;
+  float texture=.92+.083*folded+.068*(mineral-.5)+.065*strata
+    -cracks*.11+detail;
   // Ridgeline facets and fine gullies act like sculpted normal-map detail.
   // They catch the sunrise/sunset direction differently at each hour.
   vec3 relief=normalize(vFaceNormal+vec3(
@@ -82,7 +97,11 @@ void main(){
   vec3 day=mix(vPigment*vec3(1.12,1.25,1.0),
     uDayHue*(.66+.29*vUV.y),.82);
   vec3 col=mix(night,day,clamp(uDay,0.,1.));
-  col*=mix(.76,1.07,uDay*.78)*diffuse*ridgeShade*terrainShadow;
+  col*=mix(.82,1.08,uDay*.78)*diffuse*ridgeShade*terrainShadow;
+  // Aerial perspective lets far mountains catch blue-lavender twilight.
+  // Close forest hills stay in silhouette; not one flat filter on every hill.
+  col+=vec3(.065,.125,.21)*uTwilight*uDepthWeight*(.35+.65*vUV.y);
+  col*=1.+uTwilight*uDepthWeight*.15;
   col*=mix(vec3(1.0),uLightColor,.54*uDay+.32*uTwilight);
   // Warm sun rim only when light comes from a low angle; night remains blue.
   float horizon=clamp((vUV.y-.30)*1.45,0.,1.);
@@ -163,7 +182,8 @@ function makeMountain(THREE,scene,layer,mobile){
    uWind:{value:0},uTime:{value:0},uLightDir:{value:new THREE.Vector3(.1,.7,1).normalize()},
    uSunAzimuth:{value:0},uSunElevation:{value:.5},uShadow:{value:0},
    uLightColor:{value:new THREE.Vector3(1,1,1)},
-   uDayHue:{value:new THREE.Color(layer.day)}
+   uDayHue:{value:new THREE.Color(layer.day)},
+   uDepthWeight:{value:smooth(-62,-172,layer.z)}
  };
  const mat=new THREE.ShaderMaterial({
    uniforms:u,vertexShader:MOUNTAIN_VS,fragmentShader:MOUNTAIN_FS,
