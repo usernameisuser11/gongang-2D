@@ -6,6 +6,7 @@ on:
       - 'public/reference-vista.js'
       - 'public/stargaze.js'
       - 'public/index.html'
+      - 'server.mjs'
       - 'test/reference-vista-quick.mjs'
       - '.github/workflows/reference-vista-quick.yml'
   workflow_dispatch:
