@@ -8,6 +8,8 @@ import * as THREE from '/vendor/three.module.js';
 import { createLivingEnvironment } from '/living-environment-3d.js';
 import { createAtmosphericDepth25D } from '/atmospheric-depth-25d.js';
 import { parallaxInput, parallaxShift } from '/parallax-25d.js';
+import { scenicLighting } from '/scenic-lighting-25d.js';
+import { createOverlookShadows25D } from '/overlook-shadows-25d.js';
 
 const HALF_HEIGHT=14.5;
 const state={
@@ -255,7 +257,44 @@ function addOverlook(THREE,scene){
  }
  return layers;
 }
-let scene,camera,renderer,environment,ridges=[],forest,atmosphere;
+/**
+ * Small sculpted overlook shelf with a real upward-facing surface and
+ * biome colors. This receives analytically projected pine contact shadows;
+ * distant mountains remain lightweight 2.5D parallax geometry.
+ */
+function makeOverlookSoil(THREE,scene){
+ const geometry=new THREE.PlaneGeometry(86,78,42,26);
+ geometry.rotateX(-Math.PI/2);
+ const p=geometry.getAttribute('position');
+ const rgb=new Float32Array(p.count*3);
+ const centerColor=new THREE.Color('#273f4a');
+ const edgeColor=new THREE.Color('#0a1b31');
+ for(let i=0;i<p.count;i++){
+   const x=p.getX(i),z=p.getZ(i);
+   const edge=smooth(11,40,Math.abs(x));
+   const level=-6.80-.92*edge+.055*noise(x*.28+z*.22,19);
+   p.setY(i,level);
+   const stone=centerColor.clone().lerp(edgeColor,edge*.84);
+   stone.multiplyScalar(.91+.12*noise(x*.38-z*.11,22));
+   rgb[i*3]=stone.r;rgb[i*3+1]=stone.g;rgb[i*3+2]=stone.b;
+ }
+ p.needsUpdate=true;
+ geometry.setAttribute('color',new THREE.BufferAttribute(rgb,3));
+ geometry.computeVertexNormals();
+ const material=new THREE.MeshStandardMaterial({
+   vertexColors:true,roughness:1,metalness:0,
+   side:THREE.DoubleSide,
+   emissive:'#0c1321',emissiveIntensity:.30
+ });
+ const mesh=new THREE.Mesh(geometry,material);
+ mesh.name='3D shared sitting platform, soft earthen hillside';
+ mesh.position.z=26;
+ mesh.frustumCulled=false;
+ scene.add(mesh);
+ return {mesh,baseX:mesh.position.x,baseY:mesh.position.y};
+}
+let scene,camera,renderer,environment,ridges=[],forest,atmosphere,soil,shadows;
+let smoothView={x:0,y:0},lastParallaxFrame=null;
 const requestedRenderer=new URLSearchParams(location.search).get('renderer');
 const enabled=!['2d','painterly','3d','live3d'].includes(requestedRenderer);
 const portrait=innerWidth<700&&innerHeight>innerWidth*1.2;
@@ -277,16 +316,19 @@ if(enabled)try{
  ridges=LAYERS.map(l=>makeMountain(THREE,scene,l,portrait));
  ridges.push(...addOverlook(THREE,scene));
  atmosphere=createAtmosphericDepth25D(THREE,scene);
+ soil=makeOverlookSoil(THREE,scene);
  forest=makeForest(THREE,scene,portrait);
+ shadows=createOverlookShadows25D(THREE,scene,{mobile:portrait});
  state.ridgeCount=ridges.length;state.treeCount=forest.count;
  state.atmosphereLayers=atmosphere.count;
+ state.shadowCasters=shadows.count;
  state.weather=environment.state;
  state.ready=true;
 }catch(error){
  state.failed=true;state.error=String(error?.stack||error);
  console.error('Living overlook initialization failed; retaining legacy view',error);
 }
-function draw(ctx,t,now,{personal=false}={}){
+function draw(ctx,t,now,{personal=false,view=null}={}){
  if(!state.ready)return false;
  try{
   const w=Math.max(280,Math.min(1280,Math.round(t.width*.88))),
@@ -303,12 +345,45 @@ function draw(ctx,t,now,{personal=false}={}){
   // Wall-clock motion: visitors who arrive later observe the same sky/wind.
   const seconds=(Date.now()/1000)%86400;
   const env=environment.update(seconds);
+  const input=parallaxInput(view||{}, {width:w,height:h});
+  // Damped like an actual scrolling game camera; speed independent of FPS.
+  const nowMs=performance.now();
+  const elapsed=lastParallaxFrame===null?1/60:clamp((nowMs-lastParallaxFrame)/1000,0,.1);
+  lastParallaxFrame=nowMs;
+  const ease=1-Math.exp(-elapsed*4.1);
+  smoothView.x+=(input.x-smoothView.x)*ease;
+  smoothView.y+=(input.y-smoothView.y)*ease;
+  for(const ridge of ridges){
+    const delta=parallaxShift(smoothView,ridge.layer.z);
+    ridge.mesh.position.x=ridge.basePosition.x+delta.x;
+    ridge.mesh.position.y=ridge.basePosition.y+delta.y;
+  }
+  atmosphere.applyParallax(smoothView);
+  const groundShift=parallaxShift(smoothView,soil.mesh.position.z);
+  soil.mesh.position.x=soil.baseX+groundShift.x;
+  soil.mesh.position.y=soil.baseY+groundShift.y;
+  const light=scenicLighting({
+    ...env,sunrise:environment.state.sunrise,sunset:environment.state.sunset
+  },environment.state.moonVisible);
+  const lightDir=new THREE.Vector3(...light.direction);
+  state.lighting={
+    daylight:light.daylight,shadowStrength:light.shadowStrength,
+    azimuth:light.azimuth,sunElevation:light.sunElevation
+  };
+  state.parallax={...smoothView};
+  state.nearShift=parallaxShift(smoothView,22).x;
+  state.farShift=parallaxShift(smoothView,-143).x;
+  shadows.update(light,smoothView);
   for(const ridge of ridges){
     ridge.u.uDay.value=env.daylight;
     ridge.u.uTwilight.value=env.twilight;
     ridge.u.uStorm.value=Math.max(env.rain,env.snow);
     ridge.u.uTime.value=seconds;
     ridge.u.uWind.value=env.wind;
+    ridge.u.uLightDir.value.copy(lightDir);
+    ridge.u.uSunAzimuth.value=light.azimuth;
+    ridge.u.uSunElevation.value=light.sunElevation;
+    ridge.u.uShadow.value=light.shadowStrength;
   }
   atmosphere.update(seconds,env);
   forest.u.uTime.value=seconds;
@@ -316,6 +391,10 @@ function draw(ctx,t,now,{personal=false}={}){
   forest.u.uDay.value=env.daylight;
   forest.u.uTwilight.value=env.twilight;
   forest.u.uStorm.value=Math.max(env.rain,env.snow);
+  forest.u.uShadow.value=light.shadowStrength;
+  forest.u.uLightDir.value.copy(lightDir);
+  forest.u.uParallax.value.set(smoothView.x,smoothView.y);
+  renderer.toneMappingExposure=1.16*light.exposure;
   renderer.render(scene,camera);
   ctx.drawImage(renderer.domElement,t.x,t.y,t.width,t.height);
   state.frameCount++;state.hour=environment.state.hour;
