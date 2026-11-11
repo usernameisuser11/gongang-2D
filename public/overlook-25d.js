@@ -11,6 +11,7 @@ import { parallaxInput, parallaxShift } from '/parallax-25d.js';
 import { scenicLighting } from '/scenic-lighting-25d.js';
 import { createOverlookShadows25D } from '/overlook-shadows-25d.js';
 import { overlookGroundHeight } from '/overlook-ground-25d.js';
+import { createMeadowEdge25D } from '/meadow-edge-25d.js';
 
 const HALF_HEIGHT=14.5;
 const state={
@@ -329,7 +330,7 @@ function makeOverlookSoil(THREE,scene){
  scene.add(mesh);
  return {mesh,baseX:mesh.position.x,baseY:mesh.position.y};
 }
-let scene,camera,renderer,environment,ridges=[],forest,atmosphere,soil,shadows;
+let scene,camera,renderer,environment,ridges=[],forest,atmosphere,soil,shadows,meadow;
 let smoothView={x:0,y:0},lastParallaxFrame=null;
 const soilNightColor=new THREE.Color('#183151');
 const soilDayColor=new THREE.Color('#274943');
@@ -357,9 +358,11 @@ if(enabled)try{
  soil=makeOverlookSoil(THREE,scene);
  forest=makeForest(THREE,scene,portrait);
  shadows=createOverlookShadows25D(THREE,scene,{mobile:portrait});
+ meadow=createMeadowEdge25D(THREE,scene,{mobile:portrait});
  state.ridgeCount=ridges.length;state.treeCount=forest.count;
  state.atmosphereLayers=atmosphere.count;
  state.shadowCasters=shadows.count;
+ state.meadowPlants=meadow.count;
  state.weather=environment.state;
  state.ready=true;
 }catch(error){
@@ -418,6 +421,7 @@ function draw(ctx,t,now,{personal=false,view=null}={}){
   state.nearShift=parallaxShift(smoothView,22).x;
   state.farShift=parallaxShift(smoothView,-143).x;
   shadows.update(light,smoothView);
+  meadow.update(seconds,env,smoothView,light);
   for(const ridge of ridges){
     ridge.u.uDay.value=env.daylight;
     ridge.u.uTwilight.value=env.twilight;
