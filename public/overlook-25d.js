@@ -405,18 +405,57 @@ function makeOverlookSoil(THREE,scene){
  material.onBeforeCompile=shader=>{
    shader.vertexShader=shader.vertexShader.replace(
      '#include <common>',
-     '#include <common>\nvarying float vSoilBlend;');
+     '#include <common>\nvarying float vSoilBlend;\nvarying vec2 vSoilXZ;');
    shader.vertexShader=shader.vertexShader.replace(
      '#include <begin_vertex>',
-     '#include <begin_vertex>\nvSoilBlend=smoothstep(-95.,-62.,position.z);');
+     '#include <begin_vertex>\nvSoilBlend=smoothstep(-95.,-62.,position.z);\nvSoilXZ=position.xz;');
    shader.fragmentShader=shader.fragmentShader.replace(
      '#include <common>',
-     '#include <common>\nvarying float vSoilBlend;');
+     `#include <common>
+     varying float vSoilBlend;
+     varying vec2 vSoilXZ;
+     float gSoilHash(vec2 p){
+       return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);
+     }
+     float gSoilNoise(vec2 p){
+       vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+       return mix(mix(gSoilHash(i),gSoilHash(i+vec2(1.,0.)),f.x),
+         mix(gSoilHash(i+vec2(0.,1.)),gSoilHash(i+vec2(1.,1.)),f.x),f.y);
+     }
+     `);
    shader.fragmentShader=shader.fragmentShader.replace(
      '#include <color_fragment>',
-     '#include <color_fragment>\ndiffuseColor.a*=vSoilBlend;');
+     `#include <color_fragment>
+     // Dirt, patches of lichen and hundreds of tiny static pebbles are part
+     // of the terrain material. They are not individually spawned meshes.
+     float broad=gSoilNoise(vSoilXZ*.055);
+     float fine=gSoilNoise(vSoilXZ*1.85);
+     float rough=gSoilNoise(vSoilXZ*9.5);
+     float soilTone=.79+.18*broad+.115*fine+.045*rough;
+     vec3 soilHue=mix(vec3(.89,.91,.96),vec3(1.04,.99,.87),broad);
+     diffuseColor.rgb*=soilTone*soilHue;
+     vec2 cell=vSoilXZ*1.68;
+     vec2 id=floor(cell);
+     vec2 randomCenter=vec2(
+       gSoilHash(id+vec2(4.0,1.0)),
+       gSoilHash(id+vec2(7.0,9.0)));
+     vec2 uv=(fract(cell)-(.23+.54*randomCenter));
+     uv.x*=.92+.65*gSoilHash(id+vec2(3.0,5.0));
+     uv.y*=1.25;
+     float pebbleSeed=gSoilHash(id+vec2(11.0,23.0));
+     float d=length(uv);
+     float pebble=step(.82,pebbleSeed)*(1.-smoothstep(.095,.152,d));
+     float pebbleShadow=step(.82,pebbleSeed)
+       *(1.-smoothstep(.125,.205,length(uv-vec2(.026,-.036))));
+     vec3 gravel=vec3(.54,.65,.79)
+       *(.75+.50*gSoilHash(id+vec2(14.0,7.0)));
+     diffuseColor.rgb=mix(diffuseColor.rgb,
+       diffuseColor.rgb*.55,pebbleShadow*.18);
+     diffuseColor.rgb=mix(diffuseColor.rgb,gravel,pebble*.57);
+     diffuseColor.a*=vSoilBlend;
+     `);
  };
- material.customProgramCacheKey=()=>'gongang-soft-soil-rim-v2';
+ material.customProgramCacheKey=()=>'gongang-dirt-gravel-material-v3';
  const mesh=new THREE.Mesh(geometry,material);
  mesh.name='3D shared sitting platform, soft earthen hillside';
  mesh.position.z=77;
@@ -461,6 +500,7 @@ if(enabled)try{
  state.shadowCasters=shadows.count;
  state.meadowPlants=meadow.count;
  state.rockCount=vistaDetails.rockCount;
+ state.soilDetail='painted-dirt-lichen-pebbles';
  state.flowerCount=vistaDetails.flowerCount;
  state.weather=environment.state;
  state.ready=true;
