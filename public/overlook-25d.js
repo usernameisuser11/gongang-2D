@@ -6,6 +6,7 @@
  */
 import * as THREE from '/vendor/three.module.js';
 import { createLivingEnvironment } from '/living-environment-3d.js';
+import { createAtmosphericDepth25D } from '/atmospheric-depth-25d.js';
 
 const HALF_HEIGHT=14.5;
 const state={
@@ -51,14 +52,18 @@ float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 void main(){
   float folded=sin(vUV.x*24.7+sin(vUV.y*6.9)*3.8);
   float mineral=hash(floor(vUV*vec2(244.,37.)));
-  float texture=.88+.065*folded+.058*(mineral-.5);
+  float strata=sin(vUV.x*36.0+vUV.y*9.0+sin(vUV.x*13.)*1.9);
+  float texture=.86+.055*folded+.045*(mineral-.5)+.035*strata;
   vec3 night=vPigment*vec3(.80,.91,1.18);
   vec3 day=vPigment*vec3(1.12,1.30,.98);
   vec3 col=mix(night,day,uDay);
   // Twilight gives the same physical ridges a faint reflected sunset,
   // instead of baking a pink mountain permanently into the landscape.
   float lightBand=clamp((vUV.y-.36)*1.5,0.,1.);
+  // Warm reflected light only near sunset, keeping morning and day natural.
   col+=vec3(.25,.082,.14)*uTwilight*lightBand;
+  float nearDepth=1.-smoothstep(.12,.85,vUV.y);
+  col*=1.-.045*nearDepth;
   col*=texture*(1.-uStorm*.13);
   gl_FragColor=vec4(max(col,0.),1.);
 }`;
@@ -216,7 +221,7 @@ function addOverlook(THREE,scene){
  }
  return layers;
 }
-let scene,camera,renderer,environment,ridges=[],forest;
+let scene,camera,renderer,environment,ridges=[],forest,atmosphere;
 const requestedRenderer=new URLSearchParams(location.search).get('renderer');
 const enabled=!['2d','painterly','3d','live3d'].includes(requestedRenderer);
 const portrait=innerWidth<700&&innerHeight>innerWidth*1.2;
@@ -237,8 +242,10 @@ if(enabled)try{
    reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches});
  ridges=LAYERS.map(l=>makeMountain(THREE,scene,l,portrait));
  ridges.push(...addOverlook(THREE,scene));
+ atmosphere=createAtmosphericDepth25D(THREE,scene);
  forest=makeForest(THREE,scene,portrait);
  state.ridgeCount=ridges.length;state.treeCount=forest.count;
+ state.atmosphereLayers=atmosphere.count;
  state.weather=environment.state;
  state.ready=true;
 }catch(error){
@@ -269,6 +276,7 @@ function draw(ctx,t,now,{personal=false}={}){
     ridge.u.uTime.value=seconds;
     ridge.u.uWind.value=env.wind;
   }
+  atmosphere.update(seconds,env);
   forest.u.uTime.value=seconds;
   forest.u.uWind.value=env.wind;
   forest.u.uDay.value=env.daylight;
