@@ -52,8 +52,22 @@ export function sampleValleyHeight(x,z){
   const floor=-16.4+13.2*smooth(-74,-13,z);
   // Actual wide traversable terrain around camera, steep sidewalls in valley.
   const outer=smooth(6,61,sideways);
-  const mountainStrength=3.5+18.0*(1-smooth(-47,7,z));
-  const wall=mountainStrength*Math.pow(outer,1.33);
+  // Broad structural mountain walls plus real overlapping ridges at
+  // different depths. The ridges are hills in one continuous heightfield,
+  // not vertically oriented scenery panels or PNG layers.
+  const mountainStrength=3.4+12.6*(1-smooth(-47,7,z));
+  const wall=mountainStrength*Math.pow(outer,1.28);
+  const ridgeCenters=[-151,-126,-103,-82,-61];
+  const ridgeAmplitudes=[6.2,5.4,4.8,4.1,3.4];
+  let steppedHighlands=0;
+  for(let i=0;i<ridgeCenters.length;i++){
+    const d=(z-ridgeCenters[i])/(10+i*1.8);
+    const crestVariation=.82+.18*fbm(x*.15,z*.16,21+i*47);
+    // Slightly asymmetric valley shoulders read as multiple horizon lines.
+    const oneSide=1+.08*Math.sin(x*.07+i*1.6);
+    steppedHighlands+=Math.exp(-d*d)*ridgeAmplitudes[i]*
+      Math.pow(smooth(7,43,sideways),.88)*crestVariation*oneSide;
+  }
   const structural=peak(x,z,-34,-132,23,26,8.5)
     +peak(x,z,32,-122,19,29,9.8)
     +peak(x,z,-26,-100,20,24,6.6)
@@ -73,7 +87,7 @@ export function sampleValleyHeight(x,z){
   // Flat near-center seating area, transitioning continuously into valley.
   const seat=smooth(-23,-5,z)*(1-smooth(9,19,sideways));
   const seatHeight=-3.15+fbm(x*.22,z*.23,98)*.18;
-  const terrain=floor+wall+structural+distantPeaks+rockyNoise-drainage;
+  const terrain=floor+wall+steppedHighlands+structural+distantPeaks+rockyNoise-drainage;
   return terrain*(1-seat)+seatHeight*seat;
 }
 
@@ -100,7 +114,16 @@ function makeChunk(THREE,section,mobile,material){
   const moss=new THREE.Color('#344b51');
   const woodland=new THREE.Color('#1e3b47');
   const distant=new THREE.Color('#7786ae');
+  const palette=[
+    {z:-164,c:new THREE.Color('#c79ac4')},
+    {z:-133,c:new THREE.Color('#728abd')},
+    {z:-108,c:new THREE.Color('#387da7')},
+    {z:-83,c:new THREE.Color('#275877')},
+    {z:-55,c:new THREE.Color('#142f52')},
+    {z:0,c:new THREE.Color('#101d38')}
+  ];
   const colour=new THREE.Color();
+  const depthColour=new THREE.Color();
   const stride=nx+1;
   // Standard game-terrain pipeline: build the height grid ONCE.
   for(let j=0;j<=nz;j++){
@@ -140,6 +163,14 @@ function makeChunk(THREE,section,mobile,material){
       colour.copy(woodland).lerp(moss,.25+soil*.42);
       colour.lerp(stone,clamp(steep*.76+altitude*.32));
       colour.lerp(distant,(1-middle)*.38);
+      // Target image's lavender > cobalt > teal > deep-blue depth sequence.
+      // Geometry is fully 3D; only its natural distance biome changes.
+      let band=0;
+      while(band<palette.length-2&&z>palette[band+1].z)band++;
+      const near=palette[band],far=palette[band+1];
+      const blend=smooth(near.z,far.z,z);
+      depthColour.copy(near.c).lerp(far.c,blend);
+      colour.lerp(depthColour,z<-45?.80:.48);
       const gr=fbm(x*.15,z*.15,37);
       const detail=fbm(x*.50,z*.38,57);
       colour.multiplyScalar(clamp(.89+.17*gr+.075*detail,.72,1.08));
