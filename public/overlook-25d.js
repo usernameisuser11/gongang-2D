@@ -76,9 +76,9 @@ function sculptedMountainPoint(x,t,layer){
 // nearby forest shoulders frame the view without repeating one V shape.
 const RIDGE_X=[-80,-58,-46,-34,-25,-16,-8,0,8,16,26,36,46,58,80];
 const RIDGE_PROFILES=[
- [-3.0,-4.5,-7.4,-9.3,-9.5,-10.8,-11.0,-10.7,-10.3,-9.3,-9.1,-8.0,-6.0,-4.5,-3.1],
- [-2.5,-5.3,-7.1,-10.2,-10.4,-10.6,-11.0,-12.0,-10.4,-9.8,-9.6,-9.8,-8.5,-4.8,-2.1],
- [0,-3,-4.5,-8.1,-9.0,-12.2,-12.8,-11.6,-9.3,-8.7,-7.4,-6.8,-4.3,-3,2],
+ [-3.0,-4.5,-7.4,-9.3,-9.5,-10.2,-11.0,-11.2,-10.9,-10.5,-10.0,-9.1,-6.5,-4.5,-3.1],
+ [-2.5,-5.3,-7.1,-10.2,-10.4,-10.8,-11.9,-12.3,-11.7,-11.1,-10.5,-9.9,-8.5,-4.8,-2.1],
+ [0,-3,-4.5,-8.1,-9.0,-11.3,-12.5,-12.8,-12.1,-10.8,-9.1,-7.0,-4.3,-3,2],
  [4,1,-3,-6,-8,-10.5,-12.6,-13.2,-12.8,-10.4,-8.3,-5.5,-4,0,6],
  [7,3,-1,-4.9,-6.1,-11,-12.6,-12.9,-12.5,-10.3,-8.7,-7.2,-3.5,1.5,8],
  [10,5,2,-2,-5.5,-9.5,-12,-13.2,-12.1,-10.9,-8,-4.3,1.4,5,12],
@@ -113,33 +113,39 @@ function crest(x,l){
  // Only the far alpine ranges contain deliberately placed, narrow
  // angular summits. Their steep unequal flanks read as real rock spires,
  // not one enormous softly rounded hill or a repeated geometric zigzag.
+ // A family of *unequal* rock teeth grows from one continuous massif.
+ // Widen the weathered shoulders instead of putting two giant cones
+ // opposite each other. Leave the central sky window open.
  const alpineSpire=(c,left,right,h)=>{
    const d=x<c?(c-x)/left:(x-c)/right;
-   return h*Math.pow(Math.max(0,1-d),1.28);
+   const shoulder=Math.pow(Math.max(0,1-d),1.60);
+   const erosionRim=1.-.09*Math.sin((x-c)*3.9+l.seed)
+     *smooth(.14,.76,d);
+   return h*shoulder*erosionRim;
  };
  const summits=depth===0
-   ?alpineSpire(-21,5.3,3.7,1.85)
-      +alpineSpire(-3.7,5.0,4.3,3.35)
-      +alpineSpire(6.1,3.6,5.7,2.7)
-      +alpineSpire(25.0,5.9,4.3,1.85)
+   ?alpineSpire(-21.2,5.1,4.1,1.27)
+      +alpineSpire(-8.6,3.6,5.0,2.04)
+      +alpineSpire(-1.8,5.3,3.6,2.25)
+      +alpineSpire(23.0,5.3,5.9,.88)
    :depth===1
-   ?alpineSpire(-16.7,4.5,6.1,3.15)
-      +alpineSpire(15.4,5.3,5.0,2.85)
-      +alpineSpire(29.5,3.6,5.2,2.1)
+   ?alpineSpire(-17.2,5.0,5.9,1.75)
+      +alpineSpire(-5.0,3.8,5.0,1.22)
+      +alpineSpire(19.0,7.0,5.6,.93)
    :depth===2
-   ?alpineSpire(-29.0,5.8,4.2,1.7)
-      +alpineSpire(23.5,5.8,4.0,2.0)
+   ?alpineSpire(-30.0,6.2,4.7,1.02)
+      +alpineSpire(24.1,5.7,4.3,1.08)
    :0;
  return silhouette+erosion+summits;
 }
 const LAYERS=[
- {name:'far alpine snow',z:-172,center:-12.2,rise:3.5,turn:2,peak:2.4,alpine:1.5,seed:8,base:'#849bc9',day:'#879dbb'},
- {name:'blue alpine summits',z:-157,center:-13.2,rise:4.1,turn:-1,peak:2.5,alpine:1.8,seed:13,base:'#758bc0',day:'#8c9ec2'},
- {name:'horizon foothills',z:-143,center:-13.5,rise:4.5,turn:0,peak:2.3,alpine:.9,seed:19,base:'#6f86b5',day:'#96b0c1'},
+ {name:'far alpine snow',z:-172,center:-12.2,rise:3.5,turn:2,peak:2.4,alpine:1.3,seed:8,base:'#667fa8',day:'#8399b3'},
+ {name:'blue alpine summits',z:-157,center:-13.2,rise:4.1,turn:-1,peak:2.5,alpine:1.35,seed:13,base:'#667ca6',day:'#849bae'},
+ {name:'horizon foothills',z:-143,center:-13.5,rise:4.5,turn:0,peak:2.3,alpine:.65,seed:19,base:'#6a84aa',day:'#819eae'},
  {name:'lavender peaks',z:-126,center:-14.2,rise:5.4,turn:-4,peak:3.0,alpine:.4,seed:27,base:'#6484ba',day:'#8da1b6'},
- {name:'distant cobalt',z:-110,center:-13.8,rise:6.6,turn:3,peak:2.6,seed:33,base:'#386c9b',day:'#6c97a9'},
- {name:'teal valleys',z:-94,center:-13.7,rise:7.5,turn:-2,peak:2.3,seed:41,base:'#28688d',day:'#60968d'},
- {name:'deep fir hills',z:-78,center:-12.8,rise:8.8,turn:2,peak:2.0,seed:55,base:'#173d67',day:'#477b70'},
+ {name:'distant cobalt',z:-110,center:-13.8,rise:6.6,turn:3,peak:2.6,seed:33,base:'#38648d',day:'#608c9b'},
+ {name:'teal valleys',z:-94,center:-13.7,rise:7.5,turn:-2,peak:2.3,seed:41,base:'#255a78',day:'#537f74'},
+ {name:'deep fir hills',z:-78,center:-12.8,rise:8.8,turn:2,peak:2.0,seed:55,base:'#173c59',day:'#3b7260'},
  {name:'near forest slopes',z:-62,center:-12.0,rise:9.8,turn:-1,peak:1.8,seed:67,base:'#0d2c51',day:'#3f7060'}
 ];
 const MOUNTAIN_VS=`
@@ -200,8 +206,10 @@ void main(){
   float ridgeShade=1.-uShadow*(1.-incidence)*(.20+.30*selfOcclusion);
   float terrainShadow=1.-uShadow*(1.-selfOcclusion)*.14;
   vec3 night=vPigment*vec3(.84,.91,1.15);
-  vec3 day=mix(vPigment*vec3(1.12,1.25,1.0),
-    uDayHue*(.65+.31*vUV.y),.62);
+  // Preserve the colors of the mountain itself. The older .62
+  // blend washed all rock/forest layers into similar grey slabs.
+  vec3 day=mix(vPigment*vec3(1.14,1.21,1.04),
+    uDayHue*(.68+.31*vUV.y),.43);
   vec3 col=mix(night,day,clamp(uDay,0.,1.));
   col*=mix(.82,1.24,uDay*.92)*diffuse*ridgeShade*terrainShadow;
   // A broad daylight bounce from the open sky reaches mid-valley faces.
@@ -360,9 +368,11 @@ function makeMountain(THREE,scene,layer,mobile){
    tone.lerp(lichen,(1-t)*clamp((rock.spine*.5+.5)*.17));
    // Patchy high-alpine snow remains on the actual elevated cliff faces.
    if(layer.alpine){
-     const snowCap=smooth(.28,.91,1-t)
-       *smooth(.18,.86,rock.spine*.5+rock.chips*.22+.50);
-     tone.lerp(alpineSnow,snowCap*layer.alpine*.31);
+     // Snow clings to the *highest* fractured ridges; it should not
+     // whitewash entire mountains and flatten their rock faces.
+     const snowCap=(1-smooth(.055,.29,t))
+       *smooth(.28,.78,rock.spine*.5+rock.chips*.23+.48);
+     tone.lerp(alpineSnow,snowCap*layer.alpine*.19);
    }
    const faceLight=.88+.13*(.5+.5*rock.branch)
      -.13*rock.gully*rock.envelope;
@@ -709,7 +719,7 @@ if(enabled)try{
  state.ridgeSurfaceVertices=ridges.reduce((n,r)=>n+r.vertexCount,0);
  state.ridgeReliefDepths=ridges.map(r=>Number(r.reliefDepth.toFixed(2)));
  state.ridgeGeometry='coherent-carved-3d-mountain-heightfields';
- state.composition='hand-art-directed-alpine-valley-v3';
+ state.composition='asymmetric-alpine-valley-art-direction-v4';
  state.visibleCliffReliefVersion=2;
  state.forestAnchoredToSculptedRidges=true;
  state.ridgeMaterial='carved-drainage-v2-and-moving-cloud-shadows';
