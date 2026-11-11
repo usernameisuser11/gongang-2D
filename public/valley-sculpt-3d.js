@@ -33,7 +33,8 @@ function ridgeAt(x,c){
  const t=Math.abs(x/c.width);
  const shoulders=c.lift*Math.pow(t,1.53);
  const rugged=fbm(x*.11,c.seed)*2.08+
-  fbm(x*.34,c.seed+41)*.86+noise(x*.66,c.seed+10)*.36;
+  fbm(x*.34,c.seed+41)*.92+noise(x*.66,c.seed+10)*.39+
+  noise(x*1.43,c.seed+79)*.19+noise(x*3.62,c.seed+94)*.075;
  // Distinct high/low peaks across the skyline, not symmetrical valley walls.
  const peaks=c.id==='horizon'
  ?cliff(x,-29,10,15,3.1)+cliff(x,-12,9,10,3.6)
@@ -54,7 +55,7 @@ function erosions(x,t,c){
  return ridge*Math.sin(Math.PI*t)-channels*t;
 }
 function sculptOne(THREE,scene,c,mobile){
- const N=mobile?112:214,M=mobile?11:17;
+ const N=mobile?244:460,M=mobile?15:26;
  const vertices=new Float32Array((N+1)*(M+1)*3);
  const colors=new Float32Array(vertices.length);
  const indices=new Uint32Array(N*M*6);
@@ -105,7 +106,15 @@ function sculptOne(THREE,scene,c,mobile){
   shader.fragmentShader=shader.fragmentShader.replace('#include <common>',
     '#include <common>\nvarying vec3 vWorldRock;');
   shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',
-    '#include <color_fragment>\nfloat grain=sin(vWorldRock.x*1.9+sin(vWorldRock.z*2.1))*sin(vWorldRock.y*3.3+vWorldRock.x*.49);\nfloat speck=fract(sin(dot(floor(vWorldRock.xz*4.1),vec2(12.98,78.23)))*43758.5);\ndiffuseColor.rgb*=.955+.042*grain+.033*(speck-.5);');
+    '#include <color_fragment>\nfloat grain=sin(vWorldRock.x*1.9+sin(vWorldRock.z*2.1))*sin(vWorldRock.y*3.3+vWorldRock.x*.49);\nfloat speck=fract(sin(dot(floor(vWorldRock.xz*4.1),vec2(12.98,78.23)))*43758.5);\nfloat longCrevice=sin(vWorldRock.x*.92+sin(vWorldRock.y*.36+vWorldRock.z*.26)*2.4);
+float folded=sin(vWorldRock.y*1.65+sin(vWorldRock.x*.25)*1.5+
+  sin(vWorldRock.z*.37)*1.7);
+float faceTexture=.83+.13*grain+.10*longCrevice*.5+
+  .08*(speck-.5)+.10*folded*.5;
+float shadowCrack=pow(max(0.,1.-abs(longCrevice)),6.);
+diffuseColor.rgb*=faceTexture-.13*shadowCrack;
+diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(.81,.88,.97),
+  smoothstep(.35,.82,folded*.5+.5)*.14);');
  };
  mat.customProgramCacheKey=()=> 'gongang-cinematic-stone-20261111';
  const mesh=new THREE.Mesh(geo,mat);
