@@ -19,15 +19,22 @@ try{
   const failures=[];
   page.on('pageerror',e=>failures.push(String(e)));
   await page.goto(base+'/?map=stargaze&renderer=reference&time=18:10&weather=clear',{waitUntil:'domcontentloaded'});
-  await page.waitForFunction(()=>window.GongangReferenceVista?.state?.frames>1 || window.GongangReferenceVista?.state?.error,
-    null,{timeout:25000});
-  const state=await page.evaluate(()=>({...window.GongangReferenceVista.state}));
-  assert.equal(state.ready,true,JSON.stringify(state));
-  assert.ok(state.frames>1);
+  await page.waitForTimeout(3500);
+  const state=await page.evaluate(()=>({
+    ...(window.GongangReferenceVista?.state||{}),
+    loaded:!!window.GongangReferenceVista,
+    stargaze:!!window.GongangStargaze,
+    painterly:window.GongangPainterly?.state?.renderCount,
+    overlook:window.GongangOverlook25D?.state?.frameCount,
+    selected:new URLSearchParams(location.search).get('renderer')
+  }));
+  console.log('REFERENCE DIAG',JSON.stringify({cfg:cfg.name,state,failures}));
+  await page.screenshot({path:'artifacts/reference-vista/'+cfg.name+'.png',timeout:60000});
+  assert.equal(state.ready,true,JSON.stringify({state,failures}));
+  assert.ok(state.frames>1,JSON.stringify({state,failures}));
   assert.equal(state.layers,5);
   assert.equal(state.mode,'coordinate-repaint-no-bitmap');
   assert.deepEqual(failures,[],'Javascript errors '+JSON.stringify(failures));
-  await page.screenshot({path:'artifacts/reference-vista/'+cfg.name+'.png',timeout:60000});
   results.push({name:cfg.name,...state});
   await page.close();
  }
