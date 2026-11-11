@@ -160,6 +160,14 @@ const lerp=(a,b,t)=>a+(b-a)*t;
 const poses=new Set(['idle','walk','sit','lie']);
 const state={scene:['river','stargaze'].includes(new URLSearchParams(location.search).get('map'))?new URLSearchParams(location.search).get('map'):'stargaze',photo:false,solo:false,showStick:true,ratio:'4:5',stamp:true,gesture:0,signal:0,gestureAt:-1,signalAt:-1,pose:'idle',yaw:0,x:1600,z:1530,target:null,visible:true};
 const cam={x:1600,z:1530,offsetX:0,offsetY:0,scale:1,manualUntil:0};
+// Single camera source for real visitor movement, touch-drag, and photo exports.
+// The 2.5D WebGL scenery reads this; avatar screen coordinates remain unchanged.
+window.GongangViewCamera={
+  sample:()=>({
+    x:cam.x,z:cam.z,offsetX:cam.offsetX,offsetY:cam.offsetY,
+    zoom:cam.scale,photo:state.photo,scene:state.scene
+  })
+};
 const peers=new Map();
 let myId='',socket=null,heartbeat=null, reconnect=null, reconnectDelay=1400, online=false,full=false,backgrounds={},W=1,H=1,DPR=1,lastFrame=0,lastSent=-1,lastPayload='',lastAction=false,frameT=0,controller=null,stick={x:0,y:0};
 const palette=['#d8a777','#a3beab','#d7a1a4','#b4c3d9','#d6b79c','#9da6a7','#b5b3e0','#e1bf8b'];
