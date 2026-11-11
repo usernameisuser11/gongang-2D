@@ -280,8 +280,7 @@ function makeOverlookSoil(THREE,scene){
  for(let i=0;i<p.count;i++){
    const x=p.getX(i),z=p.getZ(i);
    const edge=smooth(12,92,Math.abs(x));
-   const level=overlookGroundHeight(x,z)
-      -.32*edge-.20*noise(x*.035+z*.06,19);
+   const level=overlookGroundHeight(x,z);
    // The back shoreline follows an eroded natural curve instead of
    // the straight rectangular rear edge of a PlaneGeometry.
    const farEdge=1.-smooth(-95,-79,z);
