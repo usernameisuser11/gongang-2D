@@ -212,7 +212,7 @@ export function createDeepValley(THREE,scene,{mobile=false}={}){
     shader.fragmentShader=shader.fragmentShader.replace('#include <common>',
       '#include <common>\nvarying vec3 vTerrainWorld;uniform float uValleyTwilight;uniform float uValleyDaylight;');
     shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',
-      '#include <color_fragment>\nfloat bedding=sin(vTerrainWorld.y*1.48+sin(vTerrainWorld.x*.25+vTerrainWorld.z*.23)*1.7);\nfloat fissure=pow(1.-abs(bedding),9.);\nfloat facets=sin(vTerrainWorld.x*1.8+vTerrainWorld.z*.79)*sin(vTerrainWorld.y*2.73);\ndiffuseColor.rgb*=.88+.085*facets-.09*fissure;\nfloat distant=1.-smoothstep(-150.,-46.,vTerrainWorld.z);\nvec3 sunsetRock=vec3(.30,.085,.17)*uValleyTwilight*distant;\ndiffuseColor.rgb+=sunsetRock;\ndiffuseColor.rgb*=.80+uValleyDaylight*.24;');
+      '#include <color_fragment>\nfloat bedding=sin(vTerrainWorld.y*1.48+sin(vTerrainWorld.x*.25+vTerrainWorld.z*.23)*1.7);\nfloat fissure=pow(1.-abs(bedding),9.);\nfloat facets=sin(vTerrainWorld.x*1.8+vTerrainWorld.z*.79)*sin(vTerrainWorld.y*2.73);\ndiffuseColor.rgb*=.88+.085*facets-.09*fissure;\nfloat distant=1.-smoothstep(-150.,-46.,vTerrainWorld.z);\nvec3 sunsetRock=vec3(.30,.085,.17)*uValleyTwilight*distant;\ndiffuseColor.rgb+=sunsetRock;\n// The same 3D terrain has different light response at night, sunrise,\n // and daylight; reference colors are NOT baked into a permanent sunset.\n vec3 nightTint=vec3(.53,.69,.98);\n vec3 dayTint=vec3(1.13,1.17,.91);\n diffuseColor.rgb*=mix(nightTint,dayTint,clamp(uValleyDaylight,0.,1.));');
   };
   material.customProgramCacheKey=()=> 'gongang-terrain-v3';
   const meshes=CHUNKS.map(section=>{
