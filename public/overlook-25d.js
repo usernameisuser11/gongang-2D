@@ -146,23 +146,50 @@ void main(){
  gl_FragColor=vec4(col*(1.-uStorm*.10),1.);
 }`;
 function makeMountain(THREE,scene,layer,mobile){
- const across=mobile?140:270,rows=14;
+ // A terrain strip is tessellated in both dimensions: rock grooves and
+ // weathering are displaced into geometry, not faked by a flat color plate.
+ const across=mobile?175:352,rows=mobile?28:46;
  const pos=new Float32Array((across+1)*(rows+1)*3);
  const rgb=new Float32Array(pos.length),uv=new Float32Array((across+1)*(rows+1)*2);
  const index=new Uint32Array(across*rows*6);
- const near=new THREE.Color(layer.base),low=near.clone().multiplyScalar(.47);
+ const near=new THREE.Color(layer.base),
+   low=near.clone().multiplyScalar(.39),
+   granite=new THREE.Color('#8b899c'),
+   lichen=new THREE.Color('#647584'),
+   tone=new THREE.Color();
  for(let j=0;j<=rows;j++){
   const t=j/rows;
   for(let i=0;i<=across;i++){
    const x=-80+i/across*160;
    const ridgeline=crest(x,layer);
    const k=(j*(across+1)+i)*3,q=(j*(across+1)+i)*2;
+   // Fractal erosion: broad gulches, finer ridges and miniature rock chips.
+   // Nearby terrain has stronger relief; distant hills remain atmospheric.
+   const distance=clamp((layer.z+172)/110);
+   const large=noise(x*.095+t*5.9,layer.seed+31);
+   const gulley=noise(x*.31+t*13.1,layer.seed+51);
+   const chips=noise(x*1.15+t*39.1,layer.seed+71);
+   const mountainSlope=Math.sin(Math.PI*t);
+   const crack=Math.pow(Math.max(0,1-Math.abs(
+     noise(x*.43+t*5.7,layer.seed+88))),5);
+   const relief=(large*1.30+gulley*.54+chips*.19-crack*.58)
+     *mountainSlope*(.42+distance*.58);
+   const slopeT=t*t*(3-2*t);
    pos[k]=x;
-   pos[k+1]=ridgeline-t*47+noise(x*.36+t*7.1,layer.seed+19)*Math.sin(Math.PI*t)*.38;
-   pos[k+2]=layer.z+noise(x*.13+t*8.5,layer.seed+33)*1.05;
-   const shade=.81+.14*noise(x*.20+t*5,layer.seed+2);
-   const c=near.clone().lerp(low,t*.85).multiplyScalar(shade);
-   rgb[k]=c.r;rgb[k+1]=c.g;rgb[k+2]=c.b;
+   pos[k+1]=ridgeline-t*47+relief*.78;
+   // True three-dimensional cliff facets, valleys and projecting strata.
+   pos[k+2]=layer.z+t*(2.0+distance*4.2)
+     +large*.78*mountainSlope+gulley*.46*mountainSlope
+     +relief*(.57+distance*.24);
+   const erosion=.5+.5*(large*.63+gulley*.31+chips*.13);
+   const rockExposure=clamp((1-t)*(.22+Math.abs(gulley)*.49)
+     +crack*.26,0,.76);
+   tone.copy(near).lerp(low,t*.68);
+   tone.lerp(granite,rockExposure*(.13+distance*.22));
+   tone.lerp(lichen,(1-t)*clamp(erosion*.18));
+   const sunlight=.87+.15*(.5+.5*large)-crack*.09;
+   tone.multiplyScalar(sunlight);
+   rgb[k]=tone.r;rgb[k+1]=tone.g;rgb[k+2]=tone.b;
    uv[q]=i/across;uv[q+1]=1-t;
   }
  }
