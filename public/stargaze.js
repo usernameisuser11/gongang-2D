@@ -664,7 +664,9 @@
     const livingOverlook=window.GongangOverlook25D;
     // Default: live 2.5D mountains, weather, wind, stars and celestial bodies.
     // Real visitor avatars remain on the existing shared Canvas layer.
-    if(livingOverlook?.ready && livingOverlook.draw(c,outputT,now,{personal})){
+    if(livingOverlook?.ready && livingOverlook.draw(c,outputT,now,{
+      personal,view:window.GongangViewCamera?.sample?.()
+    })){
       c.save();
       c.beginPath();
       c.rect(outputT.x,outputT.y,outputT.width,outputT.height*.62);
