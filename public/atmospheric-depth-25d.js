@@ -36,18 +36,20 @@ void main(){
  float thickness=.19+.12*n+.06*uCloud;
  float sheet=exp(-pow((vUv.y-center)/thickness,2.));
  float broken=smoothstep(.23,.65,n*.67+wisps*.33);
- float valley=1.-smoothstep(.34,.60,abs(vUv.x-.5));
+ // Fog collects in the valley floor and dissipates before the trees.
+ // Keep central air transparent enough to read the authored summit forms.
+ float valley=1.-smoothstep(.24,.51,abs(vUv.x-.52));
  float edge=smoothstep(.045,.18,vUv.y)*(1.-smoothstep(.80,.985,vUv.y));
- float intensity=.10+.055*uTwilight+.11*uStorm+.043*uCloud;
+ float intensity=.058+.035*uTwilight+.12*uStorm+.025*uCloud;
  float alpha=sheet*edge*valley*intensity*(.23+.77*broken);
  // The light is scattered by one common changing sky, not independent
  // fixed-colour blue strips across every ridgeline.
  vec3 night=vec3(.10,.22,.35);
- vec3 day=vec3(.68,.81,.83);
- vec3 dusk=vec3(.73,.53,.68);
+ vec3 day=vec3(.50,.69,.73);
+ vec3 dusk=vec3(.67,.50,.61);
  vec3 col=mix(night,day,uDay);
  col=mix(col,dusk,clamp(uTwilight*.72,0.,.72));
- gl_FragColor=vec4(col,clamp(alpha,0.,.30));
+ gl_FragColor=vec4(col,clamp(alpha,0.,.22));
  #include <tonemapping_fragment>
  #include <colorspace_fragment>
 }`;
