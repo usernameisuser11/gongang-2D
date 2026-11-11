@@ -680,7 +680,11 @@ function draw(ctx,t,now,{personal=false}={}){
     state.personal=personal;state.lastPortrait=portrait;
   }
   state.reducedMotion=Boolean(reduced?.matches);
-  const sec=state.reducedMotion?0:(debugTimeMs===null?now:debugTimeMs)/1000;
+  // Live-world motion is shared by actual wall-clock time. New arrivals
+  // experience the same cloud drift, waves and forest gusts as their friends.
+  // Keep shader time within a day to avoid floating-point precision loss.
+  const animMs=debugTimeMs===null?(liveMode?Date.now():now):debugTimeMs;
+  const sec=state.reducedMotion?0:(liveMode?(animMs/1000)%86400:animMs/1000);
   windStrength.value=state.reducedMotion?0:1;
   state.lastWind=Math.sin(sec*.86);
   waterClock.value=sec;windClock.value=sec;
