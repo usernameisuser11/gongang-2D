@@ -30,9 +30,9 @@ void main(){
  vec3 col=mix(uHorizon,uTop,pow(h,.78));
  // The sky is dark cobalt overhead, indigo in mid-altitude, and a warm
  // orange-pink band over the far peaks — not a uniform maroon tint.
- col=mix(col,vec3(.96,.16,.41),twilight*gauss(h-.46,.24)*.65);
- col=mix(col,vec3(1.55,.52,.19),twilight*gauss(h-.24,.29)*.94);
- col=mix(col,vec3(.018,.025,.18),twilight*smoothstep(.67,.98,h)*.72);
+ col=mix(col,vec3(.48,.12,.33),twilight*gauss(h-.49,.30)*.80);
+ col=mix(col,vec3(1.18,.37,.18),twilight*gauss(h-.20,.20)*.89);
+ col=mix(col,vec3(.008,.012,.065),twilight*smoothstep(.67,.98,h)*.82);
  col+=vec3(.20,.038,.11)*twilight*gauss(h-.22,.25)*gauss(sx-.55,.70);
  // Independent, advecting high-altitude cirrus and stratified lower clouds.
  vec2 flow=vec2(sx*5.8-t*(.003+.001*uWind),h*4.8);
@@ -122,10 +122,10 @@ void main(){
  gl_FragColor=vec4(mix(vec3(.57,.74,.92),vec3(.95,.96,1.),uSnow),mix(rain,snow,uSnow)*vAlpha*.78);
 }`;
 const C={
- night:{top:'#03081b',horizon:'#183762',fog:'#233b67',key:'#b2bdec',ambient:'#6679a9'},
+ night:{top:'#030511',horizon:'#122f62',fog:'#183559',key:'#b2bdec',ambient:'#6679a9'},
  dawn:{top:'#0b214b',horizon:'#ffa36d',fog:'#8b8ca5',key:'#ffc99b',ambient:'#adb9d8'},
  day:{top:'#1260a5',horizon:'#b0dced',fog:'#8db9c8',key:'#fff2d7',ambient:'#d9e8f0'},
- dusk:{top:'#050f32',horizon:'#ff8a68',fog:'#6b7095',key:'#ffb18b',ambient:'#afb4de'}
+ dusk:{top:'#03091e',horizon:'#ff9b70',fog:'#426a91',key:'#ffb18b',ambient:'#afb4de'}
 };
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const curve=(a,b,v)=>{let t=clamp((v-a)/(b-a));return t*t*(3-2*t);};
@@ -276,8 +276,8 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false,camera=
   const moonHeight=-14+Math.sin((moonDiff+6)*Math.PI/12)*37;
   // Keep the lunar disc within the visible upper third of the fixed
   // orthographic overlook; -10 world Y projected onto the actual grass.
-  moon.position.set(moonPreview?3.5:-moonDiff*.95,
-    moonPreview?.4:-1.0+Math.max(-1,Math.min(1,moonHeight/24))*2.8,-146);
+  moon.position.set(moonPreview?.8:-moonDiff*.95,
+    moonPreview?-6.0:-7.2+Math.max(-1,Math.min(1,moonHeight/24))*2.8,-146);
   moon.rotation.z=moonPreview?-.65:-.25-Math.sin(phase*6.283)*.25;
   moon.visible=moonPreview||(night>.12&&Math.abs(moonDiff)<6.5&&phase>.015&&phase<.985);
   moon.material.uniforms.uNight.value=night;
