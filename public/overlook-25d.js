@@ -525,7 +525,9 @@ if(enabled)try{
  state.shadowCasters=shadows.count;
  state.meadowPlants=meadow.count;
  state.rockCount=vistaDetails.rockCount;
- state.soilDetail='four-scale-clay-colony-lichen-ground-pebbles-wetness';
+ state.soilDetail='painted-dirt-lichen-pebbles';
+ state.soilDetailVersion=4;
+ state.soilWetnessEnabled=true;
  state.flowerCount=vistaDetails.flowerCount;
  state.weather=environment.state;
  state.ready=true;
