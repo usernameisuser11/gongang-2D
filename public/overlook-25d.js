@@ -408,9 +408,13 @@ function makeForest(THREE,scene,mobile){
    for(let k=0;k<count;k++){
      const side=k%2===0?-1:1;
      const x=side*(4.0+Math.pow(random(),.65)*24);
-     const y=crest(x,l)-(1.0+random()*3.65);
+     // Plant trees on the exact 3D slope, not at guessed offsets below
+     // the ridgeline. This fixes detached floating silhouettes whenever
+     // the sculpted ravines bend or change depth.
+     const fall=.023+random()*.088;
+     const ledge=sculptedMountainPoint(x,fall,l);
      const size=(1.25+i*.39)*(.57+random()*.73);
-     push(x,y,l.z+2.5+random()*2.7,size,palette[i]);
+     push(x,ledge.y-.12,ledge.z+.45,size,palette[i]);
    }
  }
  // Close trees rise well above the hills to frame the sky as in the
@@ -632,6 +636,7 @@ if(enabled)try{
  state.ridgeSurfaceVertices=ridges.reduce((n,r)=>n+r.vertexCount,0);
  state.ridgeReliefDepths=ridges.map(r=>Number(r.reliefDepth.toFixed(2)));
  state.ridgeGeometry='coherent-carved-3d-mountain-heightfields';
+ state.forestAnchoredToSculptedRidges=true;
  state.ridgeMaterial='carved-drainage-v2-and-moving-cloud-shadows';
  state.forestSpecies=forest.species;
  state.atmosphereLayers=atmosphere.count;
