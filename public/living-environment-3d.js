@@ -40,15 +40,21 @@ void main(){
 }`;
 const BODY=`
 precision mediump float;varying vec2 vUv;
-uniform float uMoon,uNight;
+uniform float uMoon,uNight,uPhase;
 void main(){
  vec2 p=(vUv-.5)*2.;float d=length(p);
  float edge=1.-smoothstep(.44,.48,d);
  float haze=exp(-d*5.)*.24+exp(-d*17.)*.13;
  if(uMoon>.5){
-   float cut=1.-smoothstep(.39,.43,length(p-vec2(.15,.08)));
-   float moon=max(0.,edge-cut);
-   gl_FragColor=vec4(vec3(.96,.93,1.),moon*.95+haze*uNight*.25);
+   // Geometry-backed terminator: waxing and waning naturally change the disc.
+   float halfWidth=sqrt(max(0.,.44*.44-p.y*p.y));
+   float terminator=cos(6.283185*uPhase)*halfWidth;
+   float waxing=1.-step(.5,uPhase);
+   float litWax=smoothstep(terminator-.018,terminator+.018,p.x);
+   float litWane=1.-smoothstep(-terminator-.018,-terminator+.018,p.x);
+   float illumination=mix(litWane,litWax,waxing);
+   float crescent=edge*illumination;
+   gl_FragColor=vec4(vec3(.97,.94,1.),crescent*.97+haze*uNight*.20);
  }else{
    gl_FragColor=vec4(vec3(1.,.84,.52),edge*.92+haze*.65);
  }
@@ -84,15 +90,32 @@ function koreaHour(ms=Date.now()){
  const p=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(ms));
  return Number(p.find(x=>x.type==='hour').value)+Number(p.find(x=>x.type==='minute').value)/60;
 }
-function palette(THREE,key,hour){
+function palette(THREE,key,hour,sunrise,sunset){
  let a,b,t;
- if(hour<4.9||hour>=20.4){a=b='night';t=0;}
- else if(hour<6.8){a='night';b='dawn';t=curve(4.9,6.8,hour);}
- else if(hour<9.2){a='dawn';b='day';t=curve(6.8,9.2,hour);}
- else if(hour<16.4){a=b='day';t=0;}
- else if(hour<18.5){a='day';b='dusk';t=curve(16.4,18.5,hour);}
- else {a='dusk';b='night';t=curve(18.5,20.4,hour);}
+ if(hour<sunrise-1.3||hour>=sunset+1.7){a=b='night';t=0;}
+ else if(hour<sunrise+.15){a='night';b='dawn';t=curve(sunrise-1.3,sunrise+.15,hour);}
+ else if(hour<sunrise+2.2){a='dawn';b='day';t=curve(sunrise+.15,sunrise+2.2,hour);}
+ else if(hour<sunset-1.0){a=b='day';t=0;}
+ else if(hour<sunset+.25){a='day';b='dusk';t=curve(sunset-1.0,sunset+.25,hour);}
+ else {a='dusk';b='night';t=curve(sunset+.25,sunset+1.7,hour);}
  return new THREE.Color(C[a][key]).lerp(new THREE.Color(C[b][key]),t);
+}
+// Approximate latitude-aware daylight schedule for Seoul; no device location access.
+function koreanSolarTimes(ms=Date.now()){
+ const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',
+  year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(ms));
+ const year=Number(parts.find(p=>p.type==='year').value);
+ const month=Number(parts.find(p=>p.type==='month').value);
+ const day=Number(parts.find(p=>p.type==='day').value);
+ const doy=Math.round((Date.UTC(year,month-1,day)-Date.UTC(year,0,0))/86400000);
+ const daylight=12+2.45*Math.cos((doy-172)*2*Math.PI/365.2425);
+ const noon=12.30;
+ return {sunrise:noon-daylight/2,sunset:noon+daylight/2};
+}
+function moonPhase(ms=Date.now()){
+ // Synodic phase approximation from reference new moon; not precise ephemeris.
+ const jd=ms/86400000+2440587.5;
+ return ((jd-2451550.1)/29.530588853%1+1)%1;
 }
 export function createLivingEnvironment(THREE,scene,{reducedMotion=false}={}){
  const query=new URLSearchParams(location.search);
@@ -102,7 +125,7 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false}={}){
  const weatherOverride=query.get('weather');
  const state={ready:true,mode:'real-time-webgl',weatherSource:'fallback',weather:'clear',
    hour:koreaHour(),nightFactor:1,windKmh:6,cloudCover:.20,rain:0,snow:0,
-   fetchError:null,renderCount:0,solarPosition:'clock-based approximation'};
+   fetchError:null,renderCount:0,solarPosition:'Seoul seasonal solar approximation',moonPhase:0,sunrise:0,sunset:0};
  const uniforms={uTime:{value:0},uNight:{value:1},uTwilight:{value:0},
   uCloud:{value:.25},uRain:{value:0},uWind:{value:.3},
   uTop:{value:new THREE.Color(C.night.top)},
@@ -113,7 +136,7 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false}={}){
  sky.position.set(0,-3,-164);sky.renderOrder=-100;scene.add(sky);
  function celestial(moon){
   const mat=new THREE.ShaderMaterial({vertexShader:VS,fragmentShader:BODY,
-   uniforms:{uMoon:{value:moon?1:0},uNight:{value:1}},transparent:true,
+   uniforms:{uMoon:{value:moon?1:0},uNight:{value:1},uPhase:{value:.15}},transparent:true,
    depthWrite:false,depthTest:false,fog:false});
   const mesh=new THREE.Mesh(new THREE.PlaneGeometry(12,12),mat);
   mesh.renderOrder=-99;scene.add(mesh);return mesh;
@@ -168,13 +191,21 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false}={}){
  }
  fetchWeather();
  let cloud=.25,rain=0,snow=0,wind=.25;
+ let lastClockRefresh=Date.now(),clockHour=koreaHour(lastClockRefresh);
+ let lastSolarDate=-1,solar={sunrise:6.4,sunset:18.2};
  return {state,update(seconds){
   const time=Number.isFinite(seconds)?seconds:0;
-  const hour=hourOverride===null?koreaHour():hourOverride;
-  const daylight=curve(5.1,9.1,hour)*(1-curve(16.7,20.0,hour));
-  const night=clamp(1-daylight*1.27);
-  const twilight=Math.max(Math.exp(-Math.pow((hour-18.25)/1.65,2)),
-    .68*Math.exp(-Math.pow((hour-5.95)/1.4,2)));
+  const now=Date.now();
+  if(now-lastClockRefresh>10000){clockHour=koreaHour(now);lastClockRefresh=now;}
+  const hour=hourOverride===null?clockHour+(now-lastClockRefresh)/3600000:hourOverride;
+  const dateIndex=Math.floor((now+9*3600000)/86400000);
+  if(dateIndex!==lastSolarDate){solar=koreanSolarTimes(now);lastSolarDate=dateIndex;}
+  const {sunrise,sunset}=solar;
+  const daylight=curve(sunrise-.2,sunrise+1.8,hour)*
+    (1-curve(sunset-1.4,sunset+.35,hour));
+  const night=clamp(1-daylight*1.29);
+  const twilight=Math.max(Math.exp(-Math.pow((hour-(sunset+.02))/1.3,2)),
+    .70*Math.exp(-Math.pow((hour-(sunrise-.10))/1.2,2)));
   const smoothing=reducedMotion?1:.025;
   cloud+=(weather.cloud-cloud)*smoothing;
   rain+=(weather.rain-rain)*smoothing;
@@ -183,17 +214,26 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false}={}){
   uniforms.uTime.value=reducedMotion?0:time;
   uniforms.uNight.value=night;uniforms.uTwilight.value=twilight;
   uniforms.uCloud.value=cloud;uniforms.uRain.value=rain+snow*.5;uniforms.uWind.value=wind;
-  uniforms.uTop.value.copy(palette(THREE,'top',hour));
-  uniforms.uHorizon.value.copy(palette(THREE,'horizon',hour));
-  key.color.copy(palette(THREE,'key',hour));key.intensity=.45+daylight*1.5+twilight*.3;
-  fill.color.copy(palette(THREE,'ambient',hour));fill.intensity=1.0+daylight*.65;
-  if(scene.fog){scene.fog.color.copy(palette(THREE,'fog',hour));
+  uniforms.uTop.value.copy(palette(THREE,'top',hour,sunrise,sunset));
+  uniforms.uHorizon.value.copy(palette(THREE,'horizon',hour,sunrise,sunset));
+  key.color.copy(palette(THREE,'key',hour,sunrise,sunset));key.intensity=.45+daylight*1.5+twilight*.3;
+  fill.color.copy(palette(THREE,'ambient',hour,sunrise,sunset));fill.intensity=1.0+daylight*.65;
+  if(scene.fog){scene.fog.color.copy(palette(THREE,'fog',hour,sunrise,sunset));
     scene.fog.density=.004+cloud*.009+(rain+snow)*.01;}
-  const az=(hour-6)/12*Math.PI;
-  sun.position.set((hour-12)*3.5,-14+Math.sin(az)*38,-147);
-  sun.visible=sun.position.y>-10;
-  moon.position.set(-3.7,7,-146);moon.visible=night>.12;
+  const sunProgress=(hour-sunrise)/(sunset-sunrise);
+  const sunY=-14+Math.sin(Math.PI*clamp(sunProgress))*38;
+  sun.position.set((sunProgress-.5)*72,sunY,-147);
+  sun.visible=sunProgress>-.02&&sunProgress<1.02&&sunY>-11;
+  key.position.set(sun.position.x*.3,Math.max(5,sunY),12);
+  const phase=moonPhase(now);
+  const moonTransit=(12+phase*24)%24;
+  const moonDiff=((hour-moonTransit+36)%24)-12;
+  const moonHeight=-14+Math.sin((moonDiff+6)*Math.PI/12)*37;
+  moon.position.set(-moonDiff*3.0,moonHeight,-146);
+  moon.visible=night>.12&&Math.abs(moonDiff)<6.5&&phase>.015&&phase<.985;
   moon.material.uniforms.uNight.value=night;
+  moon.material.uniforms.uPhase.value=phase;
+  state.moonPhase=phase;state.sunrise=sunrise;state.sunset=sunset;
   precipitation.uniforms.uTime.value=reducedMotion?0:time;
   precipitation.uniforms.uWind.value=wind;
   precipitation.uniforms.uSnow.value=snow>rain?1:0;
