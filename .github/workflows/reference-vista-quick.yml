@@ -25,7 +25,9 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npm install --no-save playwright --no-audit --no-fund
-          npx playwright install --with-deps chromium
+          # GitHub's runner already has browser OS dependencies. Avoid
+          # apt downloads; apt mirrors have intermittent DNS failures.
+          npx playwright install chromium
       - name: Capture coordinate-redrawn vista
         run: node test/reference-vista-quick.mjs
       - name: Upload screenshots
