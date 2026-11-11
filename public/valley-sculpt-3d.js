@@ -91,6 +91,7 @@ function makeChunk(THREE,section,mobile,material){
   const nx=mobile?70:126;
   const nz=mobile?Math.max(18,Math.ceil((section.front-section.back)*.46)):
     Math.max(28,Math.ceil((section.front-section.back)*.87));
+  const dx=width/nx,dz=(section.front-section.back)/nz;
   const xyz=new Float32Array((nx+1)*(nz+1)*3);
   const rgb=new Float32Array(xyz.length);
   const normals=new Float32Array(xyz.length);
@@ -100,45 +101,64 @@ function makeChunk(THREE,section,mobile,material){
   const woodland=new THREE.Color('#1e3b47');
   const distant=new THREE.Color('#7786ae');
   const colour=new THREE.Color();
+  const stride=nx+1;
+  // Standard game-terrain pipeline: build the height grid ONCE.
   for(let j=0;j<=nz;j++){
-    const z=section.back+(section.front-section.back)*j/nz;
+    const z=section.back+j*dz;
     for(let i=0;i<=nx;i++){
-      const x=-width/2+width*i/nx;
-      const y=sampleValleyHeight(x,z);
-      const normal=sampleValleyNormal(x,z);
-      const steep=smooth(.43,1.9,normal.slope);
+      const x=-width/2+i*dx,k=(j*stride+i)*3;
+      xyz[k]=x;
+      xyz[k+1]=sampleValleyHeight(x,z);
+      xyz[k+2]=z;
+    }
+  }
+  // Derive normals and biome weights from the cached height grid.
+  // Seams use analytic samples across the boundary, so two chunks agree.
+  for(let j=0;j<=nz;j++){
+    const z=section.back+j*dz;
+    for(let i=0;i<=nx;i++){
+      const k=(j*stride+i)*3;
+      const x=xyz[k],y=xyz[k+1];
+      const left=i>0?xyz[k-3+1]:sampleValleyHeight(x-dx,z);
+      const right=i<nx?xyz[k+3+1]:sampleValleyHeight(x+dx,z);
+      const down=j>0?xyz[k-stride*3+1]:sampleValleyHeight(x,z-dz);
+      const up=j<nz?xyz[k+stride*3+1]:sampleValleyHeight(x,z+dz);
+      let slopeX=(right-left)/(2*dx),slopeZ=(up-down)/(2*dz);
+      // At the seam, use a fixed numerical step independent of chunk LOD.
+      if(j===0||j===nz){
+        const e=.40;
+        slopeZ=(sampleValleyHeight(x,z+e)-sampleValleyHeight(x,z-e))/(2*e);
+      }
+      const inv=1/Math.sqrt(1+slopeX*slopeX+slopeZ*slopeZ);
+      normals[k]=-slopeX*inv;
+      normals[k+1]=inv;
+      normals[k+2]=-slopeZ*inv;
+      const steep=smooth(.43,1.9,Math.hypot(slopeX,slopeZ));
       const altitude=smooth(0,21,y);
       const soil=1-smooth(-22,-2,z);
       const middle=smooth(-160,-28,z);
-      const v=(j*(nx+1)+i)*3;
-      xyz[v]=x;xyz[v+1]=y;xyz[v+2]=z;
-      normals[v]=normal.x;normals[v+1]=normal.y;normals[v+2]=normal.z;
       colour.copy(woodland).lerp(moss,.25+soil*.42);
       colour.lerp(stone,clamp(steep*.76+altitude*.32));
       colour.lerp(distant,(1-middle)*.38);
-      // World-space lichen/rock variation, not one color per mountain panel.
       const gr=fbm(x*.15,z*.15,37);
       const detail=fbm(x*.50,z*.38,57);
-      const crack=clamp(.89+.17*gr+.075*detail,.72,1.08);
-      colour.multiplyScalar(crack);
-      rgb[v]=colour.r;rgb[v+1]=colour.g;rgb[v+2]=colour.b;
+      colour.multiplyScalar(clamp(.89+.17*gr+.075*detail,.72,1.08));
+      rgb[k]=colour.r;rgb[k+1]=colour.g;rgb[k+2]=colour.b;
     }
   }
   let k=0;
   for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){
-    const a=j*(nx+1)+i,b=a+1,c=a+nx+1,d=c+1;
+    const a=j*stride+i,b=a+1,c=a+stride,d=c+1;
     index[k++]=a;index[k++]=c;index[k++]=d;
     index[k++]=a;index[k++]=d;index[k++]=b;
   }
   const geometry=new THREE.BufferGeometry();
   geometry.setAttribute('position',new THREE.BufferAttribute(xyz,3));
   geometry.setAttribute('color',new THREE.BufferAttribute(rgb,3));
-  // World-space analytic normals are identical at chunk seams; per-chunk
-  // computeVertexNormals would cause hard-looking lighting discontinuities.
   geometry.setAttribute('normal',new THREE.BufferAttribute(normals,3));
   geometry.setIndex(new THREE.BufferAttribute(index,1));
   const mesh=new THREE.Mesh(geometry,material);
-  mesh.name='Gongang actual 3D terrain / '+section.name;
+  mesh.name='Gongang heightfield / '+section.name;
   mesh.frustumCulled=false;
   mesh.receiveShadow=true;
   return mesh;
