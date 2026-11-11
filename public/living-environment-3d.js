@@ -57,7 +57,7 @@ void main(){
  float dust=fbm(vec2(sx*22.+39.,h*22.+9.));
  float galactic=galacticBand*(.23+.78*core)*(.67+.33*dust);
  float veil=max(0.,uNight-.05)*(1.-clouds*.80);
- col+=vec3(.18,.20,.39)*galactic*veil;
+ col+=vec3(.23,.29,.50)*galactic*veil;
  col+=vec3(.10,.18,.38)*gauss(axis+.065,.085)*dust*veil*.7;
  col-=vec3(.06,.045,.08)*galactic*(1.-dust)*veil;
  // Many independent sub-pixel stars: 3 size populations and deterministic
@@ -66,17 +66,17 @@ void main(){
  vec2 id=floor(g),d=fract(g)-.5;
  d-=(vec2(hash(id+vec2(7.,3.)),hash(id+vec2(9.,18.)))-.5)*.64;
  float starProb=hash(id+vec2(13.,31.));
- float tiny=step(.982,starProb)*exp(-length(d)*34.);
+ float tiny=step(.982,starProb)*exp(-length(d)*16.);
  float shine=(.69+.31*sin(t*(.4+hash(id+vec2(7.,21.))*.63)+starProb*6.28));
  vec2 g2=vec2((p.x-.5)*245.,(p.y-.5)*280.);
  vec2 i2=floor(g2),d2=fract(g2)-.5;
  d2-=(vec2(hash(i2+vec2(1.,3.)),hash(i2+vec2(4.,8.)))-.5)*.62;
- float bright=step(.966,hash(i2+vec2(4.,19.)))*exp(-length(d2)*21.);
+ float bright=step(.966,hash(i2+vec2(4.,19.)))*exp(-length(d2)*13.);
  vec2 g3=vec2((p.x-.5)*83.,(p.y-.5)*96.);
  vec2 i3=floor(g3),d3=fract(g3)-.5;
  d3-=(vec2(hash(i3+vec2(2.,8.)),hash(i3+vec2(16.,1.)))-.5)*.50;
- float beacon=step(.990,hash(i3+vec2(12.,2.)))*exp(-length(d3)*14.);
- float stars=(tiny*shine*.81+bright*.81+beacon*.88)*
+ float beacon=step(.993,hash(i3+vec2(12.,2.)))*exp(-length(d3)*9.);
+ float stars=(tiny*shine*.88+bright*.76+beacon*.68)*
    max(uNight,twilight*.80)*smoothstep(.12,.47,h)*(1.-clouds*.83);
  col+=vec3(.78,.85,1.)*stars;
  col*=1.-uRain*.17;
@@ -114,11 +114,11 @@ void main(){
    float edgeRim=pow(max(0.,1.-r/.46),.26);
    vec3 ivory=vec3(1.0,.94,.82)*mare*(.85+.15*edgeRim);
    vec3 dark=vec3(.058,.079,.116)*(1.-.15*surface);
-   float earthshine=edge*.064*uNight;
+   float earthshine=edge*.007*uNight;
    vec3 col=mix(dark,ivory,lit);
    float alpha=edge*(lit*.96+(1.-lit)*earthshine);
    col+=vec3(.25,.22,.27)*halo*.20;
-   gl_FragColor=vec4(col,alpha+halo*.29*uNight);
+   gl_FragColor=vec4(col,alpha+halo*.25*uNight);
  }else{
    float shine=1.-smoothstep(.43,.47,r);
    gl_FragColor=vec4(vec3(1.,.83,.51),shine*.91+halo*.58);
