@@ -63,11 +63,11 @@ function pineGeometry(THREE){
   return geo;
 }
 const LAYERS=[
-  {z:-140,depth:17,center:-5.9,lift:7.6,width:27,seed:12,h:2.6,count:150,tint:'#6084a7'},
-  {z:-119,depth:18,center:-8.5,lift:9.2,width:32,seed:31,h:3.4,count:190,tint:'#37668e'},
-  {z:-98,depth:18,center:-10.7,lift:11.1,width:34,seed:51,h:4.4,count:230,tint:'#1b506f'},
-  {z:-77,depth:16,center:-13.7,lift:13.9,width:35,seed:79,h:5.4,count:290,tint:'#123d5b'},
-  {z:-58,depth:18,center:-17.6,lift:16.4,width:34,seed:91,h:6.3,count:330,tint:'#0a273d'}
+  {z:-140,depth:17,center:-5.9,lift:7.6,width:27,seed:12,h:2.6,count:150,tint:'#203856'},
+  {z:-119,depth:18,center:-8.5,lift:9.2,width:32,seed:31,h:3.4,count:190,tint:'#142b49'},
+  {z:-98,depth:18,center:-10.7,lift:11.1,width:34,seed:51,h:4.4,count:230,tint:'#0d243e'},
+  {z:-77,depth:16,center:-13.7,lift:13.9,width:35,seed:79,h:5.4,count:290,tint:'#091c32'},
+  {z:-58,depth:18,center:-17.6,lift:16.4,width:34,seed:91,h:6.3,count:330,tint:'#061626'}
 ];
 const fract=x=>x-Math.floor(x),smooth=t=>t*t*(3-2*t);
 function hash(i,s){return fract(Math.sin(i*127.1+s*311.7)*43758.54531);}
@@ -87,7 +87,7 @@ function crest(x,c){
 export function createCinematicForest(THREE,scene,{mobile=false}={}){
   const geometry=pineGeometry(THREE),material=new THREE.MeshBasicMaterial({
     side:THREE.DoubleSide,vertexColors:true,fog:true,depthWrite:true,
-    transparent:false,color:'#b7d6e1'
+    transparent:false,color:'#d9e3ee'
   });
   const random=randgen(202611111);
   const instances=[];
@@ -116,6 +116,29 @@ export function createCinematicForest(THREE,scene,{mobile=false}={}){
      [-26.0,33,12.5],[25.5,34,10.9]];
   for(const [x,z,scale] of framing)
     instances.push({x,y:-3.15,z,scale,rotation:random()*6.28,tint:'#0b1b32'});
+  // Per-tree variation is derived from its actual world placement, not from
+  // one copied triangular sprite. Each entire tree has slow bending at the top.
+  const shaderWind={value:.45},shaderTime={value:0};
+  material.onBeforeCompile=shader=>{
+    shader.uniforms.uForestWind=shaderWind;
+    shader.uniforms.uForestTime=shaderTime;
+    shader.vertexShader=shader.vertexShader.replace('#include <common>',
+      '#include <common>\nuniform float uForestWind;uniform float uForestTime;');
+    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
+      `#include <begin_vertex>
+      #ifdef USE_INSTANCING
+        float forestPhase=sin(instanceMatrix[3].x*2.192+
+          instanceMatrix[3].z*.712);
+        float silhouetteScale=.84+.27*(.5+.5*forestPhase);
+        transformed.x*=silhouetteScale;
+        transformed.z*=1.12-.22*silhouetteScale;
+        float bend=position.y*position.y*.023*uForestWind;
+        transformed.x+=bend*sin(uForestTime*.49+forestPhase*6.0+
+          position.y*2.5);
+        transformed.z+=bend*.53*cos(uForestTime*.37+forestPhase*4.1);
+      #endif`);
+  };
+  material.customProgramCacheKey=()=>'gongang-dense-conifer-20261111';
   const instanced=new THREE.InstancedMesh(geometry,material,instances.length);
   const actor=new THREE.Object3D(),tone=new THREE.Color();
   for(let i=0;i<instances.length;i++){
@@ -125,7 +148,7 @@ export function createCinematicForest(THREE,scene,{mobile=false}={}){
       t.scale*(.65+random()*.12));
     actor.rotation.set(0,t.rotation,0);
     actor.updateMatrix();instanced.setMatrixAt(i,actor.matrix);
-    tone.set(t.tint).multiplyScalar(.75+random()*.36);
+    tone.set(t.tint).multiplyScalar(.77+random()*.31);
     instanced.setColorAt(i,tone);
   }
   instanced.name='Cinematic 3D forest - canopy layers';
@@ -135,6 +158,7 @@ export function createCinematicForest(THREE,scene,{mobile=false}={}){
   scene.add(instanced);
   return {
     count:instances.length,mesh:instanced,
+    update(seconds,strength){shaderWind.value=Math.max(0,Math.min(2.3,strength));shaderTime.value=seconds;},
     dispose(){scene.remove(instanced);instanced.dispose();geometry.dispose();material.dispose();}
   };
 }
