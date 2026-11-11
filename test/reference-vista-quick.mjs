@@ -20,7 +20,7 @@ try{
   {name:'reference-dusk-cloudy',width:1440,height:900,time:'17:15',weather:'cloudy',expectedWeather:'cloudy'},
   {name:'reference-mobile-rain',width:390,height:844,time:'16:10',weather:'rain',expectedWeather:'rain'}
  ];
- for(const cfg of configs){
+ for(const cfg of (process.env.REFERENCE_QA_NIGHT_ONLY ? configs.slice(0,1): configs)){
   const page=await browser.newPage({viewport:{width:cfg.width,height:cfg.height},deviceScaleFactor:1});
   const failures=[];
   page.on('pageerror',e=>failures.push(String(e)));
@@ -35,6 +35,7 @@ try{
     selected:new URLSearchParams(location.search).get('renderer')
   }));
   console.log('REFERENCE DIAG',JSON.stringify({cfg:cfg.name,state,failures}));
+  if(cfg.name==='reference-night-clear')console.log('BAND DIAGNOSTIC',JSON.stringify(await page.evaluate(()=>window.GongangReferenceVista?.inspectBands?.())));
   await page.screenshot({path:'artifacts/reference-vista/'+cfg.name+'.png',timeout:60000});
   assert.equal(state.ready,true,JSON.stringify({state,failures}));
   assert.ok(state.frames>1,JSON.stringify({state,failures}));
