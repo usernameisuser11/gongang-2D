@@ -4,7 +4,8 @@ import { loadLookoutModel, loadValleyTerrain, loadAlpineGrove } from '/scenic-mo
 import { createCinematicAtmosphere } from '/cinematic-atmosphere.js';
 import { createPainterlyClouds } from '/painterly-clouds-3d.js';
 import { createLivingEnvironment } from '/living-environment-3d.js';
-import { createDeepValley, createValleyGroveLayout } from '/valley-sculpt-3d.js';
+import { createDeepValley, sampleValleyHeight } from '/valley-sculpt-3d.js';
+import { createTerrainStream } from '/terrain-stream-3d.js';
 import { buildOverlookDetails } from '/overlook-details-3d.js';
 import { createCinematicForest } from '/cinematic-forest-3d.js';
 const TAU=Math.PI*2,worldH=29;
@@ -15,7 +16,7 @@ const editableModelsEnabled=new URLSearchParams(location.search).get('models')!=
 const cinemaEnabled=new URLSearchParams(location.search).get('cinema')!=='off';
 const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false,modelLoaded:false,modelParts:0,modelError:null,terrainLoaded:false,terrainParts:0,terrainError:null,groveLoaded:false,pineCount:0,groveError:null,editableModelsEnabled,cinemaEnabled,hazeLayers:0,cinemaError:null,liveMode,environment:null,sculptedRidges:0,groveAnchored:false,freeSeating:true};
 const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
-let renderer,scene,camera,waterClock,windClock,windStrength={value:1},stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null,legacyMountains=[],legacyForest=null,cinematicAtmosphere=null,painterlyClouds=null,livingEnvironment=null,waterMaterial=null,deepValley=null,overlookDetails=null,cinematicForest=null,plantMaterials=[];
+let renderer,scene,camera,waterClock,windClock,windStrength={value:1},stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null,legacyMountains=[],legacyForest=null,cinematicAtmosphere=null,painterlyClouds=null,livingEnvironment=null,waterMaterial=null,deepValley=null,terrainStream=null,overlookDetails=null,cinematicForest=null,plantMaterials=[];
 const rng=(()=>{let s=20261110;return()=>((s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296)})();
 const lerp=(a,b,t)=>a+(b-a)*t,smooth=t=>t*t*(3-2*t);
 const hash=n=>{n=Math.imul(n^(n>>>15),2246822519);n=Math.imul(n^(n>>>13),3266489917);return ((n^(n>>>16))>>>0)/4294967295};
@@ -524,13 +525,13 @@ function plants(){
   const x=side*(edge+Math.sin(z*.16)*1.6)+(rng()-.5)*2;
   const height=1.25+rng()*2.6+(z>9?rng():0);
   const variant=i%19===0?4:i%9===0?2:i%4===0?3:i%2===0?1:0;
-  groups[variant].push({x,y:-3.84+edge*.024,z,h:height,w:height*(.33+rng()*.3),a:(rng()-.5)*.6});
+  groups[variant].push({x,y:liveMode?sampleValleyHeight(x,z)+.02:-3.84+edge*.024,z,h:height,w:height*(.33+rng()*.3),a:(rng()-.5)*.6});
  }
  for(let i=0;i<140;i++){
   const x=(rng()-.5)*95,z=14+rng()*43;
   if(Math.abs(x)<8&&z<28)continue;
   const height=1.4+rng()*2.9;
-  groups[i%4].push({x,y:-3.35,z,h:height,w:height*(.34+rng()*.25),a:(rng()-.5)*.6});
+  groups[i%4].push({x,y:liveMode?sampleValleyHeight(x,z)+.02:-3.35,z,h:height,w:height*(.34+rng()*.25),a:(rng()-.5)*.6});
  }
  for(let type=0;type<5;type++){
   const group=groups[type];if(!group.length)continue;
@@ -598,7 +599,16 @@ function init(){
     mountain(-73,-1.7,81,'#376d7c','#14394a');
     mountain(-56,-4.1,45,'#326772','#0b2938');
   }
-  water();land(-1);land(1);foreground();plants();
+  if(liveMode){
+    // True heightfield, river and vegetation share one game-world sampler.
+    // Don't render old intersecting flat meadow and huge sea.
+    waterClock={value:0};
+    terrainStream=createTerrainStream(THREE,scene,{mobile:innerWidth<700});
+    state.terrainStreamVertices=terrainStream.vertexCount;
+  }else{
+    water();land(-1);land(1);foreground();
+  }
+  plants();
   if(!liveMode){forest();buildFramingTrees();}
   if(liveMode){
     // Thin atmospheric valley mist between true 3D ranges. This uses moving
@@ -716,6 +726,8 @@ function draw(ctx,t,now,{personal=false}={}){
     windClock.value=sec*(.58+env.wind*.32);
     windStrength.value=state.reducedMotion?0:Math.max(.10,Math.min(2.3,env.wind));
     if(cinematicForest)cinematicForest.update(sec,windStrength.value);
+    if(deepValley)deepValley.update(env);
+    if(terrainStream)terrainStream.update(sec,env);
     const grassTone=new THREE.Color('#53667d')
       .lerp(new THREE.Color('#a4a991'),env.daylight*.75)
       .lerp(new THREE.Color('#a27496'),env.twilight*.25);
