@@ -24,6 +24,7 @@ const scenicModelLoader = await readFile(join(ROOT, 'public', 'scenic-model-load
 const cinematicAtmosphere = await readFile(join(ROOT, 'public', 'cinematic-atmosphere.js'));
 const livingEnvironment = await readFile(join(ROOT, 'public', 'living-environment-3d.js'));
 const valleySculpt = await readFile(join(ROOT, 'public', 'valley-sculpt-3d.js'));
+const terrainStream = await readFile(join(ROOT, 'public', 'terrain-stream-3d.js'));
 const overlookDetails3d = await readFile(join(ROOT, 'public', 'overlook-details-3d.js'));
 const cinematicForest3d = await readFile(join(ROOT, 'public', 'cinematic-forest-3d.js'));
 const rockMaterials = await readFile(join(ROOT, 'public', 'rock-materials-3d.js'));
@@ -156,6 +157,7 @@ const server = createServer((req, res) => {
       path === '/cinematic-atmosphere.js' ||
       path === '/living-environment-3d.js' ||
       path === '/valley-sculpt-3d.js' ||
+      path === '/terrain-stream-3d.js' ||
       path === '/overlook-details-3d.js' ||
       path === '/cinematic-forest-3d.js' ||
       path === '/rock-materials-3d.js' ||
@@ -166,6 +168,7 @@ const server = createServer((req, res) => {
       : path === '/cinematic-atmosphere.js' ? cinematicAtmosphere
       : path === '/living-environment-3d.js' ? livingEnvironment
       : path === '/valley-sculpt-3d.js' ? valleySculpt
+      : path === '/terrain-stream-3d.js' ? terrainStream
       : path === '/overlook-details-3d.js' ? overlookDetails3d
       : path === '/cinematic-forest-3d.js' ? cinematicForest3d
       : path === '/rock-materials-3d.js' ? rockMaterials
