@@ -13,16 +13,27 @@ void main(){
  gl_Position=projectionMatrix*modelViewMatrix*instanceMatrix*vec4(position,1.0);
 }`;
 const FS=`
-precision mediump float;
+precision highp float;
 varying vec2 vUV;
-uniform float uOpacity,uCloud;
+uniform float uOpacity,uCloud,uWind,uTime;
 void main(){
+ // A tree crown has irregular overlapping lobes and broken leaf clusters,
+ // not the perfect oval stamped by the previous projected shadow shader.
  vec2 q=(vUV-.5)*2.;
- float d=dot(q,q);
- float penumbra=pow(max(0.,1.-d),2.4);
- float breaking=(.90+.10*sin(q.x*9.+q.y*3.));
- gl_FragColor=vec4(.018,.030,.064,
-   clamp(uOpacity*(1.-uCloud*.34),0.,.7)*penumbra*breaking);
+ q.x+=sin(uTime*.27+q.y*3.1)*uWind*.013*abs(q.y);
+ float angle=atan(q.y,q.x);
+ float radius=length(q);
+ float crown=.84+.072*sin(angle*5.+.8*sin(angle*3.))
+   +.035*sin(angle*11.3+1.7);
+ float softEdge=1.-smoothstep(crown-.23,crown+.12,radius);
+ float branches=(1.-smoothstep(.035,.17,abs(q.x+.13*sin(q.y*3.7))))
+   *(1.-smoothstep(.20,.88,abs(q.y)))*.23;
+ float leafGaps=.78+.11*sin(q.x*17.+q.y*9.2)
+   +.08*sin(q.x*33.4-q.y*22.7);
+ float shade=clamp(softEdge*leafGaps+branches,0.,1.);
+ float penumbra=1.-smoothstep(.67,1.05,radius);
+ float alpha=clamp(uOpacity*(1.-uCloud*.46),0.,.72);
+ gl_FragColor=vec4(.018,.030,.064,alpha*shade*penumbra);
 }`;
 export function createOverlookShadows25D(THREE,scene,{mobile=false}={}){
   const source=mobile?
@@ -31,7 +42,8 @@ export function createOverlookShadows25D(THREE,scene,{mobile=false}={}){
      [24,15,12.8],[21,24,9.2],[17.7,37,6.6]];
   const geom=new THREE.PlaneGeometry(1,1);
   geom.rotateX(-Math.PI/2);
-  const uniform={uOpacity:{value:0},uCloud:{value:0}};
+  const uniform={uOpacity:{value:0},uCloud:{value:0},
+    uWind:{value:0},uTime:{value:0}};
   const material=new THREE.ShaderMaterial({
     uniforms:uniform,vertexShader:VS,fragmentShader:FS,
     transparent:true,depthWrite:false,depthTest:true,
@@ -45,8 +57,10 @@ export function createOverlookShadows25D(THREE,scene,{mobile=false}={}){
   const actor=new THREE.Object3D();
   return {
     count:source.length,mesh,
-    update(light,view){
+    update(light,view,seconds=0,wind=0){
       const length=Math.max(0,light.shadowLength);
+      uniform.uTime.value=seconds;
+      uniform.uWind.value=wind;
       uniform.uOpacity.value=light.shadowStrength*.68;
       uniform.uCloud.value=light.cloud;
       for(let i=0;i<source.length;i++){
@@ -54,11 +68,13 @@ export function createOverlookShadows25D(THREE,scene,{mobile=false}={}){
         const shift=parallaxShift(view,sz);
         // Project to the ground plane away from the sun, with a little
         // asymmetry from the direction of light. Shadows stay on real ground.
-        const x=sx+shift.x-light.direction[0]*length*.62;
-        const z=sz-length*.29;
+        // Cast along both horizontal axes, opposite the current sun/moon.
+        // A fixed Z offset made shadows point in the same direction all day.
+        const x=sx+shift.x-light.direction[0]*length*.74;
+        const z=sz-light.direction[2]*length*.74;
         actor.position.set(x,overlookGroundHeight(x-shift.x,z-77)+.08+shift.y,z);
-        actor.rotation.set(0,light.azimuth*.75,0);
-        actor.scale.set(size*.53,1,Math.max(size*.65,length*1.8));
+        actor.rotation.set(0,Math.atan2(light.direction[0],light.direction[2]),0);
+        actor.scale.set(size*.63,1,Math.max(size*.66,length*1.55));
         actor.updateMatrix();mesh.setMatrixAt(i,actor.matrix);
       }
       mesh.instanceMatrix.needsUpdate=true;
