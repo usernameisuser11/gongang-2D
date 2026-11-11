@@ -4,15 +4,16 @@ import { loadLookoutModel, loadValleyTerrain, loadAlpineGrove } from '/scenic-mo
 import { createCinematicAtmosphere } from '/cinematic-atmosphere.js';
 import { createPainterlyClouds } from '/painterly-clouds-3d.js';
 import { createLivingEnvironment } from '/living-environment-3d.js';
+import { createDeepValley, createValleyGroveLayout } from '/valley-sculpt-3d.js';
 const TAU=Math.PI*2,worldH=29;
 // QA: ?map=stargaze&models=off compares the old painted scenery to real 3D assets.
 const rendererChoice=new URLSearchParams(location.search).get('renderer');
 const liveMode=rendererChoice!=='3d'&&rendererChoice!=='2d'&&rendererChoice!=='painterly';
 const editableModelsEnabled=new URLSearchParams(location.search).get('models')!=='off';
 const cinemaEnabled=new URLSearchParams(location.search).get('cinema')!=='off';
-const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false,modelLoaded:false,modelParts:0,modelError:null,terrainLoaded:false,terrainParts:0,terrainError:null,groveLoaded:false,pineCount:0,groveError:null,editableModelsEnabled,cinemaEnabled,hazeLayers:0,cinemaError:null,liveMode,environment:null};
+const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false,modelLoaded:false,modelParts:0,modelError:null,terrainLoaded:false,terrainParts:0,terrainError:null,groveLoaded:false,pineCount:0,groveError:null,editableModelsEnabled,cinemaEnabled,hazeLayers:0,cinemaError:null,liveMode,environment:null,sculptedRidges:0,groveAnchored:false,freeSeating:true};
 const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
-let renderer,scene,camera,waterClock,windClock,windStrength={value:1},stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null,legacyMountains=[],legacyForest=null,cinematicAtmosphere=null,painterlyClouds=null,livingEnvironment=null,waterMaterial=null;
+let renderer,scene,camera,waterClock,windClock,windStrength={value:1},stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null,legacyMountains=[],legacyForest=null,cinematicAtmosphere=null,painterlyClouds=null,livingEnvironment=null,waterMaterial=null,deepValley=null;
 const rng=(()=>{let s=20261110;return()=>((s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296)})();
 const lerp=(a,b,t)=>a+(b-a)*t,smooth=t=>t*t*(3-2*t);
 const hash=n=>{n=Math.imul(n^(n>>>15),2246822519);n=Math.imul(n^(n>>>13),3266489917);return ((n^(n>>>16))>>>0)/4294967295};
@@ -532,10 +533,19 @@ function init(){
     const key=new THREE.DirectionalLight('#c5d4ff',1.6);key.position.set(-8,26,9);scene.add(key);
     sky();
   }
-  mountain(-116,-2.4,12,'#7c8cb1','#394968');
-  mountain(-94,-.9,37,'#617f9f','#264863');
-  mountain(-73,-1.7,81,'#376d7c','#14394a');
-  mountain(-56,-4.1,45,'#326772','#0b2938');
+  if(liveMode) {
+    // Five real 3D depth-bearing mountains, with a wide open central corridor.
+    // Do not replace their shapes with image textures or curtain polygons.
+    deepValley=createDeepValley(THREE,scene,{mobile:innerWidth<700});
+    state.sculptedRidges=deepValley.count;
+    state.terrainLoaded=true;
+    state.terrainParts=deepValley.count;
+  } else {
+    mountain(-116,-2.4,12,'#7c8cb1','#394968');
+    mountain(-94,-.9,37,'#617f9f','#264863');
+    mountain(-73,-1.7,81,'#376d7c','#14394a');
+    mountain(-56,-4.1,45,'#326772','#0b2938');
+  }
   water();land(-1);land(1);foreground();plants();forest();buildFramingTrees();
   // Consciously restrained cloud and atmosphere passes: no moving rectangles,
   // no fluorescent glow; debug with ?cinema=off without changing the artwork.
@@ -561,21 +571,35 @@ function init(){
    loadLookoutModel(THREE,scene).then(model=>{
      lookoutModel=model;state.modelLoaded=true;
      state.modelParts=model.userData.geometryCount;
+     if(liveMode){
+       // Keep the middle of the viewpoint clear for people to sit freely.
+       for(const piece of model.children){
+         if(piece.isMesh && /^(Stone|Flower|Leaf|ReedStem)/.test(piece.name))
+           piece.visible=false;
+       }
+       model.position.x=18;
+       model.position.z=14;
+       model.scale.setScalar(.72);
+     }
    }).catch(error=>{
      state.modelError=String(error?.message||error);
      console.warn('Gongang scenic model unavailable, original landscape retained:',error);
    });
-  // The old ridge panels remain visible until the real 3D terrain is loaded.
-  loadValleyTerrain(THREE,scene).then(group=>{
+  // Legacy imported mountains are retained in the older ?renderer=3d scene.
+  // In live mode our five sculpted ridges are the actual terrain instead.
+  if(!liveMode)loadValleyTerrain(THREE,scene).then(group=>{
     legacyMountains.forEach(mesh=>{mesh.visible=false;});
     state.terrainLoaded=true;state.terrainParts=group.children.length;
   }).catch(error=>{
     state.terrainError=String(error?.message||error);
     console.warn('3D terrain unavailable; keeping ridge fallback:',error);
   });
-  loadAlpineGrove(THREE,scene).then(group=>{
+  loadAlpineGrove(THREE,scene,
+    liveMode ? {authoredTrees:createValleyGroveLayout({mobile:innerWidth<700})} : {}
+  ).then(group=>{
     if(legacyForest)legacyForest.visible=false;
     state.groveLoaded=true;state.pineCount=group.userData.count;
+    state.groveAnchored=liveMode;
   }).catch(error=>{
     state.groveError=String(error?.message||error);
     console.warn('3D pines unavailable; keeping 2D forest:',error);
@@ -598,8 +622,8 @@ function draw(ctx,t,now,{personal=false}={}){
   const portrait=innerWidth<700 && innerHeight>innerWidth*1.22;
   const eyeX=portrait?-5:0;
    if(lookoutModel && lookoutModel.userData.portrait!==portrait){
-     lookoutModel.position.x=portrait?-4.0:7;
-     lookoutModel.scale.setScalar(portrait?.79:.82);
+     lookoutModel.position.x=liveMode?(portrait?13:18):(portrait?-4.0:7);
+     lookoutModel.scale.setScalar(liveMode?(portrait?.58:.72):(portrait?.79:.82));
      lookoutModel.userData.portrait=portrait;
    }
   // A portrait composition looks toward the moon without rotating the view.
