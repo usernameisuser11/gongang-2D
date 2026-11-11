@@ -667,6 +667,16 @@
     const viewT=makeTransform(t,personal);
     const outputT=personal?t:viewT;
     const livingOverlook=window.GongangOverlook25D;
+    // Coordinate-matched redraw: not the reference bitmap, not the old
+    // generative terrain. Keep the multiplayer/camera/photo canvas intact.
+    const referenceVista=window.GongangReferenceVista;
+    if(sceneQuery.get('renderer')==='reference' && referenceVista?.ready){
+      const relative=clamp((state.x-1600)/1600,-1,1);
+      if(referenceVista.draw(c,personal?t:viewT,now,{personal,scroll:relative})){
+        metrics.rendered++;
+        return;
+      }
+    }
     // Prefer the painterly layered vista. Only renderer=procedural opts
     // into the old noise-heavy 3D mountain scene for development comparisons.
     // Real avatars continue on the unchanged shared Canvas layer.
