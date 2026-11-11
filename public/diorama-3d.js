@@ -292,10 +292,16 @@ function foreground(){
    const farRim=Math.exp(-Math.pow((z+42)/12,2));
    const undulation=noise(x*.13+z*.045,13)*.26+
      noise(x*.39-z*.12,91)*.08;
-   p.setY(i,-3.25+undulation*.55+farRim*(.12+.35*b));
+   // The clearing is a naturally eroded shelf, not a full-screen green
+   // horizontal platform. Outer slopes bend sharply down into the woodland.
+   const width=16.0+3.1*Math.sin(z*.078)+2.2*noise(z*.062,37);
+   const outer=Math.max(0,Math.min(1,(Math.abs(x)-width*.65)/(width*.83)));
+   const fall=outer*outer*(3.-2.*outer);
+   p.setY(i,-3.25+undulation*.55+farRim*(.12+.35*b)-fall*9.2);
    const organic=noise(x*.25+z*.22,47)*.27+noise(x*.71-z*.31,61)*.15;
    const v=Math.max(.08,Math.min(.88,.42+organic));
    const col=dark.clone().lerp(light,v);
+   col.multiplyScalar(1.-fall*.39);
    cols.push(col.r,col.g,col.b);
  }
  p.needsUpdate=true;g.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
