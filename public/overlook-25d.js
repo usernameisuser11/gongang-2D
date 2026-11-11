@@ -56,7 +56,7 @@ precision highp float;
 varying vec3 vPigment,vFaceNormal;
 varying float vDepth;varying vec2 vUV;
 uniform float uDay,uTwilight,uStorm,uWind,uTime,uShadow,uSunAzimuth,uSunElevation;
-uniform vec3 uLightDir;
+uniform vec3 uLightDir,uLightColor;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 void main(){
   float folded=sin(vUV.x*24.7+sin(vUV.y*6.9)*3.8);
@@ -80,6 +80,7 @@ void main(){
   vec3 day=vPigment*vec3(1.12,1.25,1.00);
   vec3 col=mix(night,day,clamp(uDay,0.,1.));
   col*=mix(.72,1.,uDay*.78)*diffuse*ridgeShade*terrainShadow;
+  col*=mix(vec3(1.0),uLightColor,.54*uDay+.32*uTwilight);
   // Warm sun rim only when light comes from a low angle; night remains blue.
   float horizon=clamp((vUV.y-.30)*1.45,0.,1.);
   col+=vec3(.19,.069,.075)*uTwilight*horizon*(.4+.6*incidence);
@@ -91,7 +92,7 @@ varying vec3 vTreeColor;
 varying float vTreeLight;
 uniform float uTime,uWind;
 uniform vec2 uParallax;
-uniform vec3 uLightDir;
+uniform vec3 uLightDir,uLightColor;
 void main(){
   vec3 p=position;
   float phase=instanceMatrix[3].x*.43+instanceMatrix[3].z*.25;
@@ -112,10 +113,12 @@ precision mediump float;
 varying vec3 vTreeColor;
 varying float vTreeLight;
 uniform float uDay,uTwilight,uStorm,uShadow;
+uniform vec3 uLightColor;
 void main(){
  vec3 day=vTreeColor*vec3(1.25,1.39,1.14);
  vec3 col=mix(vTreeColor*.81,day,uDay);
  col*=mix(1.,vTreeLight,.64*uShadow);
+ col*=mix(vec3(1.),uLightColor,.49*uDay+.29*uTwilight);
  col+=vec3(.11,.042,.052)*uTwilight*.24;
  gl_FragColor=vec4(col*(1.-uStorm*.10),1.);
 }`;
@@ -155,7 +158,8 @@ function makeMountain(THREE,scene,layer,mobile){
  const u={
    uDay:{value:0},uTwilight:{value:0},uStorm:{value:0},
    uWind:{value:0},uTime:{value:0},uLightDir:{value:new THREE.Vector3(.1,.7,1).normalize()},
-   uSunAzimuth:{value:0},uSunElevation:{value:.5},uShadow:{value:0}
+   uSunAzimuth:{value:0},uSunElevation:{value:.5},uShadow:{value:0},
+   uLightColor:{value:new THREE.Vector3(1,1,1)}
  };
  const mat=new THREE.ShaderMaterial({
    uniforms:u,vertexShader:MOUNTAIN_VS,fragmentShader:MOUNTAIN_FS,
@@ -223,6 +227,7 @@ function makeForest(THREE,scene,mobile){
  const u={uTime:{value:0},uWind:{value:0},uDay:{value:0},
     uTwilight:{value:0},uStorm:{value:0},uShadow:{value:0},
     uLightDir:{value:new THREE.Vector3(.1,.7,1).normalize()},
+    uLightColor:{value:new THREE.Vector3(1,1,1)},
     uParallax:{value:new THREE.Vector2()}};
  const mat=new THREE.ShaderMaterial({
   uniforms:u,vertexShader:FIR_VS,fragmentShader:FIR_FS,
@@ -368,7 +373,8 @@ function draw(ctx,t,now,{personal=false,view=null}={}){
   const lightDir=new THREE.Vector3(...light.direction);
   state.lighting={
     daylight:light.daylight,shadowStrength:light.shadowStrength,
-    azimuth:light.azimuth,sunElevation:light.sunElevation
+    azimuth:light.azimuth,sunElevation:light.sunElevation,
+    shadowLength:light.shadowLength
   };
   state.parallax={...smoothView};
   state.nearShift=parallaxShift(smoothView,22).x;
@@ -381,6 +387,7 @@ function draw(ctx,t,now,{personal=false,view=null}={}){
     ridge.u.uTime.value=seconds;
     ridge.u.uWind.value=env.wind;
     ridge.u.uLightDir.value.copy(lightDir);
+    ridge.u.uLightColor.value.set(...light.color);
     ridge.u.uSunAzimuth.value=light.azimuth;
     ridge.u.uSunElevation.value=light.sunElevation;
     ridge.u.uShadow.value=light.shadowStrength;
@@ -393,6 +400,7 @@ function draw(ctx,t,now,{personal=false,view=null}={}){
   forest.u.uStorm.value=Math.max(env.rain,env.snow);
   forest.u.uShadow.value=light.shadowStrength;
   forest.u.uLightDir.value.copy(lightDir);
+  forest.u.uLightColor.value.set(...light.color);
   forest.u.uParallax.value.set(smoothView.x,smoothView.y);
   renderer.toneMappingExposure=1.16*light.exposure;
   renderer.render(scene,camera);
