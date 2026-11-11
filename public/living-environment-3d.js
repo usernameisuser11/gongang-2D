@@ -107,6 +107,8 @@ void main(){
  col+=vec3(.78,.85,1.)*stars;
  col*=1.-uRain*.17;
  gl_FragColor=vec4(max(col,0.),1.);
+ #include <tonemapping_fragment>
+ #include <colorspace_fragment>
 }`;
 const BODY=`
 precision highp float;
