@@ -106,7 +106,7 @@ const server = createServer((req, res) => {
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Content-Length': html.length,
-      'Content-Security-Policy': "default-src 'self' data: blob:; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+      'Content-Security-Policy': "default-src 'self' data: blob:; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.open-meteo.com ws: wss:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
     });
     if (req.method === 'HEAD') res.end();
     else res.end(html);
