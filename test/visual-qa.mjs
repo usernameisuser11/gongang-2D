@@ -15,6 +15,7 @@ const snapshots = [
   { name: 'desktop-25d-day', width: 1440, height: 900, query: '?map=stargaze&time=13:20&weather=cloudy', kind: '25d', expectedHour: 13.3333, expectedWeather: 'cloudy' },
   { name: 'desktop-25d-sunset', width: 1440, height: 900, query: '?map=stargaze&time=18:10&weather=clear', kind: '25d', expectedHour: 18.1667, expectedWeather: 'clear' },
   { name: 'desktop-25d-night', width: 1440, height: 900, query: '?map=stargaze&time=23:20&weather=clear', kind: '25d', expectedHour: 23.3333, expectedWeather: 'clear' },
+  { name: 'desktop-25d-parallax', width: 1440, height: 900, query: '?map=stargaze&time=13:20&weather=clear', kind: '25d', expectedHour: 13.3333, expectedWeather: 'clear', checkParallax: true },
   { name: 'desktop-25d-moon', width: 1440, height: 900, query: '?map=stargaze&time=18:10&weather=clear&moon=show', kind: '25d', expectedHour: 18.1667, expectedWeather: 'clear', expectedMoon: true },
   { name: 'mobile-25d-rain', width: 390, height: 844, query: '?map=stargaze&time=16:10&weather=rain', kind: '25d', expectedHour: 16.1667, expectedWeather: 'rain' },
   { name: 'mobile-25d-snow', width: 390, height: 844, query: '?map=stargaze&time=08:10&weather=snow', kind: '25d', expectedHour: 8.1667, expectedWeather: 'snow' },
@@ -102,6 +103,16 @@ try {
         }, null, { timeout: 30000 });
       }
       await page.waitForTimeout(1100);
+      if(config.checkParallax){
+        const initial=await page.evaluate(()=>window.GongangOverlook25D?.state.parallax.x||0);
+        await page.keyboard.down('d');
+        await page.waitForTimeout(850);
+        await page.keyboard.up('d');
+        await page.waitForTimeout(120);
+        const shifted=await page.evaluate(()=>window.GongangOverlook25D?.state.parallax.x||0);
+        assert.ok(Math.abs(shifted-initial)>.015,
+          'Movement did not drive actual landscape parallax: '+initial+' -> '+shifted);
+      }
       const state = await page.evaluate(() => {
         const s = window.GongangDiorama3D?.state || {};
         return {
@@ -130,6 +141,14 @@ try {
         assert.ok(o.frameCount > 2, config.name + ': world is not animating');
         assert.ok(o.ridgeCount >= 6, 'Several depth-separated mountains are required');
         assert.ok(o.atmosphereLayers >= 4, 'Time-responsive depth mist layers are missing');
+        assert.ok(o.shadowCasters >= 4, 'Foreground trees do not have projected shadows');
+        assert.ok(Number.isFinite(o.lighting?.azimuth), 'Sun/moon lighting direction missing');
+        assert.ok(Number.isFinite(o.lighting?.shadowStrength), 'Moving shadows missing');
+        if(config.checkParallax){
+          assert.ok(Math.abs(o.nearShift)>Math.abs(o.farShift)*9,
+            'Nearby forest should scroll more than distant mountains: '+
+              JSON.stringify({near:o.nearShift,far:o.farShift}));
+        }
         assert.ok(o.treeCount > (config.width < 600 ? 250 : 700),
           '3D tree silhouettes not instanced correctly: '+o.treeCount);
         assert.equal(o.retainsVisitors, true, 'Real visitor compositing disabled');
