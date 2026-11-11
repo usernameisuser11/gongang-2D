@@ -275,8 +275,8 @@ function makeOverlookSoil(THREE,scene){
  geometry.rotateX(-Math.PI/2);
  const p=geometry.getAttribute('position');
  const rgb=new Float32Array(p.count*3);
- const centerColor=new THREE.Color('#273f4a');
- const edgeColor=new THREE.Color('#0a1b31');
+ const centerColor=new THREE.Color('#324a4e');
+ const edgeColor=new THREE.Color('#10242e');
  for(let i=0;i<p.count;i++){
    const x=p.getX(i),z=p.getZ(i);
    const edge=smooth(12,92,Math.abs(x));
@@ -298,18 +298,40 @@ function makeOverlookSoil(THREE,scene){
  geometry.computeVertexNormals();
  const material=new THREE.MeshStandardMaterial({
    vertexColors:true,roughness:1,metalness:0,
-   side:THREE.DoubleSide,
-   emissive:'#0c1321',emissiveIntensity:.30
+   side:THREE.DoubleSide,transparent:true,depthWrite:false,
+   emissive:'#16243a',emissiveIntensity:.45
  });
+ // A gradual dirt-to-valley transition replaces the harsh rear straight
+ // edge visible in screenshots. Alpha only changes over the distant 30m
+ // of the real Three.js soil mesh; shadows remain a separate later pass.
+ material.onBeforeCompile=shader=>{
+   shader.vertexShader=shader.vertexShader.replace(
+     '#include <common>',
+     '#include <common>\nvarying float vSoilBlend;');
+   shader.vertexShader=shader.vertexShader.replace(
+     '#include <begin_vertex>',
+     '#include <begin_vertex>\nvSoilBlend=smoothstep(-95.,-62.,position.z);');
+   shader.fragmentShader=shader.fragmentShader.replace(
+     '#include <common>',
+     '#include <common>\nvarying float vSoilBlend;');
+   shader.fragmentShader=shader.fragmentShader.replace(
+     '#include <color_fragment>',
+     '#include <color_fragment>\ndiffuseColor.a*=vSoilBlend;');
+ };
+ material.customProgramCacheKey=()=>'gongang-soft-soil-rim-v2';
  const mesh=new THREE.Mesh(geometry,material);
  mesh.name='3D shared sitting platform, soft earthen hillside';
  mesh.position.z=77;
+ mesh.renderOrder=2;
  mesh.frustumCulled=false;
  scene.add(mesh);
  return {mesh,baseX:mesh.position.x,baseY:mesh.position.y};
 }
 let scene,camera,renderer,environment,ridges=[],forest,atmosphere,soil,shadows;
 let smoothView={x:0,y:0},lastParallaxFrame=null;
+const soilNightColor=new THREE.Color('#183151');
+const soilDayColor=new THREE.Color('#274943');
+const soilDuskColor=new THREE.Color('#4e325b');
 const requestedRenderer=new URLSearchParams(location.search).get('renderer');
 const enabled=!['2d','painterly','3d','live3d'].includes(requestedRenderer);
 const portrait=innerWidth<700&&innerHeight>innerWidth*1.2;
@@ -380,6 +402,11 @@ function draw(ctx,t,now,{personal=false,view=null}={}){
     ...env,sunrise:environment.state.sunrise,sunset:environment.state.sunset
   },environment.state.moonVisible);
   const lightDir=new THREE.Vector3(...light.direction);
+  soil.mesh.material.emissive.copy(soilNightColor)
+    .lerp(soilDayColor,env.daylight*.93)
+    .lerp(soilDuskColor,env.twilight*.37);
+  soil.mesh.material.emissiveIntensity=
+    .42+env.daylight*.31+env.twilight*.21;
   state.lighting={
     daylight:light.daylight,shadowStrength:light.shadowStrength,
     azimuth:light.azimuth,sunElevation:light.sunElevation,
