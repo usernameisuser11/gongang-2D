@@ -11,7 +11,7 @@ export function parallaxInput(view={},viewport={width:1440,height:900}){
   const h=Math.max(300,num(viewport.height,900));
   // World coordinates belong to Gongang's existing 0–3200 x 1510–1660 z.
   const walkX=clamp((num(view.x,1600)-1600)/1100,-1.3,1.3);
-  const walkZ=clamp((num(view.z,1590)-1590)/95,-1.2,1.2);
+  const walkZ=clamp((num(view.z,1530)-1530)/120,-1.2,1.2);
   const panX=clamp(num(view.offsetX)/Math.min(w,1450),-.70,.70);
   const panY=clamp(num(view.offsetY)/Math.min(h,950),-.70,.70);
   const x=clamp(walkX-panX*1.65,-1.8,1.8);
