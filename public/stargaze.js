@@ -660,8 +660,21 @@
   }
   function drawBackground(c,t,now,personal=false){
     const viewT=makeTransform(t,personal);
-    const diorama=window.GongangDiorama3D;
     const outputT=personal?t:viewT;
+    const livingOverlook=window.GongangOverlook25D;
+    // Default: live 2.5D mountains, weather, wind, stars and celestial bodies.
+    // Real visitor avatars remain on the existing shared Canvas layer.
+    if(livingOverlook?.ready && livingOverlook.draw(c,outputT,now,{personal})){
+      c.save();
+      c.beginPath();
+      c.rect(outputT.x,outputT.y,outputT.width,outputT.height*.62);
+      c.clip();
+      drawSkyEffects(c,outputT,now,{threeD:true});
+      c.restore();
+      metrics.rendered++;
+      return;
+    }
+    const diorama=window.GongangDiorama3D;
     if(diorama?.ready && diorama.draw(c,outputT,now,{personal})){
       // Sky effects remain shared with friends, but don't paint across the 3D lake.
       c.save();
