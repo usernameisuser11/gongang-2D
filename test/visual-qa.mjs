@@ -110,7 +110,7 @@ try {
           hybrid: window.GongangHybrid3D?.state || null,
           environment: s.environment || null,
           liveMode: s.liveMode,
-          sculptedRidges:s.sculptedRidges, groveAnchored:s.groveAnchored, freeSeating:s.freeSeating
+          sculptedRidges:s.sculptedRidges, groveAnchored:s.groveAnchored, freeSeating:s.freeSeating, geologyPieces:s.geologyPieces
         };
       });
       const canvas = page.locator('#game');
@@ -135,6 +135,7 @@ try {
           assert.equal(state.sculptedRidges, 5, 'The live world must show five actual 3D mountain ridges');
           assert.equal(state.groveAnchored, true, '3D pine trees must follow actual ridge surfaces');
           assert.equal(state.freeSeating, true, 'The middle of the vista must remain available for sitting');
+          assert.ok(state.geologyPieces>=20, 'Actual 3D edge geology missing');
           assert.equal(state.environment?.weather, config.expectedWeather, 'Weather preset mismatch');
           assert.ok(Math.abs(state.environment.hour-config.expectedHour)<.025, 'Incorrect time-of-day');
           assert.ok(state.environment.renderCount > 2, 'Sky/lighting did not advance');
