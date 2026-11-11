@@ -74,7 +74,7 @@ const MOUNTAIN_FS=`
 precision highp float;
 varying vec3 vPigment,vFaceNormal;
 varying float vDepth;varying vec2 vUV;
-uniform float uDay,uTwilight,uStorm,uWind,uTime,uShadow,uSunAzimuth,uSunElevation,uDepthWeight;
+uniform float uDay,uTwilight,uStorm,uWind,uTime,uCloud,uShadow,uSunAzimuth,uSunElevation,uDepthWeight;
 uniform vec3 uLightDir,uLightColor,uDayHue;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float rockNoise(vec2 p){
@@ -135,6 +135,27 @@ void main(){
   float nearby=1.-uDepthWeight;
   col=mix(col,col*vec3(.77,.88,.98),
     stoneMask*(.11+.17*nearby)*(1.-uStorm*.30));
+  // Geological channels follow curved noise fields, not stripes.
+  // A low-cost cloud mask crosses the hillside with the shared world clock.
+  vec2 carved=vec2(vUV.x*18.0+.65*ravine,vUV.y*7.3+.38*erosionBand);
+  float drainage=rockNoise(carved+vec2(3.7,21.2));
+  float tributary=rockNoise(carved*2.41+vec2(11.5,6.0));
+  float rockChannel=smoothstep(.52,.78,
+    drainage*.79+tributary*.21)
+    *smoothstep(.02,.37,1.-vUV.y);
+  float exposed=rockNoise(vec2(vUV.x*8.2,vUV.y*12.9)+vec2(18.,7.));
+  float fineCliffs=smoothstep(.56,.81,exposed*.52+erosionBand*.48);
+  float cutDepth=(.09+.20*nearby)*rockChannel
+    +(.05+.09*nearby)*fineCliffs;
+  col*=1.-cutDepth*(.55+.45*uDay);
+  float spill=clamp(dot(relief,lightVector),0.,1.);
+  col+=vec3(.11,.12,.115)*fineCliffs*spill*uDay*(.08+.23*nearby);
+  float cloudBand=rockNoise(vec2(
+    vUV.x*6.8-uTime*(.00060+.00033*uWind),
+    vUV.y*2.7+12.5));
+  float movingShade=smoothstep(.39,.67,cloudBand)
+    *uCloud*uDay*(1.-uStorm*.55);
+  col*=1.-movingShade*(.08+.18*nearby);
   col*=mix(1.,texture,.57+.39*nearby)*(1.-uStorm*.13);
   gl_FragColor=vec4(max(col,0.),1.);
   #include <tonemapping_fragment>
@@ -238,7 +259,7 @@ function makeMountain(THREE,scene,layer,mobile){
  g.setIndex(new THREE.BufferAttribute(index,1));
  g.computeVertexNormals();
  const u={
-   uDay:{value:0},uTwilight:{value:0},uStorm:{value:0},
+   uDay:{value:0},uTwilight:{value:0},uStorm:{value:0},uCloud:{value:0},
    uWind:{value:0},uTime:{value:0},uLightDir:{value:new THREE.Vector3(.1,.7,1).normalize()},
    uSunAzimuth:{value:0},uSunElevation:{value:.5},uShadow:{value:0},
    uLightColor:{value:new THREE.Vector3(1,1,1)},
@@ -552,6 +573,7 @@ if(enabled)try{
  meadow=createMeadowEdge25D(THREE,scene,{mobile:portrait});
  vistaDetails=createVistaDetails25D(THREE,scene,{mobile:portrait});
  state.ridgeCount=ridges.length;state.treeCount=forest.count;
+ state.ridgeMaterial='carved-drainage-and-moving-cloud-shadows';
  state.forestSpecies=forest.species;
  state.atmosphereLayers=atmosphere.count;
  state.shadowCasters=shadows.count;
@@ -626,6 +648,7 @@ function draw(ctx,t,now,{personal=false,view=null}={}){
     ridge.u.uDay.value=env.daylight;
     ridge.u.uTwilight.value=env.twilight;
     ridge.u.uStorm.value=Math.max(env.rain,env.snow);
+    ridge.u.uCloud.value=env.cloud;
     ridge.u.uTime.value=seconds;
     ridge.u.uWind.value=env.wind;
     ridge.u.uLightDir.value.copy(lightDir);
