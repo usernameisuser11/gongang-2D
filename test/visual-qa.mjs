@@ -68,6 +68,10 @@ try {
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => {
+      const bad=/WebGLProgram|shader error|GL_INVALID|Shader Error|VALIDATE_STATUS|FRAGMENT_SHADER|VERTEX_SHADER/i.test(message.text());
+      if(message.type()==='error' && bad) errors.push('WebGL shader error: '+message.text().slice(0,1200));
+    });
     page.on('response', response => {
       if (response.status() >= 400 && response.url().includes('/assets/models/')) {
         errors.push('Asset HTTP ' + response.status() + ': ' + response.url());
@@ -144,6 +148,7 @@ try {
         assert.ok(o.shadowCasters >= 4, 'Foreground trees do not have projected shadows');
         assert.ok(Number.isFinite(o.lighting?.azimuth), 'Sun/moon lighting direction missing');
         assert.ok(Number.isFinite(o.lighting?.shadowStrength), 'Moving shadows missing');
+        assert.ok(Number.isFinite(o.lighting?.shadowLength), 'Sun-angle shadow length missing');
         if(config.checkParallax){
           assert.ok(Math.abs(o.nearShift)>Math.abs(o.farShift)*9,
             'Nearby forest should scroll more than distant mountains: '+
