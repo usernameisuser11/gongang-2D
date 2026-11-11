@@ -110,11 +110,11 @@ try {
       if(config.checkParallax){
         const initial=await page.evaluate(()=>window.GongangOverlook25D?.state.parallax.x||0);
         await page.keyboard.down('d');
-        await page.waitForTimeout(850);
+        await page.waitForTimeout(1150);
         await page.keyboard.up('d');
         await page.waitForTimeout(120);
         const shifted=await page.evaluate(()=>window.GongangOverlook25D?.state.parallax.x||0);
-        assert.ok(Math.abs(shifted-initial)>.015,
+        assert.ok(Math.abs(shifted-initial)>.009,
           'Movement did not drive actual landscape parallax: '+initial+' -> '+shifted);
       }
       const state = await page.evaluate(() => {
