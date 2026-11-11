@@ -270,7 +270,7 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false,camera=
  function celestial(moon){
   const mat=new THREE.ShaderMaterial({vertexShader:VS,fragmentShader:BODY,
    uniforms:{uMoon:{value:moon?1:0},uNight:{value:1},uPhase:{value:.15}},transparent:true,
-   depthWrite:false,depthTest:false,fog:false});
+   depthWrite:false,depthTest:true,fog:false});
   const size=moon?4.4:5.7;
   const mesh=new THREE.Mesh(new THREE.PlaneGeometry(size,size),mat);
   mesh.renderOrder=-99;scene.add(mesh);return mesh;
@@ -376,8 +376,8 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false,camera=
   const moonHeight=-14+Math.sin((moonDiff+6)*Math.PI/12)*37;
   // Keep the lunar disc within the visible upper third of the fixed
   // orthographic overlook; -10 world Y projected onto the actual grass.
-  moon.position.set(moonPreview?.8:-moonDiff*.95,
-    moonPreview?-6.0:-7.2+Math.max(-1,Math.min(1,moonHeight/24))*2.8,-146);
+  moon.position.set(moonPreview?9.0:-moonDiff*.95,
+    moonPreview?-1.8:-2.2+Math.max(-1,Math.min(1,moonHeight/24))*3.2,-146);
   moon.rotation.z=moonPreview?-.53:-.30-Math.sin(phase*6.283)*.23;
   moon.visible=moonPreview||(night>.12&&Math.abs(moonDiff)<6.5&&phase>.015&&phase<.985);
   moon.material.uniforms.uNight.value=night;
