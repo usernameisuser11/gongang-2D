@@ -55,17 +55,19 @@ void main(){
     *gauss(h-.33,.24);
  float breakup=smoothstep(.27,.62,swirl)
     *gauss(h-.54,.31);
- float clouds=clamp((filament*(.22+.39*gauss(h-.46,.36))
-   +bank*.38+breakup*.12+cirrus*.14)*cloudCover,0.,.89);
+ float clouds=clamp((filament*(.34+.47*gauss(h-.46,.36))
+   +bank*.66+breakup*.16+cirrus*.20)*cloudCover,0.,.91);
  // The tops receive solar scatter while undersides remain slate-blue,
  // and low clouds pick up pink/gold only near real twilight.
- float litTop=clamp(.37+(n-fine)*1.35+.35*h,0.,1.);
+ float litTop=clamp(.39+(n-fine)*1.36+.35*h,0.,1.);
  vec3 cloudNight=mix(vec3(.061,.11,.23),vec3(.24,.30,.48),litTop);
- vec3 cloudDay=mix(vec3(.36,.51,.65),vec3(.96,1.0,1.04),litTop);
+ // Softer silver tops and blue-grey shaded undersides make actual
+ // cumulus masses legible against the bright daytime atmosphere.
+ vec3 cloudDay=mix(vec3(.33,.47,.62),vec3(.99,1.01,1.07),litTop);
  vec3 cloudTone=mix(cloudNight,cloudDay,1.-uNight);
  vec3 sunsetCloud=mix(vec3(.38,.24,.45),vec3(1.04,.64,.53),litTop);
  cloudTone=mix(cloudTone,sunsetCloud,twilight*.82*(1.-.22*h));
- col=mix(col,cloudTone,clouds*.94);
+ col=mix(col,cloudTone,clouds*.96);
  // Multiple scattering near the horizon is a diffuse gradient, not a
  // hard white strip. Morning haze is bluer, golden only near twilight.
  vec3 daylightHaze=vec3(.17,.30,.37)*(1.-uNight);
