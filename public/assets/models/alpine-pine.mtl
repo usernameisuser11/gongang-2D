@@ -1,0 +1,36 @@
+# Gongang Alpine Pine palette
+newmtl PineBark
+Ka 0.022 0.027 0.028
+Kd 0.2050 0.1730 0.1480
+Ks 0.02 0.025 0.027
+Ns 12
+illum 2
+
+newmtl PineBranch
+Ka 0.022 0.027 0.028
+Kd 0.2500 0.2140 0.1600
+Ks 0.02 0.025 0.027
+Ns 12
+illum 2
+
+newmtl PineNeedlesDeep
+Ka 0.022 0.027 0.028
+Kd 0.0740 0.1810 0.1820
+Ks 0.02 0.025 0.027
+Ns 12
+illum 2
+
+newmtl PineNeedlesMid
+Ka 0.022 0.027 0.028
+Kd 0.1100 0.2520 0.2380
+Ks 0.02 0.025 0.027
+Ns 12
+illum 2
+
+newmtl PineNeedlesSilver
+Ka 0.022 0.027 0.028
+Kd 0.2400 0.3300 0.3000
+Ks 0.02 0.025 0.027
+Ns 12
+illum 2
+

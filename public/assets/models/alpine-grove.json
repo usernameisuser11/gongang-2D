@@ -1,0 +1,502 @@
+{
+  "name": "Gongang alpine grove — scenic composition",
+  "version": 2,
+  "coordinates": "Y-up, model origin at trunk base; ridge anchors match valley surface",
+  "desktopForeground": 8,
+  "mobileForeground": 4,
+  "commonRidge": 36,
+  "trees": [
+    {
+      "position": [
+        -21.5,
+        -3.17,
+        9.5
+      ],
+      "scale": 1.395,
+      "rotationY": 6.186,
+      "role": "framing",
+      "view": "wide"
+    },
+    {
+      "position": [
+        -18.7,
+        -3.17,
+        11.35
+      ],
+      "scale": 0.945,
+      "rotationY": 4.419,
+      "role": "framing",
+      "view": "wide"
+    },
+    {
+      "position": [
+        -15.9,
+        -3.17,
+        13.2
+      ],
+      "scale": 0.738,
+      "rotationY": 4.051,
+      "role": "framing",
+      "view": "wide"
+    },
+    {
+      "position": [
+        21.3,
+        -3.17,
+        15.05
+      ],
+      "scale": 1.287,
+      "rotationY": 1.469,
+      "role": "framing",
+      "view": "wide"
+    },
+    {
+      "position": [
+        18.3,
+        -3.17,
+        9.5
+      ],
+      "scale": 0.945,
+      "rotationY": 3.525,
+      "role": "framing",
+      "view": "wide"
+    },
+    {
+      "position": [
+        15.4,
+        -3.17,
+        11.35
+      ],
+      "scale": 0.774,
+      "rotationY": 3.212,
+      "role": "framing",
+      "view": "wide"
+    },
+    {
+      "position": [
+        -23.6,
+        -3.17,
+        13.2
+      ],
+      "scale": 1.017,
+      "rotationY": 6.23,
+      "role": "framing",
+      "view": "wide"
+    },
+    {
+      "position": [
+        23.7,
+        -3.17,
+        15.05
+      ],
+      "scale": 0.972,
+      "rotationY": 3.843,
+      "role": "framing",
+      "view": "wide"
+    },
+    {
+      "position": [
+        -11,
+        -3.16,
+        9.5
+      ],
+      "scale": 0.823,
+      "rotationY": 4.803,
+      "role": "framing",
+      "view": "portrait"
+    },
+    {
+      "position": [
+        0.7,
+        -3.16,
+        11.35
+      ],
+      "scale": 0.932,
+      "rotationY": 5.859,
+      "role": "framing",
+      "view": "portrait"
+    },
+    {
+      "position": [
+        -9.1,
+        -3.16,
+        13.2
+      ],
+      "scale": 0.445,
+      "rotationY": 3.276,
+      "role": "framing",
+      "view": "portrait"
+    },
+    {
+      "position": [
+        0.2,
+        -3.16,
+        15.05
+      ],
+      "scale": 0.445,
+      "rotationY": 2.337,
+      "role": "framing",
+      "view": "portrait"
+    },
+    {
+      "position": [
+        -18.414,
+        -6.523,
+        -59.433
+      ],
+      "scale": 0.865,
+      "rotationY": 3.657,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        21.642,
+        -9.965,
+        -61.277
+      ],
+      "scale": 0.777,
+      "rotationY": 0.504,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        -12.568,
+        -8.55,
+        -60.329
+      ],
+      "scale": 0.819,
+      "rotationY": 0.405,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        18.346,
+        -11.348,
+        -61.598
+      ],
+      "scale": 0.721,
+      "rotationY": 1.049,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        -16.577,
+        -6.344,
+        -60.805
+      ],
+      "scale": 0.791,
+      "rotationY": 0.832,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        18.244,
+        -11.507,
+        -60.637
+      ],
+      "scale": 0.714,
+      "rotationY": 1.15,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        -17.798,
+        -6.116,
+        -61.176
+      ],
+      "scale": 0.871,
+      "rotationY": 5.474,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        21.206,
+        -10.356,
+        -62.649
+      ],
+      "scale": 0.605,
+      "rotationY": 1.956,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        -13.017,
+        -8.49,
+        -62.321
+      ],
+      "scale": 0.974,
+      "rotationY": 5.935,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        18.837,
+        -11.612,
+        -60.549
+      ],
+      "scale": 0.765,
+      "rotationY": 2.428,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        -16.502,
+        -6.385,
+        -60.671
+      ],
+      "scale": 0.748,
+      "rotationY": 1.623,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        10.82,
+        -11.353,
+        -60.277
+      ],
+      "scale": 0.838,
+      "rotationY": 4.864,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        -16.25,
+        -6.536,
+        -60.854
+      ],
+      "scale": 0.671,
+      "rotationY": 1.573,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        11.662,
+        -11.435,
+        -62.278
+      ],
+      "scale": 0.637,
+      "rotationY": 0.244,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        -12.212,
+        -8.381,
+        -60.734
+      ],
+      "scale": 1.019,
+      "rotationY": 3.307,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        13.238,
+        -11.428,
+        -60.832
+      ],
+      "scale": 0.721,
+      "rotationY": 5.166,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        -18.65,
+        -6.651,
+        -59.326
+      ],
+      "scale": 0.91,
+      "rotationY": 2.706,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        18.272,
+        -11.306,
+        -61.502
+      ],
+      "scale": 0.613,
+      "rotationY": 4.6,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        -15.057,
+        -7.222,
+        -61.082
+      ],
+      "scale": 0.614,
+      "rotationY": 0.651,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        20.699,
+        -10.667,
+        -62.833
+      ],
+      "scale": 0.909,
+      "rotationY": 5.418,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        -17.334,
+        -6.661,
+        -59.315
+      ],
+      "scale": 0.989,
+      "rotationY": 6.004,
+      "role": "ridge"
+    },
+    {
+      "position": [
+        -20.995,
+        -6.772,
+        -80.431
+      ],
+      "scale": 0.517,
+      "rotationY": 5.603,
+      "role": "distant"
+    },
+    {
+      "position": [
+        12.725,
+        -4.34,
+        -81.959
+      ],
+      "scale": 0.535,
+      "rotationY": 0.635,
+      "role": "distant"
+    },
+    {
+      "position": [
+        -13.366,
+        -6.782,
+        -81.643
+      ],
+      "scale": 0.588,
+      "rotationY": 0.707,
+      "role": "distant"
+    },
+    {
+      "position": [
+        15.983,
+        -2.888,
+        -81.402
+      ],
+      "scale": 0.529,
+      "rotationY": 2.71,
+      "role": "distant"
+    },
+    {
+      "position": [
+        -18.247,
+        -6.022,
+        -80.23
+      ],
+      "scale": 0.598,
+      "rotationY": 1.68,
+      "role": "distant"
+    },
+    {
+      "position": [
+        12.197,
+        -4.575,
+        -82.117
+      ],
+      "scale": 0.429,
+      "rotationY": 3.216,
+      "role": "distant"
+    },
+    {
+      "position": [
+        -15.843,
+        -6.666,
+        -79.996
+      ],
+      "scale": 0.421,
+      "rotationY": 1.92,
+      "role": "distant"
+    },
+    {
+      "position": [
+        16.413,
+        -2.793,
+        -80.887
+      ],
+      "scale": 0.638,
+      "rotationY": 4.046,
+      "role": "distant"
+    },
+    {
+      "position": [
+        -12.201,
+        -6.682,
+        -81.919
+      ],
+      "scale": 0.407,
+      "rotationY": 0.944,
+      "role": "distant"
+    },
+    {
+      "position": [
+        21.171,
+        -2.043,
+        -80.905
+      ],
+      "scale": 0.552,
+      "rotationY": 0.451,
+      "role": "distant"
+    },
+    {
+      "position": [
+        -16.659,
+        -6.611,
+        -80.665
+      ],
+      "scale": 0.451,
+      "rotationY": 5.515,
+      "role": "distant"
+    },
+    {
+      "position": [
+        15.677,
+        -2.865,
+        -81.777
+      ],
+      "scale": 0.467,
+      "rotationY": 4.659,
+      "role": "distant"
+    },
+    {
+      "position": [
+        -19.851,
+        -6.369,
+        -80.323
+      ],
+      "scale": 0.516,
+      "rotationY": 2.488,
+      "role": "distant"
+    },
+    {
+      "position": [
+        19.02,
+        -2.879,
+        -81.671
+      ],
+      "scale": 0.604,
+      "rotationY": 0.3,
+      "role": "distant"
+    },
+    {
+      "position": [
+        -10.302,
+        -6.793,
+        -82.185
+      ],
+      "scale": 0.565,
+      "rotationY": 2.17,
+      "role": "distant"
+    }
+  ]
+}

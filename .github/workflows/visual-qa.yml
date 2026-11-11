@@ -1,0 +1,43 @@
+name: Gongang 3D visual QA
+
+on:
+  push:
+    branches: [threejs-model-assets]
+  pull_request:
+    paths:
+      - 'public/**'
+      - 'server.mjs'
+      - 'test/**'
+      - 'package.json'
+      - '.github/workflows/visual-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scenic-render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install runtime dependencies
+        run: npm install --no-audit --no-fund
+      - name: Check scripts and mesh integrity
+        run: npm run check
+      - name: Install screenshot harness
+        run: npm install --no-save --no-audit --no-fund playwright
+      - name: Install headless Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Capture desktop/mobile scenes
+        run: node test/visual-qa.mjs
+      - name: Upload landscape QA captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gongang-landscape-visual-qa
+          path: artifacts/landscape/
+          if-no-files-found: warn

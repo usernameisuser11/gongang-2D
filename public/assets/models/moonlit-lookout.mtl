@@ -1,0 +1,129 @@
+# Gongang - physically inspired palette for 3D lookout
+newmtl StoneSlate
+Ka 0.060 0.060 0.060
+Kd 0.115 0.157 0.188
+Ks 0.040 0.040 0.040
+Ns 22.0
+d 1.0
+illum 2
+
+newmtl StoneBlue
+Ka 0.060 0.060 0.060
+Kd 0.154 0.193 0.211
+Ks 0.050 0.050 0.050
+Ns 22.0
+d 1.0
+illum 2
+
+newmtl StoneLichen
+Ka 0.060 0.060 0.060
+Kd 0.23 0.254 0.223
+Ks 0.060 0.060 0.060
+Ns 22.0
+d 1.0
+illum 2
+
+newmtl WoodOld
+Ka 0.060 0.060 0.060
+Kd 0.34 0.28 0.25
+Ks 0.080 0.080 0.080
+Ns 22.0
+d 1.0
+illum 2
+
+newmtl WoodWarm
+Ka 0.060 0.060 0.060
+Kd 0.44 0.333 0.254
+Ks 0.100 0.100 0.100
+Ns 22.0
+d 1.0
+illum 2
+
+newmtl IronBlue
+Ka 0.060 0.060 0.060
+Kd 0.092 0.119 0.134
+Ks 0.230 0.230 0.230
+Ns 22.0
+d 1.0
+illum 2
+
+newmtl IronHighlight
+Ka 0.060 0.060 0.060
+Kd 0.20 0.237 0.230
+Ks 0.300 0.300 0.300
+Ns 22.0
+d 1.0
+illum 2
+
+newmtl LanternMetal
+Ka 0.060 0.060 0.060
+Kd 0.32 0.263 0.19
+Ks 0.480 0.480 0.480
+Ns 22.0
+d 1.0
+illum 2
+
+newmtl LanternGlass
+Ka 0.060 0.060 0.060
+Kd 0.75 0.58 0.31
+Ks 0.120 0.120 0.120
+Ns 22.0
+d 1.0
+illum 2
+
+newmtl LanternGlow
+Ka 0.060 0.060 0.060
+Kd 1.0 0.67 0.33
+Ks 0.450 0.450 0.450
+Ns 22.0
+d 1.0
+illum 2
+
+newmtl LeafSage
+Ka 0.060 0.060 0.060
+Kd 0.20 0.32 0.25
+Ks 0.070 0.070 0.070
+Ns 22.0
+d 1.0
+illum 2
+
+newmtl LeafDeep
+Ka 0.060 0.060 0.060
+Kd 0.08 0.25 0.23
+Ks 0.060 0.060 0.060
+Ns 22.0
+d 1.0
+illum 2
+
+newmtl FlowerCream
+Ka 0.060 0.060 0.060
+Kd 0.83 0.75 0.64
+Ks 0.040 0.040 0.040
+Ns 22.0
+d 1.0
+illum 2
+
+newmtl FlowerMauve
+Ka 0.060 0.060 0.060
+Kd 0.60 0.46 0.55
+Ks 0.050 0.050 0.050
+Ns 22.0
+d 1.0
+illum 2
+
+newmtl FlowerAmber
+Ka 0.060 0.060 0.060
+Kd 0.80 0.55 0.22
+Ks 0.060 0.060 0.060
+Ns 22.0
+d 1.0
+illum 2
+
+newmtl ReedStem
+Ka 0.060 0.060 0.060
+Kd 0.26 0.36 0.27
+Ks 0.060 0.060 0.060
+Ns 22.0
+d 1.0
+illum 2
+

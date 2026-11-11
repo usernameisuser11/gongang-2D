@@ -20,6 +20,28 @@ const stellarGrainScript = await readFile(join(ROOT, 'public', 'stellar-grains.j
 const painterlyScript = await readFile(join(ROOT, 'public', 'scenic-art.js'));
 const natureMotionScript = await readFile(join(ROOT, 'public', 'nature-motion.js'));
 const dioramaScript = await readFile(join(ROOT, 'public', 'diorama-3d.js'));
+const scenicModelLoader = await readFile(join(ROOT, 'public', 'scenic-model-loader.js'));
+const cinematicAtmosphere = await readFile(join(ROOT, 'public', 'cinematic-atmosphere.js'));
+const livingEnvironment = await readFile(join(ROOT, 'public', 'living-environment-3d.js'));
+const livingOverlook25d = await readFile(join(ROOT, 'public', 'overlook-25d.js'));
+const valleySculpt = await readFile(join(ROOT, 'public', 'valley-sculpt-3d.js'));
+const terrainStream = await readFile(join(ROOT, 'public', 'terrain-stream-3d.js'));
+const overlookDetails3d = await readFile(join(ROOT, 'public', 'overlook-details-3d.js'));
+const cinematicForest3d = await readFile(join(ROOT, 'public', 'cinematic-forest-3d.js'));
+const rockMaterials = await readFile(join(ROOT, 'public', 'rock-materials-3d.js'));
+const foliageBillboards3d = await readFile(join(ROOT, 'public', 'foliage-billboards-3d.js'));
+const hybridScenicProps = await readFile(join(ROOT, 'public', 'hybrid-scenic-props.js'));
+const painterlyClouds = await readFile(join(ROOT, 'public', 'painterly-clouds-3d.js'));
+const scenicModelNames = [
+  'moonlit-lookout.obj', 'moonlit-lookout.mtl',
+  'alpine-valley.obj', 'alpine-valley.mtl',
+  'alpine-pine.obj', 'alpine-pine.mtl',
+  'alpine-grove.json'
+];
+const scenicModelAssets = new Map(await Promise.all(scenicModelNames.map(async name => [
+  '/assets/models/' + name,
+  await readFile(join(ROOT, 'public', 'assets', 'models', name))
+])));
 const threeModule = await readFile(join(ROOT, 'node_modules', 'three', 'build', 'three.module.js'));
 const threeCore = await readFile(join(ROOT, 'node_modules', 'three', 'build', 'three.core.js'));
 const foliageGpuScript = await readFile(join(ROOT, 'public', 'foliage-gpu.js'));
@@ -86,7 +108,7 @@ const server = createServer((req, res) => {
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Content-Length': html.length,
-      'Content-Security-Policy': "default-src 'self' data: blob:; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+      'Content-Security-Policy': "default-src 'self' data: blob:; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.open-meteo.com ws: wss:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
     });
     if (req.method === 'HEAD') res.end();
     else res.end(html);
@@ -129,6 +151,50 @@ const server = createServer((req, res) => {
       'Cache-Control': 'public, max-age=300'
     });
     res.end(req.method === 'HEAD' ? undefined : source);
+    return;
+  }
+  // The browser loads the editable 3D meshes as static content; no path traversal.
+  if (path === '/scenic-model-loader.js' ||
+      path === '/cinematic-atmosphere.js' ||
+      path === '/living-environment-3d.js' ||
+      path === '/overlook-25d.js' ||
+      path === '/valley-sculpt-3d.js' ||
+      path === '/terrain-stream-3d.js' ||
+      path === '/overlook-details-3d.js' ||
+      path === '/cinematic-forest-3d.js' ||
+      path === '/rock-materials-3d.js' ||
+      path === '/foliage-billboards-3d.js' ||
+      path === '/hybrid-scenic-props.js' ||
+      path === '/painterly-clouds-3d.js') {
+    const script = path === '/scenic-model-loader.js' ? scenicModelLoader
+      : path === '/cinematic-atmosphere.js' ? cinematicAtmosphere
+      : path === '/living-environment-3d.js' ? livingEnvironment
+      : path === '/overlook-25d.js' ? livingOverlook25d
+      : path === '/valley-sculpt-3d.js' ? valleySculpt
+      : path === '/terrain-stream-3d.js' ? terrainStream
+      : path === '/overlook-details-3d.js' ? overlookDetails3d
+      : path === '/cinematic-forest-3d.js' ? cinematicForest3d
+      : path === '/rock-materials-3d.js' ? rockMaterials
+      : path === '/foliage-billboards-3d.js' ? foliageBillboards3d
+      : path === '/hybrid-scenic-props.js' ? hybridScenicProps
+      : painterlyClouds;
+    res.writeHead(200, {
+      'Content-Type': 'text/javascript; charset=utf-8',
+      'Content-Length': script.byteLength,
+      'Cache-Control': 'public, max-age=300'
+    });
+    res.end(req.method === 'HEAD' ? undefined : script);
+    return;
+  }
+  if (scenicModelAssets.has(path)) {
+    const asset = scenicModelAssets.get(path);
+    const type = path.endsWith('.json') ? 'application/json' : 'text/plain';
+    res.writeHead(200, {
+      'Content-Type': type + '; charset=utf-8',
+      'Content-Length': asset.byteLength,
+      'Cache-Control': 'public, max-age=300'
+    });
+    res.end(req.method === 'HEAD' ? undefined : asset);
     return;
   }
   if (path === '/scenic-art.js') {
