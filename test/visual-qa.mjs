@@ -11,16 +11,15 @@ import { chromium } from 'playwright';
 const PORT = 43117;
 const ROOT = 'http://127.0.0.1:' + PORT;
 const snapshots = [
-  { name: 'desktop-live-dawn', width: 1440, height: 900, query: '?map=stargaze&time=06:10&weather=clear', kind: 'live', expectedHour: 6.1667, expectedWeather: 'clear' },
-  { name: 'desktop-live-day', width: 1440, height: 900, query: '?map=stargaze&time=13:20&weather=cloudy', kind: 'live', expectedHour: 13.3333, expectedWeather: 'cloudy' },
-  { name: 'desktop-live-sunset', width: 1440, height: 900, query: '?map=stargaze&time=18:10&weather=clear', kind: 'live', expectedHour: 18.1667, expectedWeather: 'clear' },
-  { name: 'desktop-live-night', width: 1440, height: 900, query: '?map=stargaze&time=23:20&weather=clear', kind: 'live', expectedHour: 23.3333, expectedWeather: 'clear' },
-  { name: 'desktop-cinematic-moon', width: 1440, height: 900, query: '?map=stargaze&time=18:10&weather=clear&moon=show', kind: 'live', expectedHour: 18.1667, expectedWeather: 'clear', expectedMoon: true },
-  { name: 'mobile-live-rain', width: 390, height: 844, query: '?map=stargaze&time=16:10&weather=rain', kind: 'live', expectedHour: 16.1667, expectedWeather: 'rain' },
-  { name: 'mobile-live-snow', width: 390, height: 844, query: '?map=stargaze&time=08:10&weather=snow', kind: 'live', expectedHour: 8.1667, expectedWeather: 'snow' },
-  { name: 'desktop-painterly-baseline', width: 1440, height: 900, query: '?map=stargaze&renderer=2d', kind: 'painterly' },
-  { name: 'desktop-hybrid-baseline', width: 1440, height: 900, query: '?map=stargaze&renderer=2d&hybrid=on', kind: 'hybrid' },
-  { name: 'desktop-sculpted-3d-baseline', width: 1440, height: 900, query: '?map=stargaze&renderer=3d', kind: '3d' }
+  { name: 'desktop-25d-dawn', width: 1440, height: 900, query: '?map=stargaze&time=06:10&weather=clear', kind: '25d', expectedHour: 6.1667, expectedWeather: 'clear' },
+  { name: 'desktop-25d-day', width: 1440, height: 900, query: '?map=stargaze&time=13:20&weather=cloudy', kind: '25d', expectedHour: 13.3333, expectedWeather: 'cloudy' },
+  { name: 'desktop-25d-sunset', width: 1440, height: 900, query: '?map=stargaze&time=18:10&weather=clear', kind: '25d', expectedHour: 18.1667, expectedWeather: 'clear' },
+  { name: 'desktop-25d-night', width: 1440, height: 900, query: '?map=stargaze&time=23:20&weather=clear', kind: '25d', expectedHour: 23.3333, expectedWeather: 'clear' },
+  { name: 'desktop-25d-moon', width: 1440, height: 900, query: '?map=stargaze&time=18:10&weather=clear&moon=show', kind: '25d', expectedHour: 18.1667, expectedWeather: 'clear', expectedMoon: true },
+  { name: 'mobile-25d-rain', width: 390, height: 844, query: '?map=stargaze&time=16:10&weather=rain', kind: '25d', expectedHour: 16.1667, expectedWeather: 'rain' },
+  { name: 'mobile-25d-snow', width: 390, height: 844, query: '?map=stargaze&time=08:10&weather=snow', kind: '25d', expectedHour: 8.1667, expectedWeather: 'snow' },
+  { name: 'desktop-painted-baseline', width: 1440, height: 900, query: '?map=stargaze&renderer=2d', kind: 'painterly' },
+  { name: 'desktop-legacy-3d', width: 1440, height: 900, query: '?map=stargaze&renderer=3d', kind: '3d' }
 ];
 
 const server = spawn(process.execPath, ['server.mjs'], {
@@ -75,7 +74,12 @@ try {
     });
     try {
       await page.goto(ROOT + '/' + config.query, { waitUntil: 'domcontentloaded' });
-      if (config.kind === '3d' || config.kind === 'live') {
+      if (config.kind === '25d') {
+        await page.waitForFunction(() => {
+          const s = window.GongangOverlook25D?.state;
+          return Boolean(s?.frameCount > 2 || s?.failed);
+        }, null, { timeout: 30000 });
+      } else if (config.kind === '3d' || config.kind === 'live') {
         await page.waitForFunction(() => {
           const s = window.GongangDiorama3D?.state;
           return Boolean(s?.renderCount > 2 || s?.failed);
@@ -110,6 +114,7 @@ try {
           painterly: window.GongangPainterly?.state || null,
           hybrid: window.GongangHybrid3D?.state || null,
           environment: s.environment || null,
+          overlook25d: window.GongangOverlook25D?.state || null,
           liveMode: s.liveMode,
           sculptedRidges:s.sculptedRidges, groveAnchored:s.groveAnchored, freeSeating:s.freeSeating, geologyPieces:s.geologyPieces,
           terrainTopology:s.terrainTopology, terrainTriangles:s.terrainTriangles, terrainStreamVertices:s.terrainStreamVertices
@@ -118,6 +123,26 @@ try {
       const canvas = page.locator('#game');
       await canvas.screenshot({ path: 'artifacts/landscape/' + config.name + '.png' });
       results.push({ name: config.name, state, errors });
+      if (config.kind === '25d') {
+        const o=state.overlook25d;
+        assert.equal(o?.failed, false, config.name + ': ' + o?.error);
+        assert.equal(o?.ready, true, config.name + ': 2.5D renderer unavailable');
+        assert.ok(o.frameCount > 2, config.name + ': world is not animating');
+        assert.ok(o.ridgeCount >= 6, 'Several depth-separated mountains are required');
+        assert.ok(o.treeCount > (config.width < 600 ? 250 : 700),
+          '3D tree silhouettes not instanced correctly: '+o.treeCount);
+        assert.equal(o.retainsVisitors, true, 'Real visitor compositing disabled');
+        assert.equal(o.weather?.weather, config.expectedWeather, 'Weather preview mismatch');
+        assert.ok(Math.abs(o.weather?.hour-config.expectedHour)<.025,
+          'Clock preview failed: '+o.weather?.hour);
+        assert.ok(o.weather?.renderCount > 2, 'Live celestial/weather model not updating');
+        if(config.expectedMoon){
+          assert.equal(o.weather?.moonVisible, true, 'Crescent scene lost its moon');
+          const p=o.weather?.moonUV;
+          assert.ok(p && p.x>0 && p.x<1 && p.y>0 && p.y<1,
+            'Moon out of visible sky: '+JSON.stringify(p));
+        }
+      }
       if (config.kind === 'painterly' || config.kind === 'hybrid') {
         assert.equal(state.painterly?.ready, true, config.name + ': painted art missing');
         assert.ok(state.painterly.renderCount > 2, config.name + ': art not rendering');
