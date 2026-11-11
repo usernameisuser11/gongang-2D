@@ -701,7 +701,9 @@ const soilNightColor=new THREE.Color('#183151');
 const soilDayColor=new THREE.Color('#274943');
 const soilDuskColor=new THREE.Color('#4e325b');
 const requestedRenderer=new URLSearchParams(location.search).get('renderer');
-const enabled=!['2d','painterly','3d','live3d'].includes(requestedRenderer);
+// Heavy procedural mountains are only initialized when specifically requested.
+// Default visitors get the art-directed background with lightweight 3D props.
+const enabled=['procedural','25d'].includes(requestedRenderer);
 const portrait=innerWidth<700&&innerHeight>innerWidth*1.2;
 if(enabled)try{
  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'low-power',
