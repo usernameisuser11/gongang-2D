@@ -30,32 +30,37 @@ const fract=x=>x-Math.floor(x);
 const hash=(x,n)=>fract(Math.sin(x*127.1+n*311.7)*43758.5453123);
 const noise=(x,n)=>{let i=Math.floor(x),f=fract(x);f=f*f*(3-2*f);return (hash(i,n)*(1-f)+hash(i+1,n)*f)*2-1;};
 function crest(x,l){
- const axis=x-l.turn;
- const shoulder=l.rise*Math.pow(Math.abs(axis)/25,1.34);
+ // Each ridge has a different saddle, asymmetric shoulder and eroded spurs.
+ // No mirrored V-walls or an identical hill repeated at every distance.
+ const axis=x-l.turn+(l.seed%7-3)*.52;
+ const distance=Math.abs(axis);
  const hill=(cx,w,h)=>h*Math.exp(-Math.pow((x-cx)/w,2)*1.7);
- // Asymmetric rocky range shoulders and distant serrated alpine summits.
- // Different frequencies per z-depth avoid a stack of identical V-shaped hills.
- const rock=noise(x*.16,l.seed)*1.08+noise(x*.49,l.seed+11)*.50+
-   noise(x*1.55,l.seed+29)*.24+noise(x*3.10,l.seed+44)*.09;
+ const asym=axis<0?.88+((l.seed%4)*.045):1.10-((l.seed%3)*.035);
+ const shoulder=l.rise*Math.pow(distance/28.8,1.34)*asym;
+ const pedestal=.63*noise(x*.046,l.seed+91)*Math.min(1,distance/16);
+ const contour=noise(x*.093,l.seed+5)*1.02
+   +noise(x*.25,l.seed+16)*.34+noise(x*.66,l.seed+33)*.14;
  const alpine=l.alpine||0;
- const summits=alpine*(
-   hill(-29-l.turn,8.3,1.15)+hill(-12-l.turn,6.2,1.30)+
-   hill(11+l.turn,7.8,1.25)+hill(29+l.turn,6.8,1.18))+
-   alpine*Math.pow(Math.max(0,noise(x*.42,l.seed+77)),3)*1.75;
- const valleyOffset=1.15*Math.sin((x-l.turn)*.076+l.seed*.7);
- return l.center+shoulder+rock+valleyOffset+
-   hill(-23-l.turn,11,2.2)+hill(18+l.turn,12,2.8)+
-   hill(6+l.turn,6,l.peak)+summits;
+ const farPeak=alpine*(hill(-32+(l.seed%6),7.1,2.4)
+   +hill(24-(l.seed%8),9.5,2.1)
+   +hill(-8+(l.seed%5),4.1,.75))
+   +alpine*Math.pow(Math.max(0,noise(x*.32,l.seed+77)),3)*1.3;
+ const spurL=hill(-27+(l.seed%9),12.5,2.1+.26*(l.seed%4));
+ const spurR=hill(18+(l.seed%11),9.8,2.0+.32*(l.seed%3));
+ const saddle=hill((l.seed%11)-5,8.7,-.80);
+ const erosion=contour*(.30+.70*Math.min(1,distance/23));
+ return l.center+shoulder+pedestal+erosion+farPeak
+   +spurL+spurR+saddle+hill(4+(l.seed%7),5.9,l.peak*.53);
 }
 const LAYERS=[
- {name:'far alpine snow',z:-172,center:-12.2,rise:3.5,turn:2,peak:2.4,alpine:1.5,seed:8,base:'#849bc9',day:'#9caeae'},
- {name:'blue alpine summits',z:-157,center:-13.2,rise:4.1,turn:-1,peak:2.5,alpine:1.8,seed:13,base:'#758bc0',day:'#81a6b4'},
- {name:'horizon foothills',z:-143,center:-13.5,rise:4.5,turn:0,peak:2.3,alpine:.9,seed:19,base:'#6f86b5',day:'#7b9b9e'},
- {name:'lavender peaks',z:-126,center:-14.2,rise:5.4,turn:-4,peak:3.0,alpine:.4,seed:27,base:'#6484ba',day:'#648e93'},
- {name:'distant cobalt',z:-110,center:-13.8,rise:6.6,turn:3,peak:2.6,seed:33,base:'#386c9b',day:'#437a81'},
- {name:'teal valleys',z:-94,center:-13.7,rise:7.5,turn:-2,peak:2.3,seed:41,base:'#28688d',day:'#427c75'},
- {name:'deep fir hills',z:-78,center:-12.8,rise:8.8,turn:2,peak:2.0,seed:55,base:'#173d67',day:'#365d59'},
- {name:'near forest slopes',z:-62,center:-12.0,rise:9.8,turn:-1,peak:1.8,seed:67,base:'#0d2c51',day:'#295348'}
+ {name:'far alpine snow',z:-172,center:-12.2,rise:3.5,turn:2,peak:2.4,alpine:1.5,seed:8,base:'#849bc9',day:'#b0c5c9'},
+ {name:'blue alpine summits',z:-157,center:-13.2,rise:4.1,turn:-1,peak:2.5,alpine:1.8,seed:13,base:'#758bc0',day:'#9fbac3'},
+ {name:'horizon foothills',z:-143,center:-13.5,rise:4.5,turn:0,peak:2.3,alpine:.9,seed:19,base:'#6f86b5',day:'#92b1ad'},
+ {name:'lavender peaks',z:-126,center:-14.2,rise:5.4,turn:-4,peak:3.0,alpine:.4,seed:27,base:'#6484ba',day:'#7da4aa'},
+ {name:'distant cobalt',z:-110,center:-13.8,rise:6.6,turn:3,peak:2.6,seed:33,base:'#386c9b',day:'#6d9e9c'},
+ {name:'teal valleys',z:-94,center:-13.7,rise:7.5,turn:-2,peak:2.3,seed:41,base:'#28688d',day:'#6a9a82'},
+ {name:'deep fir hills',z:-78,center:-12.8,rise:8.8,turn:2,peak:2.0,seed:55,base:'#173d67',day:'#507f69'},
+ {name:'near forest slopes',z:-62,center:-12.0,rise:9.8,turn:-1,peak:1.8,seed:67,base:'#0d2c51',day:'#466c59'}
 ];
 const MOUNTAIN_VS=`
 varying vec3 vPigment,vFaceNormal;
@@ -104,7 +109,7 @@ void main(){
     .15*strata+.16*(erosionBand-.5)));
   vec3 lightVector=normalize(uLightDir);
   float incidence=max(0.,dot(relief,lightVector));
-  float diffuse=.70+.30*incidence;
+  float diffuse=.78+.37*incidence;
   float selfOcclusion=smoothstep(-.20,.54,
     sin(vUV.x*19.4+strata*1.6+uSunAzimuth*1.8));
   float ridgeShade=1.-uShadow*(1.-incidence)*(.20+.30*selfOcclusion);
@@ -113,7 +118,9 @@ void main(){
   vec3 day=mix(vPigment*vec3(1.12,1.25,1.0),
     uDayHue*(.66+.29*vUV.y),.82);
   vec3 col=mix(night,day,clamp(uDay,0.,1.));
-  col*=mix(.82,1.08,uDay*.78)*diffuse*ridgeShade*terrainShadow;
+  col*=mix(.82,1.38,uDay*.92)*diffuse*ridgeShade*terrainShadow;
+  // A broad daylight bounce from the open sky reaches mid-valley faces.
+  col+=uDay*(1.-uDepthWeight)*vec3(.027,.046,.029)*(1.-uStorm*.65);
   // Aerial perspective lets far mountains catch blue-lavender twilight.
   // Close forest hills stay in silhouette; not one flat filter on every hill.
   col+=vec3(.065,.125,.21)*uTwilight*uDepthWeight*(.35+.65*vUV.y);
