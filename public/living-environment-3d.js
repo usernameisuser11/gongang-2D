@@ -112,32 +112,44 @@ float textured(vec2 p){
 void main(){
  vec2 p=(vUv-.5)*2.;
  float r=length(p);
- float edge=1.-smoothstep(.444,.466,r);
- float halo=exp(-r*r*12.)*.052+exp(-r*r*56.)*.12;
+ float disk=1.-smoothstep(.436,.454,r);
+ float halo=exp(-r*r*9.)*.042+exp(-r*r*43.)*.10;
  if(uMoon>.5){
-   // A smoothly shaded genuine changing phase, not a flat C-shaped decal.
-   // The lunar surface remains very faint in shadow (earthshine).
+   // A lit spherical disc with correct waxing / waning terminator,
+   // rather than a bright geometric C stamped on a transparent card.
    float width=sqrt(max(0.,.445*.445-p.y*p.y));
    float terminator=cos(6.283185*uPhase)*width;
    float waxing=1.-step(.5,uPhase);
-   float litRight=smoothstep(terminator-.012,terminator+.012,p.x);
-   float litLeft=1.-smoothstep(-terminator-.012,-terminator+.012,p.x);
+   float softness=.010+.009*(1.-clamp(width/.445,0.,1.));
+   float litRight=smoothstep(terminator-softness,terminator+softness,p.x);
+   float litLeft=1.-smoothstep(-terminator-softness,-terminator+softness,p.x);
    float lit=mix(litLeft,litRight,waxing);
-   float surface=textured(p*1.4)+textured(p*3.9)*.31;
-   float mare=1.-.14*surface;
-   float edgeRim=pow(max(0.,1.-r/.46),.26);
-   vec3 ivory=vec3(1.0,.94,.82)*mare*(.85+.15*edgeRim);
-   vec3 dark=vec3(.058,.079,.116)*(1.-.15*surface);
-   float earthshine=edge*.007*uNight;
-   vec3 col=mix(dark,ivory,lit);
-   float alpha=edge*(lit*.96+(1.-lit)*earthshine);
-   col+=vec3(.25,.22,.27)*halo*.20;
-   gl_FragColor=vec4(col,alpha+halo*.25*uNight);
+   float sphere=sqrt(max(0.,1.-pow(clamp(r/.445,0.,1.),2.)));
+   // Maria, small impact basins and granular regolith are very subtle:
+   // surface marks vary continuously and never form discrete sticker circles.
+   float sea=.61*textured(p*1.55+vec2(3.1,-1.2))
+     +.27*textured(p*4.2-vec2(1.8,2.4))
+     +.12*textured(p*11.5);
+   float basin1=exp(-dot((p-vec2(-.12,.13))*vec2(4.5,7.8),
+                         (p-vec2(-.12,.13))*vec2(4.5,7.8)))*.045;
+   float basin2=exp(-dot((p-vec2(.18,-.09))*vec2(7.4,5.2),
+                         (p-vec2(.18,-.09))*vec2(7.4,5.2)))*.034;
+   float surface=.92+.14*(sea-.5)-basin1-basin2;
+   float limbShade=.78+.22*pow(sphere,.35);
+   vec3 ivory=vec3(.99,.96,.88)*surface*limbShade;
+   vec3 earth=vec3(.075,.111,.158)*( .84+.18*sea);
+   vec3 color=mix(earth,ivory,lit);
+   float earthshine=.037*uNight*(1.-lit);
+   float alpha=disk*(lit*.97+earthshine);
+   // Restrained atmosphere bloom, mostly perceptible around the night moon.
+   color+=vec3(.13,.17,.26)*halo*.16*uNight;
+   gl_FragColor=vec4(color,alpha+halo*.20*uNight);
  }else{
    float shine=1.-smoothstep(.43,.47,r);
    gl_FragColor=vec4(vec3(1.,.83,.51),shine*.91+halo*.58);
  }
-}`;
+}
+`;
 const PARTICLE_VERT=`
 precision highp float;
 attribute float aSeed;uniform float uTime,uWind,uSnow,uIntensity;
