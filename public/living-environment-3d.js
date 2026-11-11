@@ -35,20 +35,32 @@ void main(){
  col=mix(col,vec3(.008,.012,.065),twilight*smoothstep(.67,.98,h)*.82);
  col+=vec3(.20,.038,.11)*twilight*gauss(h-.22,.25)*gauss(sx-.55,.70);
  col+=vec3(.54,.22,.078)*twilight*gauss(h-.06,.105)*gauss(sx-.51,.37);
- // Independent, advecting high-altitude cirrus and stratified lower clouds.
- vec2 flow=vec2(sx*5.8-t*(.003+.001*uWind),h*4.8);
+ // Cloud masses stretch along the winds and split into translucent
+ // fibrous sheets. Independent scales avoid an oversized noisy ceiling.
+ // This remains a single GPU sky plane rather than dozens of cloud sprites.
+ vec2 flow=vec2(sx*5.8-t*(.0017+.0007*uWind),h*4.8);
  float n=fbm(flow+vec2(11.3,7.8));
  float fine=fbm(flow*vec2(2.8,1.9)+vec2(26.1,5.5));
  float swirl=fbm(flow*vec2(1.9,1.3)+vec2(73.,19.));
- float filament=smoothstep(.54,.70,n*.82+fine*.26+swirl*.16);
- float cirrus=smoothstep(.62,.82,fbm(vec2(sx*17.-t*.0014,h*4.9)+vec2(17.,51.)))
-   *gauss(h-.68,.33);
- float cloudCover=clamp(uCloud*.87+.09,0.,.9);
- float clouds=(filament*(.23+.64*gauss(h-.41,.38))+cirrus*.24)*cloudCover;
- vec3 cloudTone=mix(vec3(.15,.18,.33),vec3(.29,.38,.62),fine);
- cloudTone=mix(cloudTone,vec3(.88,.37,.63),twilight*(.36+.35*(1.-h)));
- cloudTone=mix(cloudTone,vec3(.69,.83,.96),1.-uNight);
- col=mix(col,cloudTone,clouds*.84);
+ float cloudField=.62*n+.25*fine+.13*swirl;
+ float cloudCover=clamp(uCloud*.87+.09,0.,.94);
+ float filament=smoothstep(.34,.62,cloudField);
+ float veilField=fbm(vec2(sx*13.-t*.0008,h*3.8)+vec2(17.,51.));
+ float cirrus=smoothstep(.40,.69,veilField)*gauss(h-.68,.36);
+ float clouds=(filament*(.22+.58*gauss(h-.44,.39))
+   +cirrus*.16)*cloudCover;
+ float litTop=clamp(.46+(n-fine)*.85+.24*h,0.,1.);
+ vec3 cloudNight=mix(vec3(.07,.13,.27),vec3(.19,.28,.45),litTop);
+ vec3 cloudDay=mix(vec3(.44,.62,.75),vec3(.91,.95,1.),litTop);
+ vec3 cloudTone=mix(cloudNight,cloudDay,1.-uNight);
+ vec3 sunsetCloud=mix(vec3(.40,.23,.48),vec3(1.03,.59,.56),litTop);
+ cloudTone=mix(cloudTone,sunsetCloud,twilight*.79*(1.-.25*h));
+ col=mix(col,cloudTone,clouds*.78);
+ // Multiple scattering near the horizon is a diffuse gradient, not a
+ // hard white strip. Morning haze is bluer, golden only near twilight.
+ vec3 daylightHaze=vec3(.17,.30,.37)*(1.-uNight);
+ vec3 horizonWarm=vec3(.32,.14,.10)*twilight;
+ col+=(daylightHaze+horizonWarm)*gauss(h-.06,.23)*.24;
  // Elongated painted cirrus: wind-sheared high-altitude filaments instead
  // of oversized soft circular cloud blobs. Their edges split at multiple
  // scales, so dawn/day/dusk have distinct natural silhouettes.
@@ -171,10 +183,10 @@ void main(){
  gl_FragColor=vec4(mix(vec3(.57,.74,.92),vec3(.95,.96,1.),uSnow),mix(rain,snow,uSnow)*vAlpha*.78);
 }`;
 const C={
- night:{top:'#030511',horizon:'#122f62',fog:'#183559',key:'#b2bdec',ambient:'#6679a9'},
- dawn:{top:'#0b214b',horizon:'#ffa36d',fog:'#8b8ca5',key:'#ffc99b',ambient:'#adb9d8'},
- day:{top:'#1260a5',horizon:'#b0dced',fog:'#8db9c8',key:'#fff2d7',ambient:'#d9e8f0'},
- dusk:{top:'#03091e',horizon:'#ff9b70',fog:'#426a91',key:'#ffb18b',ambient:'#afb4de'}
+ night:{top:'#040715',horizon:'#17335b',fog:'#193b62',key:'#b2bdec',ambient:'#6b7fae'},
+ dawn:{top:'#245b91',horizon:'#ffb286',fog:'#a1a8b3',key:'#ffd4ab',ambient:'#c2cce1'},
+ day:{top:'#398ec6',horizon:'#d5edf4',fog:'#a6cbd0',key:'#fff7e8',ambient:'#e2ecf1'},
+ dusk:{top:'#293c77',horizon:'#ffad7b',fog:'#707ba9',key:'#ffd0a8',ambient:'#c9b6dc'}
 };
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const curve=(a,b,v)=>{let t=clamp((v-a)/(b-a));return t*t*(3-2*t);};
