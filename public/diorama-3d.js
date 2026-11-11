@@ -5,6 +5,7 @@ import { createCinematicAtmosphere } from '/cinematic-atmosphere.js';
 import { createPainterlyClouds } from '/painterly-clouds-3d.js';
 import { createLivingEnvironment } from '/living-environment-3d.js';
 import { createDeepValley, createValleyGroveLayout } from '/valley-sculpt-3d.js';
+import { buildOverlookDetails } from '/overlook-details-3d.js';
 const TAU=Math.PI*2,worldH=29;
 // QA: ?map=stargaze&models=off compares the old painted scenery to real 3D assets.
 const rendererChoice=new URLSearchParams(location.search).get('renderer');
@@ -13,7 +14,7 @@ const editableModelsEnabled=new URLSearchParams(location.search).get('models')!=
 const cinemaEnabled=new URLSearchParams(location.search).get('cinema')!=='off';
 const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false,modelLoaded:false,modelParts:0,modelError:null,terrainLoaded:false,terrainParts:0,terrainError:null,groveLoaded:false,pineCount:0,groveError:null,editableModelsEnabled,cinemaEnabled,hazeLayers:0,cinemaError:null,liveMode,environment:null,sculptedRidges:0,groveAnchored:false,freeSeating:true};
 const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
-let renderer,scene,camera,waterClock,windClock,windStrength={value:1},stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null,legacyMountains=[],legacyForest=null,cinematicAtmosphere=null,painterlyClouds=null,livingEnvironment=null,waterMaterial=null,deepValley=null;
+let renderer,scene,camera,waterClock,windClock,windStrength={value:1},stars,clouds=[],moonSprite,moonGlow,debugTimeMs=null,lookoutModel=null,legacyMountains=[],legacyForest=null,cinematicAtmosphere=null,painterlyClouds=null,livingEnvironment=null,waterMaterial=null,deepValley=null,overlookDetails=null;
 const rng=(()=>{let s=20261110;return()=>((s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296)})();
 const lerp=(a,b,t)=>a+(b-a)*t,smooth=t=>t*t*(3-2*t);
 const hash=n=>{n=Math.imul(n^(n>>>15),2246822519);n=Math.imul(n^(n>>>13),3266489917);return ((n^(n>>>16))>>>0)/4294967295};
@@ -563,6 +564,10 @@ function init(){
     mountain(-56,-4.1,45,'#326772','#0b2938');
   }
   water();land(-1);land(1);foreground();plants();forest();buildFramingTrees();
+  if(liveMode){
+    overlookDetails=buildOverlookDetails(THREE,scene,{mobile:innerWidth<700});
+    state.geologyPieces=overlookDetails.count;
+  }
   // Consciously restrained cloud and atmosphere passes: no moving rectangles,
   // no fluorescent glow; debug with ?cinema=off without changing the artwork.
   if(cinemaEnabled&&!liveMode){
