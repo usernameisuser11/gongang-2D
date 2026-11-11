@@ -162,6 +162,14 @@ try {
         assert.equal(o?.ready, true, config.name + ': 2.5D renderer unavailable');
         assert.ok(o.frameCount > 2, config.name + ': world is not animating');
         assert.ok(o.ridgeCount >= 6, 'Several depth-separated mountains are required');
+        assert.equal(o.ridgeGeometry,'coherent-carved-3d-mountain-heightfields',
+          'Mountain surfaces must be real connected 3D sculpted meshes');
+        assert.ok(o.ridgeSurfaceVertices > (config.width < 600 ? 35000 : 100000),
+          'Mountain mesh subdivision is insufficient for continuous terrain relief');
+        assert.ok(Array.isArray(o.ridgeReliefDepths) &&
+          o.ridgeReliefDepths.length === o.ridgeCount &&
+          o.ridgeReliefDepths.every(n => Number.isFinite(n) && n > 2.5),
+          'Each mountain range must have physical Z-depth displacement');
         assert.ok(o.atmosphereLayers >= 4, 'Time-responsive depth mist layers are missing');
         assert.ok(o.shadowCasters >= 4, 'Foreground trees do not have projected shadows');
         assert.ok(o.rockCount >= (config.width < 600 ? 4 : 8),'Large scenic rocks missing');
