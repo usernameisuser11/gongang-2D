@@ -320,7 +320,9 @@ uniform vec3 uLightColor;
 void main(){
  vec3 day=vTreeColor*vec3(1.25,1.39,1.14);
  vec3 col=mix(vTreeColor*.81,day,uDay);
- col*=mix(1.,vTreeLight,.64*uShadow);
+ // Foliage catches some diffuse skylight even without direct sunlight.
+ // This gives branch clusters depth on cloudy days rather than a flat fill.
+ col*=mix(.94+.15*vTreeLight,vTreeLight,.28*uShadow);
  col*=mix(vec3(1.),uLightColor,.49*uDay+.29*uTwilight);
  col+=vec3(.11,.042,.052)*uTwilight*.24;
  gl_FragColor=vec4(col*(1.-uStorm*.10),1.);
@@ -469,8 +471,10 @@ function makeForest(THREE,scene,mobile){
    trees.push([x,y,z,size,.94+random()*.56,.79+random()*.35,random()*6.283]);
    colors.push(color);
  };
- const palette=['#64869b','#55758b','#467286','#3b7182',
-   '#316875','#275b65','#1f5058','#17484e'];
+ // Cool blue distance, then varied blue-green cedar and deep fern
+ // rather than eight nearly identical turquoise tree layers.
+ const palette=['#738ca0','#627f92','#527b84','#467b78',
+   '#3e7569','#336e60','#285c4e','#1d5043'];
  for(let i=0;i<LAYERS.length;i++){
    const l=LAYERS[i];
    const count=mobile?31+i*4:56+i*12;
@@ -506,13 +510,14 @@ function makeForest(THREE,scene,mobile){
    [[-10.5,15,10.1],[-8.5,27,7.3],[10.4,16,10.0],[8.7,28,7.3]]:
    [[-25,12,17.5],[-22,24,12.5],[-18.1,35,9.7],[-13.8,17,7.2],
     [25,12,17.1],[22,25,12.6],[18.4,35,9.7],[14.1,18,6.9]];
- for(const [x,z,size] of framing)push(x,-6.6,z,size,'#142e39');
+ for(const [x,z,size] of framing)push(x,-6.6,z,size,'#19352f');
  const uniforms={uTime:{value:0},uWind:{value:0},uDay:{value:0},
    uTwilight:{value:0},uStorm:{value:0},uShadow:{value:0},
    uLightDir:{value:new THREE.Vector3(.1,.7,1).normalize()},
    uLightColor:{value:new THREE.Vector3(1,1,1)},
    uParallax:{value:new THREE.Vector2()}};
  const actor=new THREE.Object3D(),shade=new THREE.Color();
+ const needleVariation=new THREE.Color('#65806a');
  const pools=[[],[],[]];
  for(let i=0;i<trees.length;i++){
    const variant=trees[i][2]>0?i%3:Math.floor(random()*3);
@@ -531,7 +536,12 @@ function makeForest(THREE,scene,mobile){
      actor.position.set(x,y,z);actor.scale.set(h*w,h,h*d);
      actor.rotation.set(0,angle,0);actor.updateMatrix();
      mesh.setMatrixAt(j,actor.matrix);
-     shade.set(colors[index]).multiplyScalar(.73+random()*.34);
+     // Pine needles and resin-rich firs differ in hue even at one
+     // distance. Keep the variation deterministic for stable photos.
+     const botanical=clamp((z+154)/135);
+     shade.set(colors[index])
+       .lerp(needleVariation,botanical*(.06+random()*.16))
+       .multiplyScalar(.80+random()*.29);
      mesh.setColorAt(j,shade);
    });
    mesh.name=['Drooping forest spruce','Sparse alpine pine',
