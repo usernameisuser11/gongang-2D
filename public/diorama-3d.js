@@ -578,7 +578,7 @@ function init(){
   camera=new THREE.OrthographicCamera(-20,20,12,-12,.1,500);
   camera.position.set(0,7,39);camera.lookAt(0,1,-23);
   if(liveMode){
-    livingEnvironment=createLivingEnvironment(THREE,scene,{reducedMotion:Boolean(reduced?.matches)});
+    livingEnvironment=createLivingEnvironment(THREE,scene,{camera,reducedMotion:Boolean(reduced?.matches)});
     state.environment=livingEnvironment.state;
   }else{
     scene.add(new THREE.HemisphereLight('#ddd9ef','#26403d',2.3));
