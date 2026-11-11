@@ -14,27 +14,41 @@ return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+1
 float fbm(vec2 p){float v=0.,w=.5;for(int j=0;j<4;j++){v+=w*noise(p);p=p*2.07+vec2(17.4,4.9);w*=.5;}return v;}
 void main(){
  vec2 p=vUv;float t=uTime;
- vec3 col=mix(uHorizon,uTop,pow(p.y,.74));
+ // Screen-composition remap: a near-screen sky must traverse the whole color
+ // gradient, rather than displaying only its near-uniform central 25%.
+ float h=clamp((p.y-.32)*3.25,0.,1.);
+ vec3 col=mix(uHorizon,uTop,pow(h,.91));
+ col+=vec3(.47,.075,.13)*uTwilight*exp(-pow((h-.08)/.21,2.));
+ col+=vec3(.16,.026,.12)*uTwilight*exp(-pow((h-.35)/.24,2.));
  float n=fbm(vec2(p.x*5.1-t*(.003+.001*uWind),p.y*4.3)+vec2(2.8,6.1));
  float fine=fbm(vec2(p.x*11.6-t*.0048,p.y*7.8)+vec2(19.3,1.4));
  float veil=smoothstep(.48,.73,n*.78+fine*.39);
- float envelope=.32+.68*exp(-pow((p.y-.49)/.30,2.));
+ float envelope=.15+.85*exp(-pow((h-.34)/.35,2.));
  float cloud=uCloud*veil*envelope;
- vec3 cloudColor=mix(vec3(.11,.17,.30),vec3(.38,.43,.59),fine);
+ vec3 cloudColor=mix(vec3(.075,.09,.21),vec3(.35,.38,.63),fine);
  cloudColor=mix(cloudColor,vec3(.84,.51,.60),uTwilight*.69);
  cloudColor=mix(cloudColor,vec3(.85,.89,.94),1.-uNight);
  col=mix(col,cloudColor,cloud*.85);
- float galaxyBand=p.x*.73+p.y*.42-.70;
- float galaxy=exp(-pow(galaxyBand/.16,2.))*(.25+.75*fbm(p*9.2+vec2(3.,8.)));
- col+=vec3(.13,.115,.26)*galaxy*uNight*(1.-cloud*.85);
+ float galaxyBand=p.x*.73+h*.30-.65;
+ float galaxy=exp(-pow(galaxyBand/.12,2.))*(.14+.86*fbm(p*13.4+vec2(3.,8.)));
+ col+=vec3(.20,.17,.41)*galaxy*uNight*(1.-cloud*.85);
+ // A second diffuse dust lane contains dark gaps instead of a bright stripe.
+ float dust=fbm(p*vec2(17.,11.)+vec2(27.,3.));
+ col+=vec3(.045,.10,.23)*galaxy*dust*uNight;
+ col-=vec3(.035,.025,.07)*galaxy*(1.-dust)*uNight;
  vec2 g=p*vec2(188.,96.),id=floor(g),delta=fract(g)-.5;
  vec2 jitter=(vec2(hash(id+7.),hash(id+18.))-.5)*.68;
  float r=length(delta-jitter);
- float exist=step(.950,hash(id+31.));
+ float exist=step(.933,hash(id+31.));
  float twinkle=.72+.28*sin(t*(.8+hash(id+29.)*.8)+hash(id+16.)*6.28);
- float star=exist*exp(-r*51.)*twinkle;
- col+=vec3(.70,.82,1.)*star*uNight*(1.-cloud*.9)*smoothstep(.21,.42,p.y);
- col+=vec3(.17,.036,.072)*uTwilight*exp(-pow((p.y-.19)/.22,2.));
+ float star=exist*exp(-r*45.)*twinkle;
+ // A second, sparser population of bright stars forms a real depth hierarchy.
+ vec2 g2=p*vec2(87.,55.)+vec2(.12,.39),i2=floor(g2);
+ vec2 d2=fract(g2)-.5-(vec2(hash(i2+2.),hash(i2+8.))-.5)*.60;
+ float big=step(.981,hash(i2+32.))*(exp(-length(d2)*23.)*.67
+   +exp(-length(d2)*7.)*.08);
+ col+=(vec3(.70,.82,1.)*star+vec3(.73,.64,1.)*big)*uNight*(1.-cloud*.90)*smoothstep(.10,.32,h);
+ col+=vec3(.38,.08,.10)*uTwilight*exp(-pow((h-.11)/.19,2.));
  col*=1.-uRain*.11;
  gl_FragColor=vec4(max(col,0.),1.);
 }`;
@@ -79,10 +93,10 @@ void main(){
  gl_FragColor=vec4(mix(vec3(.57,.74,.92),vec3(.95,.96,1.),uSnow),mix(rain,snow,uSnow)*vAlpha*.78);
 }`;
 const C={
- night:{top:'#03091d',horizon:'#1a2e56',fog:'#274765',key:'#b2bdec',ambient:'#7288b1'},
- dawn:{top:'#14284e',horizon:'#ff9a84',fog:'#8b8ca5',key:'#ffc99b',ambient:'#adb9d8'},
- day:{top:'#246db1',horizon:'#b0d7e9',fog:'#9cb9ca',key:'#fff2d7',ambient:'#d9e8f0'},
- dusk:{top:'#091a3b',horizon:'#ff6481',fog:'#6b7095',key:'#ffb18b',ambient:'#afb4de'}
+ night:{top:'#03081b',horizon:'#183762',fog:'#233b67',key:'#b2bdec',ambient:'#6679a9'},
+ dawn:{top:'#0b214b',horizon:'#ffa36d',fog:'#8b8ca5',key:'#ffc99b',ambient:'#adb9d8'},
+ day:{top:'#1260a5',horizon:'#b0dced',fog:'#8db9c8',key:'#fff2d7',ambient:'#d9e8f0'},
+ dusk:{top:'#050f32',horizon:'#ff8a68',fog:'#6b7095',key:'#ffb18b',ambient:'#afb4de'}
 };
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const curve=(a,b,v)=>{let t=clamp((v-a)/(b-a));return t*t*(3-2*t);};
@@ -138,7 +152,7 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false}={}){
   const mat=new THREE.ShaderMaterial({vertexShader:VS,fragmentShader:BODY,
    uniforms:{uMoon:{value:moon?1:0},uNight:{value:1},uPhase:{value:.15}},transparent:true,
    depthWrite:false,depthTest:false,fog:false});
-  const mesh=new THREE.Mesh(new THREE.PlaneGeometry(12,12),mat);
+  const mesh=new THREE.Mesh(new THREE.PlaneGeometry(moon?8.2:9.1,moon?8.2:9.1),mat);
   mesh.renderOrder=-99;scene.add(mesh);return mesh;
  }
  const sun=celestial(false),moon=celestial(true);
@@ -229,7 +243,7 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false}={}){
   const moonTransit=(12+phase*24)%24;
   const moonDiff=((hour-moonTransit+36)%24)-12;
   const moonHeight=-14+Math.sin((moonDiff+6)*Math.PI/12)*37;
-  moon.position.set(-moonDiff*3.0,moonHeight,-146);
+  moon.position.set(-moonDiff*1.20,14.5+Math.max(-3,moonHeight*.13),-146);
   moon.visible=night>.12&&Math.abs(moonDiff)<6.5&&phase>.015&&phase<.985;
   moon.material.uniforms.uNight.value=night;
   moon.material.uniforms.uPhase.value=phase;
