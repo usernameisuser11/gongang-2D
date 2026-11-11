@@ -1,0 +1,36 @@
+name: Gongang reference vista quick capture
+on:
+  push:
+    branches: [threejs-model-assets]
+    paths:
+      - 'public/reference-vista.js'
+      - 'public/stargaze.js'
+      - 'public/index.html'
+      - 'test/reference-vista-quick.mjs'
+      - '.github/workflows/reference-vista-quick.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install
+        run: |
+          npm install --no-audit --no-fund
+          npm install --no-save playwright --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Capture coordinate-redrawn vista
+        run: node test/reference-vista-quick.mjs
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gongang-reference-coordinate-redraw
+          path: artifacts/reference-vista/
+          if-no-files-found: warn
