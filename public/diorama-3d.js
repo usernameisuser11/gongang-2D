@@ -680,6 +680,7 @@ function draw(ctx,t,now,{personal=false}={}){
     state.environment=livingEnvironment.state;
     windClock.value=sec*(.58+env.wind*.32);
     windStrength.value=state.reducedMotion?0:Math.max(.10,Math.min(2.3,env.wind));
+    if(cinematicForest)cinematicForest.update(sec,windStrength.value);
     const grassTone=new THREE.Color('#53667d')
       .lerp(new THREE.Color('#a4a991'),env.daylight*.75)
       .lerp(new THREE.Color('#a27496'),env.twilight*.25);
