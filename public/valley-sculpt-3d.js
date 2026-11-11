@@ -93,6 +93,7 @@ function makeChunk(THREE,section,mobile,material){
     Math.max(28,Math.ceil((section.front-section.back)*.87));
   const xyz=new Float32Array((nx+1)*(nz+1)*3);
   const rgb=new Float32Array(xyz.length);
+  const normals=new Float32Array(xyz.length);
   const index=new Uint32Array(nx*nz*6);
   const stone=new THREE.Color('#596279');
   const moss=new THREE.Color('#344b51');
@@ -111,6 +112,7 @@ function makeChunk(THREE,section,mobile,material){
       const middle=smooth(-160,-28,z);
       const v=(j*(nx+1)+i)*3;
       xyz[v]=x;xyz[v+1]=y;xyz[v+2]=z;
+      normals[v]=normal.x;normals[v+1]=normal.y;normals[v+2]=normal.z;
       colour.copy(woodland).lerp(moss,.25+soil*.42);
       colour.lerp(stone,clamp(steep*.76+altitude*.32));
       colour.lerp(distant,(1-middle)*.38);
@@ -131,8 +133,10 @@ function makeChunk(THREE,section,mobile,material){
   const geometry=new THREE.BufferGeometry();
   geometry.setAttribute('position',new THREE.BufferAttribute(xyz,3));
   geometry.setAttribute('color',new THREE.BufferAttribute(rgb,3));
+  // World-space analytic normals are identical at chunk seams; per-chunk
+  // computeVertexNormals would cause hard-looking lighting discontinuities.
+  geometry.setAttribute('normal',new THREE.BufferAttribute(normals,3));
   geometry.setIndex(new THREE.BufferAttribute(index,1));
-  geometry.computeVertexNormals();
   const mesh=new THREE.Mesh(geometry,material);
   mesh.name='Gongang actual 3D terrain / '+section.name;
   mesh.frustumCulled=false;
