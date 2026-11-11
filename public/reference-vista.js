@@ -345,6 +345,36 @@
    if(x<200&&i%2===0)continue;
    ellipse(c,x,y,rx,ry,color(i%3?'#8799c3':'#b2a1c9',.012+r()*.038),-.07);
   }
+  // Soft, rolling forest-floor transition covers the formerly empty
+  // mountain skirt. Its leading edge undulates independently across X:
+  // no single full-width horizontal y coordinate remains exposed.
+  const ecotone=rng(5108);
+  for(let depth=0;depth<4;depth++){
+   const base=584+depth*27,points=[];
+   for(let x=0;x<=W;x+=6){
+     const jitter=ridgeNoise(x/(33+depth*3),517+depth*7)*8+
+       ridgeNoise(x/(103+depth*7),251+depth*19)*19;
+     const y=base+Math.sin(x*.005+depth*2.4)*17+
+       Math.sin(x*.014+depth*.9)*8+jitter;
+     points.push([x,y]);
+   }
+   c.save();c.globalAlpha=.12+depth*.052;
+   c.beginPath();c.moveTo(...points[0]);
+   for(let p=1;p<points.length;p++)c.lineTo(...points[p]);
+   c.lineTo(W,775);c.lineTo(0,775);c.closePath();
+   c.fillStyle=lgrad(c,0,base-30,0,780,[
+     [0,depth%2?'#22425d':'#23425c'],
+     [.45,depth%2?'#223a54':'#1d394f'],
+     [1,'#293a51']]);c.fill();c.restore();
+  }
+  // Dappled canopy shade diffuses across the ridgeline instead of
+  // stopping at y=630 like a painted rectangular panel.
+  for(let j=0;j<220;j++){
+   const x=ecotone()*W,y=591+ecotone()*149,
+     r=8+ecotone()*62;
+   ellipse(c,x,y,r,2+ecotone()*15,
+     color(j%4===0?'#263c50':'#54728b',.016+ecotone()*.04),-.05);
+  }
   // Forest canopies above follow the real ridge geometry. Below them,
   // an irregular understory fills the 620-740px depth interval. The old
   // script left this entire interval as a constant blue rectangle, which
