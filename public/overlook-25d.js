@@ -585,7 +585,7 @@ function draw(ctx,t,now,{personal=false,view=null}={}){
   state.parallax={...smoothView};
   state.nearShift=parallaxShift(smoothView,22).x;
   state.farShift=parallaxShift(smoothView,-143).x;
-  shadows.update(light,smoothView);
+  shadows.update(light,smoothView,seconds,env.wind);
   meadow.update(seconds,env,smoothView,light);
   vistaDetails.update(seconds,env,smoothView);
   for(const ridge of ridges){
