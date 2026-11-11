@@ -220,6 +220,19 @@ try {
       await context.close();
     }
   }
+  // Same world, real different solar lighting/shadow states across clock tests.
+  const resultFor=name=>results.find(r=>r.name===name)?.state?.overlook25d?.lighting;
+  const noon=resultFor('desktop-25d-day');
+  const night=resultFor('desktop-25d-night');
+  const dawn=resultFor('desktop-25d-dawn');
+  const sunset=resultFor('desktop-25d-sunset');
+  assert.ok(noon&&night&&dawn&&sunset,'Dynamic lighting scenes not captured');
+  assert.ok(noon.shadowStrength>night.shadowStrength+.12,
+    'No meaningful day-to-night projected shadow contrast');
+  assert.ok(Math.abs(dawn.azimuth-sunset.azimuth)>.40,
+    'Sun direction should change across dawn and dusk');
+  assert.ok(dawn.shadowLength>noon.shadowLength,
+    'Low angle morning sun should cast longer shadows than daytime');
 } finally {
   await writeFile('artifacts/landscape/report.json',
     JSON.stringify({ results, serverTail: logs.slice(-4000) }, null, 2));
