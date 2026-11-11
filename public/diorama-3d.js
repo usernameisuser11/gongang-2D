@@ -11,7 +11,7 @@ import { createCinematicForest } from '/cinematic-forest-3d.js';
 const TAU=Math.PI*2,worldH=29;
 // QA: ?map=stargaze&models=off compares the old painted scenery to real 3D assets.
 const rendererChoice=new URLSearchParams(location.search).get('renderer');
-const liveMode=rendererChoice!=='3d'&&rendererChoice!=='2d'&&rendererChoice!=='painterly';
+const liveMode=rendererChoice==='live3d';
 const editableModelsEnabled=new URLSearchParams(location.search).get('models')!=='off';
 const cinemaEnabled=new URLSearchParams(location.search).get('cinema')!=='off';
 const state={ready:false,failed:false,error:null,mode:'fixed-camera-3d',renderCount:0,plants:0,clouds:0,width:0,height:0,personal:false,modelLoaded:false,modelParts:0,modelError:null,terrainLoaded:false,terrainParts:0,terrainError:null,groveLoaded:false,pineCount:0,groveError:null,editableModelsEnabled,cinemaEnabled,hazeLayers:0,cinemaError:null,liveMode,environment:null,sculptedRidges:0,groveAnchored:false,freeSeating:true};
@@ -753,9 +753,9 @@ function draw(ctx,t,now,{personal=false}={}){
   state.renderCount++;return true;
  }catch(e){state.failed=true;state.ready=false;state.error=String(e?.message||e);return false;}
 }
-// In this experimental branch the real-time WebGL world is the default.
-// ?renderer=3d is the former fixed-night version; ?renderer=2d is legacy fallback.
-const useThreeScene=rendererChoice!=='2d'&&rendererChoice!=='painterly';
+// The 2.5D moving landscape is the default. Keep full 3D as opt-in
+// ?renderer=live3d; ?renderer=3d is the older night 3D comparison.
+const useThreeScene=rendererChoice==='3d'||rendererChoice==='live3d';
 if(useThreeScene)init();
 window.GongangDiorama3D={draw,state,get ready(){return state.ready},
  debugSetTime(ms){debugTimeMs=Number.isFinite(ms)?ms:null;}};
