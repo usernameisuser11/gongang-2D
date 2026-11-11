@@ -118,13 +118,13 @@ function crest(x,l){
    return h*Math.pow(Math.max(0,1-d),1.28);
  };
  const summits=depth===0
-   ?alpineSpire(-21,5.3,3.7,2.2)
-      +alpineSpire(-3.7,5.4,4.0,5.2)
-      +alpineSpire(6.1,3.5,5.8,3.3)
-      +alpineSpire(25.0,5.9,4.0,2.3)
+   ?alpineSpire(-21,5.3,3.7,1.85)
+      +alpineSpire(-3.7,5.0,4.3,3.35)
+      +alpineSpire(6.1,3.6,5.7,2.7)
+      +alpineSpire(25.0,5.9,4.3,1.85)
    :depth===1
-   ?alpineSpire(-16.7,4.8,6.2,4.4)
-      +alpineSpire(15.4,5.1,4.7,3.8)
+   ?alpineSpire(-16.7,4.5,6.1,3.15)
+      +alpineSpire(15.4,5.3,5.0,2.85)
       +alpineSpire(29.5,3.6,5.2,2.1)
    :depth===2
    ?alpineSpire(-29.0,5.8,4.2,1.7)
@@ -158,7 +158,7 @@ precision highp float;
 varying vec2 vGeology;
 varying vec3 vPigment,vFaceNormal;
 varying float vDepth;varying vec2 vUV;
-uniform float uDay,uTwilight,uStorm,uWind,uTime,uCloud,uShadow,uSunAzimuth,uSunElevation,uDepthWeight;
+uniform float uDay,uTwilight,uStorm,uWind,uTime,uCloud,uShadow,uSunAzimuth,uSunElevation,uDepthWeight,uAlpine;
 uniform vec3 uLightDir,uLightColor,uDayHue;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float rockNoise(vec2 p){
@@ -256,6 +256,19 @@ void main(){
   col=mix(col,col*.79+deepForest*.25,
     (1.-geologicalFacet)*nearby*uDay*.12);
   col*=.93+.15*vGeology.y;
+  // Broad alpine cliff faces have uneven granite seams and cooler
+  // shadowed gullies; avoid a perfectly smooth single-colour pyramid.
+  float upperAlpine=clamp(uAlpine*.55,0.,1.)
+    *smoothstep(.45,.97,vUV.y);
+  float oldRock=rockNoise(vec2(vUV.x*15.8+vUV.y*4.3,
+    vUV.y*7.1+8.4));
+  float deepSeam=rockNoise(vec2(vUV.x*39.1-vUV.y*9.3,
+    vUV.y*8.6+3.7));
+  float fissure=smoothstep(.45,.73,oldRock*.69+deepSeam*.31);
+  float lithoFace=.73+.38*oldRock+.14*deepSeam;
+  col*=mix(1.,lithoFace,upperAlpine*.72);
+  col=mix(col,col*vec3(.72,.82,.91),
+    fissure*upperAlpine*.17);
   float spill=clamp(dot(relief,lightVector),0.,1.);
   col+=vec3(.11,.12,.115)*fineCliffs*spill*uDay*(.08+.23*nearby);
   float cloudBand=rockNoise(vec2(
@@ -349,7 +362,7 @@ function makeMountain(THREE,scene,layer,mobile){
    if(layer.alpine){
      const snowCap=smooth(.28,.91,1-t)
        *smooth(.18,.86,rock.spine*.5+rock.chips*.22+.50);
-     tone.lerp(alpineSnow,snowCap*layer.alpine*.22);
+     tone.lerp(alpineSnow,snowCap*layer.alpine*.31);
    }
    const faceLight=.88+.13*(.5+.5*rock.branch)
      -.13*rock.gully*rock.envelope;
@@ -377,7 +390,8 @@ function makeMountain(THREE,scene,layer,mobile){
    uSunAzimuth:{value:0},uSunElevation:{value:.5},uShadow:{value:0},
    uLightColor:{value:new THREE.Vector3(1,1,1)},
    uDayHue:{value:new THREE.Color(layer.day)},
-   uDepthWeight:{value:smooth(-62,-172,layer.z)}
+   uDepthWeight:{value:smooth(-62,-172,layer.z)},
+   uAlpine:{value:layer.alpine||0}
  };
  const mat=new THREE.ShaderMaterial({
    uniforms:u,vertexShader:MOUNTAIN_VS,fragmentShader:MOUNTAIN_FS,
@@ -695,7 +709,7 @@ if(enabled)try{
  state.ridgeSurfaceVertices=ridges.reduce((n,r)=>n+r.vertexCount,0);
  state.ridgeReliefDepths=ridges.map(r=>Number(r.reliefDepth.toFixed(2)));
  state.ridgeGeometry='coherent-carved-3d-mountain-heightfields';
- state.composition='hand-art-directed-alpine-valley-v2';
+ state.composition='hand-art-directed-alpine-valley-v3';
  state.visibleCliffReliefVersion=2;
  state.forestAnchoredToSculptedRidges=true;
  state.ridgeMaterial='carved-drainage-v2-and-moving-cloud-shadows';
