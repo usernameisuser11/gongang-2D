@@ -13,7 +13,7 @@ void main(){
 const FS=`
 precision mediump float;
 varying vec2 vUv;
-uniform float uTime,uWind,uDay,uTwilight,uStorm,uLayer;
+uniform float uTime,uWind,uDay,uTwilight,uStorm,uCloud,uLayer;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){
  vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
@@ -22,27 +22,33 @@ float noise(vec2 p){
 }
 float fbm(vec2 p){
  float a=.5,v=0.;
- for(int k=0;k<3;k++){v+=a*noise(p);p=p*2.01+vec2(6.3,11.7);a*=.5;}
+ for(int k=0;k<3;k++){v+=a*noise(p);p=p*2.03+vec2(6.3,11.7);a*=.5;}
  return v;
 }
 void main(){
- vec2 uv=vUv;
- float drift=uTime*(.00010+.00008*clamp(uWind,0.,2.));
- float n=fbm(vec2(uv.x*6.3+drift+uLayer*13.1,uv.y*2.1));
- float wisps=fbm(vec2(uv.x*16.2-drift*.73,uv.y*3.2+uLayer*9.));
- float band=exp(-pow((uv.y-.44-(n-.50)*.20)/.27,2.));
- float soft=smoothstep(0.,.14,uv.y)*(1.-smoothstep(.79,1.,uv.y));
- float alpha=band*soft*(.24+.67*n+.14*wisps);
- alpha*=.16+.085*uStorm+.105*uTwilight;
- alpha*=smoothstep(0.,.08,uv.x)*(1.-smoothstep(.92,1.,uv.x));
- vec3 night=vec3(.070,.19,.34);
- vec3 day=vec3(.38,.66,.75);
- vec3 dusk=vec3(.27,.49,.79);
+ // Wisps hug the valley floor, break into individual thin pockets,
+ // and fade before either side of the rectangular GPU sheet.
+ float drift=uTime*(.00007+.00008*clamp(uWind,0.,2.));
+ float n=fbm(vec2(vUv.x*5.2+drift+uLayer*13.1,vUv.y*2.3));
+ float wisps=fbm(vec2(vUv.x*15.7-drift*.79,vUv.y*4.0+uLayer*9.));
+ float lanes=fbm(vec2(vUv.x*7.3+uLayer*4.1,vUv.y*1.8));
+ float center=.43+(n-.5)*.14+(lanes-.5)*.065;
+ float thickness=.19+.12*n+.06*uCloud;
+ float sheet=exp(-pow((vUv.y-center)/thickness,2.));
+ float broken=smoothstep(.23,.65,n*.67+wisps*.33);
+ float valley=1.-smoothstep(.34,.60,abs(vUv.x-.5));
+ float edge=smoothstep(.045,.18,vUv.y)*(1.-smoothstep(.80,.985,vUv.y));
+ float intensity=.10+.055*uTwilight+.11*uStorm+.043*uCloud;
+ float alpha=sheet*edge*valley*intensity*(.23+.77*broken);
+ // The light is scattered by one common changing sky, not independent
+ // fixed-colour blue strips across every ridgeline.
+ vec3 night=vec3(.10,.22,.35);
+ vec3 day=vec3(.68,.81,.83);
+ vec3 dusk=vec3(.73,.53,.68);
  vec3 col=mix(night,day,uDay);
- col=mix(col,dusk,clamp(uTwilight*.88,0.,.88));
- gl_FragColor=vec4(col,alpha);
+ col=mix(col,dusk,clamp(uTwilight*.72,0.,.72));
+ gl_FragColor=vec4(col,clamp(alpha,0.,.30));
 }`;
-
 import { parallaxShift } from '/parallax-25d.js';
 
 export function createAtmosphericDepth25D(THREE,scene){
@@ -58,7 +64,7 @@ export function createAtmosphericDepth25D(THREE,scene){
     const geo=new THREE.PlaneGeometry(layer.w,layer.h);
     const uniforms={
       uTime:{value:0},uWind:{value:.2},uDay:{value:0},
-      uTwilight:{value:0},uStorm:{value:0},uLayer:{value:layer.phase}
+      uTwilight:{value:0},uStorm:{value:0},uCloud:{value:.2},uLayer:{value:layer.phase}
     };
     const material=new THREE.ShaderMaterial({
       vertexShader:VS,fragmentShader:FS,uniforms,
@@ -88,7 +94,8 @@ export function createAtmosphericDepth25D(THREE,scene){
         sheet.uniforms.uWind.value=env.wind;
         sheet.uniforms.uDay.value=env.daylight;
         sheet.uniforms.uTwilight.value=env.twilight;
-        sheet.uniforms.uStorm.value=Math.max(env.rain,env.snow,env.cloud*.35);
+        sheet.uniforms.uStorm.value=Math.max(env.rain,env.snow);
+        sheet.uniforms.uCloud.value=env.cloud;
       }
     },
     dispose(){
