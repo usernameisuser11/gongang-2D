@@ -792,5 +792,29 @@
    ctx.restore();
    state.frames++;return true;
  }
- window.GongangReferenceVista={draw,state,get ready(){ensure();return state.ready;},ensure};
+ // Debug-only: identify any layer introducing a horizontal seam.
+ // Samples a few pixels across each row of every cached transparent layer.
+ function inspectBands(){
+  ensure();const out=[];
+  for(let k=0;k<layers.length;k++){
+   const pixels=layers[k].getContext('2d').getImageData(0,500,W,270).data;
+   let top=[];
+   for(let yy=1;yy<270;yy++){
+    let jump=0,alphaJump=0,count=0;
+    for(let xx=190;xx<W-190;xx+=8){
+     const i=(yy*W+xx)*4,j=((yy-1)*W+xx)*4;
+     alphaJump+=Math.abs(pixels[i+3]-pixels[j+3]);
+     jump+=Math.abs(pixels[i]-pixels[j])+Math.abs(pixels[i+1]-pixels[j+1]);
+     count++;
+    }
+    top.push({y:yy+500,color:Math.round(jump/count),
+      alpha:Math.round(alphaJump/count)});
+   }
+   top.sort((a,b)=>b.color+b.alpha-a.color-a.alpha);
+   out.push({layer:k,peaks:top.slice(0,8)});
+  }
+  return out;
+ }
+ window.GongangReferenceVista={draw,state,get ready(){ensure();return state.ready;},
+   ensure,inspectBands};
 })();
