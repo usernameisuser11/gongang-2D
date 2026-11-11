@@ -63,7 +63,7 @@
     ctx.globalAlpha=alpha;
     ctx.drawImage(sprite,x-size*.5,y-size*.5,size,size);
   }
-  function scatter(ctx,width,height,galaxyAt,visibility=()=>1){
+  function scatter(ctx,width,height,galaxyAt,visibility=()=>1,options={}){
     const r=randomMaker(915715);
     twinkles.length=0;
     ctx.save();ctx.globalCompositeOperation='screen';
@@ -71,7 +71,8 @@
     // v31.9 separates 8,500 distant space grains from denser remnant
     // particles. We preserve that population distinction on a landscape sky.
     for(let i=0;i<8500;i++){
-      const x=r()*width,y=r()*height*.70;
+      const bx=r()*width,by=r()*height*.70;
+      const [x,y]=options.projectBackground?.(bx,by) ?? [bx,by];
       const shade=r();
       const tint=shade<.20?4:shade<.51?5:shade<.77?1:2;
       const rare=Math.pow(r(),7);
@@ -90,10 +91,11 @@
     // Across the Milky Way the grains cluster along an irregular tilted
     // channel. Sparse bright individual grains sit on top of faint nebula.
     for(let i=0;i<15700;i++){
-      const y=r()*730;
-      const center=1200-1.08*y;
+      const gy=r()*730;
+      const center=1200-1.08*gy;
       const side=(r()+r()+r()-1.5)*348+(r()-.5)*33;
-      const x=center+side;
+      const gx=center+side;
+      const [x,y]=options.projectGalaxy?.(gx,gy) ?? [gx,gy];
       if(x<0||x>=width)continue;
       const dist=Math.abs(side), density=Math.max(.20,1-dist/430);
       const field=galaxyAt?.(x,y);
