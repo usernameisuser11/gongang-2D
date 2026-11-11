@@ -29,6 +29,46 @@ const smooth=(a,b,v)=>{let t=clamp((v-a)/(b-a));return t*t*(3-2*t);};
 const fract=x=>x-Math.floor(x);
 const hash=(x,n)=>fract(Math.sin(x*127.1+n*311.7)*43758.5453123);
 const noise=(x,n)=>{let i=Math.floor(x),f=fract(x);f=f*f*(3-2*f);return (hash(i,n)*(1-f)+hash(i+1,n)*f)*2-1;};
+/** Stable coherent 2D rock strata — geometry, not a surface color decal. */
+function terrainNoise2(x,y,seed){
+ const ix=Math.floor(x),iy=Math.floor(y);
+ let fx=x-ix,fy=y-iy;
+ fx=fx*fx*(3-2*fx);fy=fy*fy*(3-2*fy);
+ const h=(a,b)=>{
+   let n=(Math.imul(a,374761393)+Math.imul(b,668265263)+Math.imul(seed,1442695041))|0;
+   n=Math.imul(n^(n>>>13),1274126177);
+   return ((n^(n>>>16))>>>0)/2147483647.5-1;
+ };
+ const a=h(ix,iy)*(1-fx)+h(ix+1,iy)*fx;
+ const b=h(ix,iy+1)*(1-fx)+h(ix+1,iy+1)*fx;
+ return a*(1-fy)+b*fy;
+}
+/** Heightfield with curved drainage channels, projecting ridges and recessed gullies.
+ * x and t are sampled on the SAME connected terrain strip: no overlapping cliffs.
+ * Across the eight mountain layers, depth controls how far a spur may project.
+ */
+function sculptedMountainPoint(x,t,layer){
+ const depth=clamp((layer.z+172)/110);
+ const cap=Math.sin(Math.PI*t);
+ const envelope=Math.pow(Math.max(0,cap),.78);
+ const warp=terrainNoise2(x*.047,t*2.5,layer.seed+31)*3.5
+   +terrainNoise2(x*.135,t*4.1,layer.seed+17)*1.10;
+ const u=x+warp*(.53+depth*.48);
+ const spine=terrainNoise2(u*.095,t*1.25,layer.seed+41);
+ const branch=terrainNoise2(u*.18+t*.18,t*.66,layer.seed+59);
+ const chips=terrainNoise2(u*.53,t*4.1,layer.seed+89);
+ const channel=terrainNoise2(u*.13+t*.21,t*.87+.71,layer.seed+73);
+ // Broad twisting gullies are depressions in *both* height and depth.
+ const gully=smooth(.30,.84,channel*.57+branch*.43);
+ const protrusion=(spine*1.45+branch*1.05+chips*.20)*(1.10+depth*.90);
+ const carve=gully*(2.7+depth*2.25);
+ const y=crest(x,layer)-t*47+
+   envelope*(protrusion*.90-carve);
+ const z=layer.z+t*(3.0+depth*7.9)+
+   envelope*(spine*(1.1+depth*2.0)+branch*(1.5+depth*2.6)
+     -gully*(1.65+depth*2.8));
+ return {y,z,gully,spine,branch,chips,envelope};
+}
 function crest(x,l){
  // Each ridge has a different saddle, asymmetric shoulder and eroded spurs.
  // No mirrored V-walls or an identical hill repeated at every distance.
@@ -63,15 +103,19 @@ const LAYERS=[
  {name:'near forest slopes',z:-62,center:-12.0,rise:9.8,turn:-1,peak:1.8,seed:67,base:'#0d2c51',day:'#466c59'}
 ];
 const MOUNTAIN_VS=`
+attribute vec2 aGeology;
+varying vec2 vGeology;
 varying vec3 vPigment,vFaceNormal;
 varying float vDepth;varying vec2 vUV;
 void main(){
+ vGeology=aGeology;
  vPigment=color;vDepth=position.y;vUV=uv;
  vFaceNormal=normalize(normalMatrix*normal);
  gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
 }`;
 const MOUNTAIN_FS=`
 precision highp float;
+varying vec2 vGeology;
 varying vec3 vPigment,vFaceNormal;
 varying float vDepth;varying vec2 vUV;
 uniform float uDay,uTwilight,uStorm,uWind,uTime,uCloud,uShadow,uSunAzimuth,uSunElevation,uDepthWeight;
@@ -109,7 +153,8 @@ void main(){
     .15*strata+.16*(erosionBand-.5)));
   vec3 lightVector=normalize(uLightDir);
   float incidence=max(0.,dot(relief,lightVector));
-  float diffuse=.78+.37*incidence;
+  // Actual displaced-face normals create broad illuminated slopes.
+  float diffuse=.63+.53*incidence;
   float selfOcclusion=smoothstep(-.20,.54,
     sin(vUV.x*19.4+strata*1.6+uSunAzimuth*1.8));
   float ridgeShade=1.-uShadow*(1.-incidence)*(.20+.30*selfOcclusion);
@@ -148,6 +193,10 @@ void main(){
   float cutDepth=(.12+.30*nearby)*rockChannel
     +(.07+.13*nearby)*fineCliffs;
   col*=1.-cutDepth*(.55+.45*uDay);
+  // Connected geometry channels have their own pigment and shadow;
+  // unlike procedurally painted cracks, they continue across the mesh.
+  col*=1.-vGeology.x*(.12+.16*nearby)*(.45+.55*uDay);
+  col*=.94+.13*vGeology.y;
   float spill=clamp(dot(relief,lightVector),0.,1.);
   col+=vec3(.11,.12,.115)*fineCliffs*spill*uDay*(.08+.23*nearby);
   float cloudBand=rockNoise(vec2(
@@ -204,7 +253,10 @@ function makeMountain(THREE,scene,layer,mobile){
  const across=mobile?175:352,rows=mobile?28:46;
  const pos=new Float32Array((across+1)*(rows+1)*3);
  const rgb=new Float32Array(pos.length),uv=new Float32Array((across+1)*(rows+1)*2);
+ const geology=new Float32Array((across+1)*(rows+1)*2);
  const index=new Uint32Array(across*rows*6);
+ let actualMinZ=Infinity,actualMaxZ=-Infinity;
+ let actualMinY=Infinity,actualMaxY=-Infinity;
  const near=new THREE.Color(layer.base),
    low=near.clone().multiplyScalar(.39),
    granite=new THREE.Color('#8b899c'),
@@ -216,32 +268,32 @@ function makeMountain(THREE,scene,layer,mobile){
    const x=-80+i/across*160;
    const ridgeline=crest(x,layer);
    const k=(j*(across+1)+i)*3,q=(j*(across+1)+i)*2;
-   // Fractal erosion: broad gulches, finer ridges and miniature rock chips.
-   // Nearby terrain has stronger relief; distant hills remain atmospheric.
+   // Real depth displacement, coherent across each strip. Its surface
+   // normals drive sun and moon lighting rather than a fake stripe pattern.
    const distance=clamp((layer.z+172)/110);
-   const large=noise(x*.095+t*5.9,layer.seed+31);
-   const gulley=noise(x*.31+t*13.1,layer.seed+51);
-   const chips=noise(x*1.15+t*39.1,layer.seed+71);
-   const mountainSlope=Math.sin(Math.PI*t);
-   const crack=Math.pow(Math.max(0,1-Math.abs(
-     noise(x*.43+t*5.7,layer.seed+88))),5);
-   const relief=(large*1.30+gulley*.54+chips*.19-crack*.58)
-     *mountainSlope*(.42+distance*.58);
-   const slopeT=t*t*(3-2*t);
-   pos[k]=x;
-   pos[k+1]=ridgeline-t*47+relief*.78;
-   // True three-dimensional cliff facets, valleys and projecting strata.
-   pos[k+2]=layer.z+t*(2.0+distance*4.2)
-     +large*.78*mountainSlope+gulley*.46*mountainSlope
-     +relief*(.57+distance*.24);
-   const erosion=.5+.5*(large*.63+gulley*.31+chips*.13);
-   const rockExposure=clamp((1-t)*(.22+Math.abs(gulley)*.49)
-     +crack*.26,0,.76);
-   tone.copy(near).lerp(low,t*.68);
-   tone.lerp(granite,rockExposure*(.13+distance*.22));
-   tone.lerp(lichen,(1-t)*clamp(erosion*.18));
-   const sunlight=.87+.15*(.5+.5*large)-crack*.09;
-   tone.multiplyScalar(sunlight);
+   const rock=sculptedMountainPoint(x,t,layer);
+   pos[k]=x;pos[k+1]=rock.y;pos[k+2]=rock.z;
+   actualMinZ=Math.min(actualMinZ,rock.z);
+   actualMaxZ=Math.max(actualMaxZ,rock.z);
+   actualMinY=Math.min(actualMinY,rock.y);
+   actualMaxY=Math.max(actualMaxY,rock.y);
+   geology[q]=rock.gully*rock.envelope;
+   geology[q+1]=rock.spine*.5+.5;
+   // Color fields follow the displaced rock and broken talus.
+   const rockExposure=clamp(.14+.46*rock.gully+
+     .19*Math.abs(rock.branch)+.10*distance,0,.85);
+   tone.copy(near).lerp(low,t*.53);
+   tone.lerp(granite,rockExposure*(.12+distance*.23));
+   tone.lerp(lichen,(1-t)*clamp((rock.spine*.5+.5)*.17));
+   // Patchy high-alpine snow remains on the actual elevated cliff faces.
+   if(layer.alpine){
+     const snowCap=smooth(.28,.91,1-t)
+       *smooth(.18,.86,rock.spine*.5+rock.chips*.22+.50);
+     tone.lerp(new THREE.Color('#c4d4d6'),snowCap*layer.alpine*.22);
+   }
+   const faceLight=.88+.13*(.5+.5*rock.branch)
+     -.13*rock.gully*rock.envelope;
+   tone.multiplyScalar(faceLight);
    rgb[k]=tone.r;rgb[k+1]=tone.g;rgb[k+2]=tone.b;
    uv[q]=i/across;uv[q+1]=1-t;
   }
@@ -256,6 +308,7 @@ function makeMountain(THREE,scene,layer,mobile){
  g.setAttribute('position',new THREE.BufferAttribute(pos,3));
  g.setAttribute('color',new THREE.BufferAttribute(rgb,3));
  g.setAttribute('uv',new THREE.BufferAttribute(uv,2));
+ g.setAttribute('aGeology',new THREE.BufferAttribute(geology,2));
  g.setIndex(new THREE.BufferAttribute(index,1));
  g.computeVertexNormals();
  const u={
@@ -274,7 +327,9 @@ function makeMountain(THREE,scene,layer,mobile){
  mesh.name='Real parallax mountain / '+layer.name;
  mesh.frustumCulled=false;
  scene.add(mesh);
- return {mesh,u,layer,basePosition:mesh.position.clone()};
+ return {mesh,u,layer,basePosition:mesh.position.clone(),
+   vertexCount:pos.length/3,reliefDepth:actualMaxZ-actualMinZ,
+   heightExtent:actualMaxY-actualMinY};
 }
 // Original triangulated organic branch silhouette (geometry, not billboard photo).
 function firGeometry(THREE,variant=0,mobile=false){
@@ -573,6 +628,9 @@ if(enabled)try{
  meadow=createMeadowEdge25D(THREE,scene,{mobile:portrait});
  vistaDetails=createVistaDetails25D(THREE,scene,{mobile:portrait});
  state.ridgeCount=ridges.length;state.treeCount=forest.count;
+ state.ridgeSurfaceVertices=ridges.reduce((n,r)=>n+r.vertexCount,0);
+ state.ridgeReliefDepths=ridges.map(r=>Number(r.reliefDepth.toFixed(2)));
+ state.ridgeGeometry='coherent-carved-3d-mountain-heightfields';
  state.ridgeMaterial='carved-drainage-v2-and-moving-cloud-shadows';
  state.forestSpecies=forest.species;
  state.atmosphereLayers=atmosphere.count;
