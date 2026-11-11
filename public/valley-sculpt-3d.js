@@ -108,6 +108,51 @@ function sculptOne(THREE,scene,c,mobile){
  scene.add(mesh);
  return mesh;
 }
+/**
+ * Return on-mesh pine placements for the actual sculpted terrain; never put
+ * trees at positions inherited from an unrelated prototype landscape.
+ * A broad empty central corridor preserves the valley and sky composition.
+ */
+export function createValleyGroveLayout({mobile=false}={}){
+  const trees=[];
+  let seed=202611115;
+  const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
+  const put=(x,t,c,scale)=>{
+    const crest=ridgeAt(x,c);
+    const floor=-24+(c.center+10)*.32;
+    const y=crest*(1-Math.pow(t,.78))+floor*Math.pow(t,.78)+erosions(x,t,c);
+    const z=c.z-c.depth*(.52-t)+noise(x*.26+t*4,c.seed+5)*.46;
+    trees.push({
+      position:[+x.toFixed(3),+(y+.03).toFixed(3),+z.toFixed(3)],
+      rotationY:+(random()*TAU).toFixed(3),
+      scale:+scale.toFixed(3)
+    });
+  };
+  // Forested slopes: trees deepen naturally into the scene, while distant
+  // ridges and the entire center remain clear for sky watching.
+  const groups=[
+    {layer:LAYERS[4],count:mobile?12:17,min:9,max:27,scale:.55},
+    {layer:LAYERS[3],count:mobile?10:18,min:10,max:29,scale:.39},
+    {layer:LAYERS[2],count:mobile?7:14,min:12,max:30,scale:.27}
+  ];
+  for(const group of groups){
+    for(let i=0;i<group.count;i++){
+      const sign=i%2===0?-1:1;
+      const x=sign*(group.min+random()*(group.max-group.min));
+      const t=.075+random()*.17;
+      put(x,t,group.layer,group.scale*(.73+random()*.57));
+    }
+  }
+  // Tall framing pines in the real foreground, well outside the sitting
+  // area. They are 3D meshes, not background stickers.
+  const near=mobile?[[-16.7,13.8,.70],[7.6,13.4,.63]]:
+    [[-21.6,16.2,1.10],[-18.1,22.0,.76],[21.5,17.0,1.16],[18.2,22.4,.74]];
+  for(const [x,z,scale] of near){
+    trees.push({position:[x,-3.18,z],rotationY:random()*TAU,scale});
+  }
+  return trees;
+}
+
 export function createDeepValley(THREE,scene,{mobile=false}={}){
  const meshes=LAYERS.map(c=>sculptOne(THREE,scene,c,mobile));
  return {
