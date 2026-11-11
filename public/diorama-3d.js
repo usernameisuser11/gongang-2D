@@ -574,6 +574,10 @@ function init(){
   water();land(-1);land(1);foreground();plants();
   if(!liveMode){forest();buildFramingTrees();}
   if(liveMode){
+    // Thin atmospheric valley mist between true 3D ranges. This uses moving
+    // shader noise, not an opaque fog curtain or static background layer.
+    cinematicAtmosphere=createCinematicAtmosphere(THREE,scene,{mobile:innerWidth<700});
+    state.hazeLayers=cinematicAtmosphere.count;
     cinematicForest=createCinematicForest(THREE,scene,{mobile:innerWidth<700});
     state.pineCount=cinematicForest.count;
     state.groveLoaded=true;
