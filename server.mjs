@@ -28,6 +28,7 @@ const parallax25d = await readFile(join(ROOT, 'public', 'parallax-25d.js'));
 const scenicLighting25d = await readFile(join(ROOT, 'public', 'scenic-lighting-25d.js'));
 const overlookShadows25d = await readFile(join(ROOT, 'public', 'overlook-shadows-25d.js'));
 const overlookGround25d = await readFile(join(ROOT, 'public', 'overlook-ground-25d.js'));
+const meadowEdge25d = await readFile(join(ROOT, 'public', 'meadow-edge-25d.js'));
 const atmosphericDepth25d = await readFile(join(ROOT, 'public', 'atmospheric-depth-25d.js'));
 const valleySculpt = await readFile(join(ROOT, 'public', 'valley-sculpt-3d.js'));
 const terrainStream = await readFile(join(ROOT, 'public', 'terrain-stream-3d.js'));
@@ -167,6 +168,7 @@ const server = createServer((req, res) => {
       path === '/scenic-lighting-25d.js' ||
       path === '/overlook-shadows-25d.js' ||
       path === '/overlook-ground-25d.js' ||
+      path === '/meadow-edge-25d.js' ||
       path === '/atmospheric-depth-25d.js' ||
       path === '/valley-sculpt-3d.js' ||
       path === '/terrain-stream-3d.js' ||
@@ -184,6 +186,7 @@ const server = createServer((req, res) => {
       : path === '/scenic-lighting-25d.js' ? scenicLighting25d
       : path === '/overlook-shadows-25d.js' ? overlookShadows25d
       : path === '/overlook-ground-25d.js' ? overlookGround25d
+      : path === '/meadow-edge-25d.js' ? meadowEdge25d
       : path === '/atmospheric-depth-25d.js' ? atmosphericDepth25d
       : path === '/valley-sculpt-3d.js' ? valleySculpt
       : path === '/terrain-stream-3d.js' ? terrainStream
