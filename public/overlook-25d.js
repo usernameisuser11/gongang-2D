@@ -137,6 +137,8 @@ void main(){
     stoneMask*(.11+.17*nearby)*(1.-uStorm*.30));
   col*=mix(1.,texture,.57+.39*nearby)*(1.-uStorm*.13);
   gl_FragColor=vec4(max(col,0.),1.);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
 }`;
 const FIR_VS=`
 varying vec3 vTreeColor;
@@ -172,6 +174,8 @@ void main(){
  col*=mix(vec3(1.),uLightColor,.49*uDay+.29*uTwilight);
  col+=vec3(.11,.042,.052)*uTwilight*.24;
  gl_FragColor=vec4(col*(1.-uStorm*.10),1.);
+ #include <tonemapping_fragment>
+ #include <colorspace_fragment>
 }`;
 function makeMountain(THREE,scene,layer,mobile){
  // A terrain strip is tessellated in both dimensions: rock grooves and
