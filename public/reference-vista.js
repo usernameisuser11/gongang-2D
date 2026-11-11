@@ -100,6 +100,19 @@
   };
   c.save();
   c.globalCompositeOperation='screen';
+  // A series of low-opacity, multi-hue molecular cloud cores gives the
+  // Milky Way a continuous luminous spine rather than random sky dots.
+  // They are rendered once underneath the original v129 star grains.
+  for(let k=0;k<145;k++){
+    const y=galaxyRand()*331;
+    const x=galaxyCenter(y)+(galaxyRand()+galaxyRand()+galaxyRand()-1.5)*200;
+    if(x<-100||x>W+100)continue;
+    const gas=galaxyTransmission(x,y),r=27+galaxyRand()*72;
+    const tone=k%5===0?'#f0b4bf':k%4===0?'#c5b8ea':k%3===0?'#86c6e5':'#a5b6e8';
+    const a=(.026+galaxyRand()*.035)*(.35+gas.light*1.7)*(1-gas.dust*.92);
+    c.fillStyle=radial(c,x,y,r,[[0,color(tone,a)],[.35,color(tone,a*.53)],[1,color(tone,0)]]);
+    c.fillRect(x-r,y-r,2*r,2*r);
+  }
   // Broad, feathered luminous gas: cold cyan-blue edges surrounding
   // warm ivory/rose substructures. These are fine transparent fibers,
   // never single giant ellipse glows or an artificial laser stripe.
@@ -112,7 +125,7 @@
     const size=3+galaxyRand()*38;
     const hue=galaxyRand();
     const tone=hue<.18?'#f4dfb8':hue<.41?'#d2a3d3':hue<.69?'#9b9fe6':'#76b2e2';
-    const alpha=(.0018+galaxyRand()*.013)*ridge;
+    const alpha=(.004+galaxyRand()*.020)*ridge;
     windingFiber(c,x,y,14+size*1.7,-2-galaxyRand()*size*.28,j+2121,
       color(tone,alpha),size*(.19+galaxyRand()*.45));
   }
@@ -124,7 +137,7 @@
     const core=galaxyCenter(y);
     const x=core+(galaxyRand()-.5)*385;
     const q=galaxyTransmission(x,y);
-    const alpha=(.006+galaxyRand()*.035)*(1-q.dust)*(q.light+.14);
+    const alpha=(.009+galaxyRand()*.047)*(1-q.dust)*(q.light+.14);
     windingFiber(c,x,y,18+galaxyRand()*95,galaxyRand()*17-5,k+9182,
       color(k%5===0?'#f1c5d1':k%4===0?'#dfdbf3':'#95b0f1',alpha),
       .5+galaxyRand()*3.2);
@@ -329,7 +342,7 @@
      }else ellipse(c,x,bloom,sz*.75,sz*.9,color('#e4d6d7',.22+r()*.55));
    }
    // Small constellation-like warm fireflies near the grass, restrained.
-   for(let k=0;k<30;k++){
+   if(lanternLit)for(let k=0;k<30;k++){
     const x=350+r()*980,y=665+r()*186,rr=1+r()*1.6;
     c.fillStyle=radial(c,x,y,rr*9,[[0,'rgba(255,205,128,.23)'],[1,'rgba(255,180,92,0)']]);c.fillRect(x-rr*9,y-rr*9,rr*18,rr*18);
     ellipse(c,x,y,rr*.6,rr*.6,color('#ffcc8d',.35+r()*.3));
@@ -600,8 +613,10 @@
          ctx.globalAlpha=1;
        }
      }else{
-       ctx.filter='brightness('+(1+mountainDaylight*(i===1?.28:.21)).toFixed(3)+
-         ') saturate('+(1+mountainDaylight*.12).toFixed(3)+')';
+       const hue=i===1?-24:i===2?-14:-6;
+       ctx.filter='brightness('+(1+mountainDaylight*(i===1?.20:.17)).toFixed(3)+
+         ') hue-rotate('+(hue*mountainDaylight).toFixed(2)+'deg)' +
+         ' saturate('+(1+mountainDaylight*.04).toFixed(3)+')';
        ctx.drawImage(layers[i],x,t.y,t.width,t.height);
      }
      ctx.filter='none';
