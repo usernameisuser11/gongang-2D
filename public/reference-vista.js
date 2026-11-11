@@ -272,7 +272,7 @@
    ellipse(c,x,y,43+i%3*8,10,color('#647cab',.045+i%3*.012));
   }
  }
- function foreground(c){
+ function foreground(c,lanternLit=true){
    // Left and right framing bluffs. Front and rear edges are separate
    // curves so every stone has a discernible top and side plane.
    poly(c,[[0,510],[55,520],[100,530],[144,551],[185,568],[214,619],[278,668],[336,711],[374,768],[340,807],[190,825],[0,806]],lgrad(c,0,515,260,830,[[0,'#263d60'],[.46,'#263453'],[1,'#101d37']]));
@@ -335,7 +335,7 @@
     ellipse(c,x,y,rr*.6,rr*.6,color('#ffcc8d',.35+r()*.3));
    }
    logSeat(c);
-   lantern(c,1058,749);
+   lantern(c,1058,749,lanternLit);
    // Small stone cairn to the left, understated.
    rock(c,527,715,40,27,203);
    rock(c,526,702,30,18,204);
@@ -400,13 +400,15 @@
    line(c,[x,730],[x-2,763+(k%4)*2],color('#d6a48a',.12+(k%3)*.08),1);
   }
  }
- function lantern(c,x,y){
+ function lantern(c,x,y,lit=true){
   // Grounded warm light source: tiny lamp, halo and real contact glow.
-  c.fillStyle=radial(c,x,y-26,120,[[0,'rgba(255,182,88,.31)'],[.45,'rgba(255,128,79,.065)'],[1,'rgba(255,117,80,0)']]);c.fillRect(x-130,y-150,260,260);
+  if(lit){c.fillStyle=radial(c,x,y-26,120,[[0,'rgba(255,182,88,.31)'],[.45,'rgba(255,128,79,.065)'],[1,'rgba(255,117,80,0)']]);c.fillRect(x-130,y-150,260,260);}
   c.fillStyle='rgba(16,18,26,.64)';ellipse(c,x,y+6,39,9,'rgba(15,19,29,.36)');
   c.beginPath();c.moveTo(x-14,y-52);c.lineTo(x+14,y-52);c.lineTo(x+17,y-5);c.lineTo(x-17,y-5);c.closePath();c.fillStyle='#3d3032';c.fill();
-  c.fillStyle=lgrad(c,x,y-48,x,y-8,[[0,'#ffc98c'],[.38,'#ffdf8b'],[1,'#bf6c46']]);c.fillRect(x-10,y-48,20,36);
-  c.fillStyle='rgba(255,241,167,.9)';ellipse(c,x,y-31,5,14,'rgba(255,240,183,.85)');
+  c.fillStyle=lit?lgrad(c,x,y-48,x,y-8,[[0,'#ffc98c'],[.38,'#ffdf8b'],[1,'#bf6c46']]):
+    lgrad(c,x,y-48,x,y-8,[[0,'#a9c8d5'],[.5,'#78969f'],[1,'#4d6575']]);
+  c.fillRect(x-10,y-48,20,36);
+  if(lit)ellipse(c,x,y-31,5,14,'rgba(255,240,183,.85)');
   c.lineWidth=3;c.strokeStyle='#282531';c.strokeRect(x-12,y-51,24,44);
   line(c,[x,y-53],[x,y-66],'#282635',3);
   c.beginPath();c.arc(x,y-65,5,Math.PI,TAU);c.strokeStyle='#3c3437';c.lineWidth=2;c.stroke();
@@ -536,6 +538,7 @@
        cloudCache[mode]=paintLayer([(c)=>skyClouds(c,mode)]);
      }
      skyCache.stars=paintLayer([skyStars]);
+     skyCache.foregroundDay=paintLayer([(c)=>foreground(c,false)]);
      for(const defs of layerDefs)layers.push(paintLayer(defs));
      state.ready=true;state.layers=layers.length;painted=true;
      fetchWeather();
@@ -546,11 +549,13 @@
    const realNow=Date.now(),hour=timeOverride===null?seoulTime(realNow):timeOverride,
      solar=solarTimes(realNow),mix=dailySky(hour,solar.sunrise,solar.sunset);
    const night=mix.reduce((v,[name,weight])=>v+(name==='night'?weight:0),0);
+   const sun=mix.reduce((v,[name,weight])=>v+
+     (name==='day'?weight:name==='dawn'?weight*.30:name==='dusk'?weight*.12:0),0);
    const clouds=weather.cloud,storm=Math.max(weather.rain,weather.snow);
    const stars=clamp(night*(1-clouds*.87)*(1-storm*.76));
    state.hour=hour;state.sunrise=solar.sunrise;state.sunset=solar.sunset;
    state.light=mix.reduce((a,b)=>a[1]>b[1]?a:b)[0];
-   state.nightFactor=night;state.starVisibility=stars;
+   state.nightFactor=night;state.daylightFactor=sun;state.starVisibility=stars;
    state.windKmh=weather.wind;state.cloudCover=clouds;
    state.rain=weather.rain;state.snow=weather.snow;
    // Moon deliberately hidden: no fixed decorative crescent at sunset.
@@ -576,10 +581,40 @@
      ctx.fillRect(t.x,t.y,t.width,t.height*.74);
    }
    ctx.globalAlpha=1;
+   // Daylight should illuminate the same mountains and grasses, not leave
+   // the entire afternoon scene looking like a night-only stage set.
+   const mountainDaylight=clamp(sun*(1-storm*.38),0,1);
    for(let i=1;i<layers.length;i++){
      const parallax=[0,2.2,5.3,9.2,14.0][i]*relative,
        drift=i===3?Math.sin(now*.00008)*.6:0;
-     ctx.drawImage(layers[i],t.x-(parallax+drift)*scaleX,t.y,t.width,t.height);
+     const x=t.x-(parallax+drift)*scaleX;
+     if(i===layers.length-1){
+       ctx.filter='brightness('+(1+mountainDaylight*.34).toFixed(3)+
+         ') saturate('+(1+mountainDaylight*.13).toFixed(3)+')';
+       ctx.drawImage(layers[i],x,t.y,t.width,t.height);
+       // The same grounded lantern is unlit during bright daylight.
+       // A prepainted alternate keeps every flower/stone in place.
+       if(sun>.02){
+         ctx.globalAlpha=clamp(sun);
+         ctx.drawImage(skyCache.foregroundDay,x,t.y,t.width,t.height);
+         ctx.globalAlpha=1;
+       }
+     }else{
+       ctx.filter='brightness('+(1+mountainDaylight*(i===1?.28:.21)).toFixed(3)+
+         ') saturate('+(1+mountainDaylight*.12).toFixed(3)+')';
+       ctx.drawImage(layers[i],x,t.y,t.width,t.height);
+     }
+     ctx.filter='none';
+   }
+   // Very gentle sun-filled valley atmosphere: brightens distant slopes
+   // without moving their drawn outlines or adding obvious geometric beams.
+   if(sun>.01){
+     ctx.save();ctx.globalCompositeOperation='screen';
+     ctx.globalAlpha=sun*(1-storm*.65)*.42;
+     ctx.fillStyle=radial(ctx,t.x+t.width*.51,t.y+t.height*.44,t.width*.45,
+       [[0,'rgba(244,235,183,.16)'],[.56,'rgba(181,218,216,.062)'],[1,'rgba(181,218,216,0)']]);
+     ctx.fillRect(t.x,t.y+t.height*.28,t.width,t.height*.56);
+     ctx.restore();
    }
    // Weather also affects distant haze and overall natural light,
    // with a subtle daylight sky bounce, never an opaque overlay.
