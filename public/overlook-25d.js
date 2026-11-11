@@ -10,6 +10,7 @@ import { createAtmosphericDepth25D } from '/atmospheric-depth-25d.js';
 import { parallaxInput, parallaxShift } from '/parallax-25d.js';
 import { scenicLighting } from '/scenic-lighting-25d.js';
 import { createOverlookShadows25D } from '/overlook-shadows-25d.js';
+import { overlookGroundHeight } from '/overlook-ground-25d.js';
 
 const HALF_HEIGHT=14.5;
 const state={
@@ -277,7 +278,7 @@ function makeOverlookSoil(THREE,scene){
  for(let i=0;i<p.count;i++){
    const x=p.getX(i),z=p.getZ(i);
    const edge=smooth(11,40,Math.abs(x));
-   const level=-6.80-.92*edge+.055*noise(x*.28+z*.22,19);
+   const level=overlookGroundHeight(x,z);
    p.setY(i,level);
    const stone=centerColor.clone().lerp(edgeColor,edge*.84);
    stone.multiplyScalar(.91+.12*noise(x*.38-z*.11,22));
@@ -304,12 +305,9 @@ const requestedRenderer=new URLSearchParams(location.search).get('renderer');
 const enabled=!['2d','painterly','3d','live3d'].includes(requestedRenderer);
 const portrait=innerWidth<700&&innerHeight>innerWidth*1.2;
 if(enabled)try{
- const canvas=document.createElement('canvas');
- const gl=canvas.getContext('webgl2',{alpha:false});
- if(!gl)throw Error('WebGL2 unavailable');
- gl.getExtension('WEBGL_lose_context')?.loseContext();
  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'low-power',
    preserveDrawingBuffer:true});
+ if(!renderer.getContext())throw Error('WebGL unavailable');
  renderer.setPixelRatio(1);renderer.outputColorSpace=THREE.SRGBColorSpace;
  renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.16;
  scene=new THREE.Scene();
