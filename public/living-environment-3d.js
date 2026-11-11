@@ -44,18 +44,28 @@ void main(){
  float swirl=fbm(flow*vec2(1.9,1.3)+vec2(73.,19.));
  float cloudField=.62*n+.25*fine+.13*swirl;
  float cloudCover=clamp(uCloud*.87+.09,0.,.94);
- float filament=smoothstep(.34,.62,cloudField);
+ // Three connected cloud strata share the same wind field:
+ // distant bright banks, broken mid-level cloudlets and high thin cirrus.
+ // Clouds are density volumes projected through one shader, not
+ // repeated oval meshes or rectangles covering the mountains.
+ float filament=smoothstep(.29,.61,cloudField);
  float veilField=fbm(vec2(sx*13.-t*.0008,h*3.8)+vec2(17.,51.));
- float cirrus=smoothstep(.40,.69,veilField)*gauss(h-.68,.36);
- float clouds=(filament*(.22+.58*gauss(h-.44,.39))
-   +cirrus*.16)*cloudCover;
- float litTop=clamp(.46+(n-fine)*.85+.24*h,0.,1.);
- vec3 cloudNight=mix(vec3(.07,.13,.27),vec3(.19,.28,.45),litTop);
- vec3 cloudDay=mix(vec3(.44,.62,.75),vec3(.91,.95,1.),litTop);
+ float cirrus=smoothstep(.38,.69,veilField)*gauss(h-.70,.35);
+ float bank=smoothstep(.31,.57,n*.70+fine*.30)
+    *gauss(h-.33,.24);
+ float breakup=smoothstep(.27,.62,swirl)
+    *gauss(h-.54,.31);
+ float clouds=clamp((filament*(.22+.39*gauss(h-.46,.36))
+   +bank*.38+breakup*.12+cirrus*.14)*cloudCover,0.,.89);
+ // The tops receive solar scatter while undersides remain slate-blue,
+ // and low clouds pick up pink/gold only near real twilight.
+ float litTop=clamp(.37+(n-fine)*1.35+.35*h,0.,1.);
+ vec3 cloudNight=mix(vec3(.061,.11,.23),vec3(.24,.30,.48),litTop);
+ vec3 cloudDay=mix(vec3(.36,.51,.65),vec3(.96,1.0,1.04),litTop);
  vec3 cloudTone=mix(cloudNight,cloudDay,1.-uNight);
- vec3 sunsetCloud=mix(vec3(.40,.23,.48),vec3(1.03,.59,.56),litTop);
- cloudTone=mix(cloudTone,sunsetCloud,twilight*.79*(1.-.25*h));
- col=mix(col,cloudTone,clouds*.78);
+ vec3 sunsetCloud=mix(vec3(.38,.24,.45),vec3(1.04,.64,.53),litTop);
+ cloudTone=mix(cloudTone,sunsetCloud,twilight*.82*(1.-.22*h));
+ col=mix(col,cloudTone,clouds*.94);
  // Multiple scattering near the horizon is a diffuse gradient, not a
  // hard white strip. Morning haze is bluer, golden only near twilight.
  vec3 daylightHaze=vec3(.17,.30,.37)*(1.-uNight);
