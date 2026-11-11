@@ -18,6 +18,7 @@ const html = await readFile(join(ROOT, 'public', 'index.html'));
 const stargazeScript = await readFile(join(ROOT, 'public', 'stargaze.js'));
 const stellarGrainScript = await readFile(join(ROOT, 'public', 'stellar-grains.js'));
 const painterlyScript = await readFile(join(ROOT, 'public', 'scenic-art.js'));
+const referenceVistaScript = await readFile(join(ROOT, 'public', 'reference-vista.js'));
 const natureMotionScript = await readFile(join(ROOT, 'public', 'nature-motion.js'));
 const dioramaScript = await readFile(join(ROOT, 'public', 'diorama-3d.js'));
 const scenicModelLoader = await readFile(join(ROOT, 'public', 'scenic-model-loader.js'));
@@ -216,6 +217,15 @@ const server = createServer((req, res) => {
       'Cache-Control': 'public, max-age=300'
     });
     res.end(req.method === 'HEAD' ? undefined : asset);
+    return;
+  }
+  if (path === '/reference-vista.js') {
+    res.writeHead(200, {
+      'Content-Type': 'text/javascript; charset=utf-8',
+      'Content-Length': referenceVistaScript.byteLength,
+      'Cache-Control': 'public, max-age=300'
+    });
+    res.end(req.method === 'HEAD' ? undefined : referenceVistaScript);
     return;
   }
   if (path === '/scenic-art.js') {
