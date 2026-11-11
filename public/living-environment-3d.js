@@ -44,11 +44,25 @@ void main(){
  float cirrus=smoothstep(.62,.82,fbm(vec2(sx*17.-t*.0014,h*4.9)+vec2(17.,51.)))
    *gauss(h-.68,.33);
  float cloudCover=clamp(uCloud*.87+.09,0.,.9);
- float clouds=(filament*(.25+.75*gauss(h-.41,.38))+cirrus*.32)*cloudCover;
+ float clouds=(filament*(.23+.64*gauss(h-.41,.38))+cirrus*.24)*cloudCover;
  vec3 cloudTone=mix(vec3(.15,.18,.33),vec3(.29,.38,.62),fine);
  cloudTone=mix(cloudTone,vec3(.88,.37,.63),twilight*(.36+.35*(1.-h)));
  cloudTone=mix(cloudTone,vec3(.69,.83,.96),1.-uNight);
  col=mix(col,cloudTone,clouds*.84);
+ // Elongated painted cirrus: wind-sheared high-altitude filaments instead
+ // of oversized soft circular cloud blobs. Their edges split at multiple
+ // scales, so dawn/day/dusk have distinct natural silhouettes.
+ float upper=h+.047*sin(sx*9.2+n*5.1);
+ vec2 streakCoord=vec2(sx*6.8-t*(.0019+.0004*uWind),upper*19.0);
+ float fibrous=fbm(streakCoord+vec2(2.4,39.1));
+ float wispy=fbm(streakCoord*vec2(2.7,.48)+vec2(19.3,4.1));
+ float strand=smoothstep(.60,.76,fibrous*.75+wispy*.35);
+ float bandMask=gauss(upper-.47,.27)*(1.-gauss(upper-.93,.19));
+ float streak=strand*bandMask*cloudCover*.46;
+ vec3 shadowedCirrus=mix(vec3(.15,.27,.48),vec3(.70,.79,.92),fine);
+ vec3 sunsetCirrus=mix(vec3(.44,.23,.47),vec3(.96,.38,.55),1.-h);
+ shadowedCirrus=mix(shadowedCirrus,sunsetCirrus,twilight*.82);
+ col=mix(col,shadowedCirrus,streak);
  // Detailed Milky Way: a broad translucent dust cloud, dark lanes, cold
  // blue star clusters. It is not a thin neon line or a flat sprite.
  float axis=sx*.47+h*.31-.45;
