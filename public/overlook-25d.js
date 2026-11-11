@@ -224,27 +224,42 @@ function makeMountain(THREE,scene,layer,mobile){
  return {mesh,u,layer,basePosition:mesh.position.clone()};
 }
 // Original triangulated organic branch silhouette (geometry, not billboard photo).
-function firGeometry(THREE){
+function firGeometry(THREE,variant=0,mobile=false){
  const vertices=[],indices=[];let k=0;
  const tri=(a,b,c)=>{vertices.push(...a,...b,...c);indices.push(k,k+1,k+2);k+=3;};
- // An actual 3D crossed-bough spruce with asymmetrical branches:
- // several short twig fans instead of a repeated cone silhouette.
- tri([-.026,0,0],[.032,0,0],[.014,1.08,0]);
- for(let j=0;j<28;j++){
-   const t=j/28,y=.055+t*.91;
-   const spread=Math.pow(1-t,.70)*(.35+.07*Math.sin(j*2.72));
+ // Distinct real 3D architectures: drooping spruce, open alpine pine,
+ // and a dense broad fir. No reused identical cone outline.
+ const spruce=variant===0,pine=variant===1;
+ const levels=mobile?(spruce?20:17):(spruce?29:pine?23:27);
+ const width=spruce?.35:pine?.44:.42;
+ const taper=spruce?.77:pine?.60:.71;
+ tri([-.029,0,0],[.036,0,0],[.014,1.08,0]);
+ for(let j=0;j<levels;j++){
+  const t=j/levels,y=.06+t*.90;
+  if(pine&&(j===5||j===12||j===18))continue;
+  const spread=width*Math.pow(1-t,taper)*
+    (.80+.14*Math.sin(j*2.76+variant*1.8)+.08*Math.sin(j*5.7));
+  for(const angle of [0,Math.PI*.5]){
+   const cs=Math.cos(angle),sn=Math.sin(angle);
    for(const side of [-1,1]){
-     const x=side*spread*(.85+.15*Math.sin(j*2.42+side*.7));
-     const drop=.026+.019*(1-t);
-     tri([0,y+.095,0],[x*.85,y+.008,.018],[x,y-drop,0]);
-     tri([0,y-.035,-.01],[x,y-drop,-.012],
-       [side*spread*.57,y+.042,.025]);
-     for(let l=0;l<3;l++){
-       const b=.28+l*.21,blade=(1-t);
-       tri([x*b,y,.016],[x*b+side*.050*blade,y+.064*blade,.021],
-         [x*b+side*.038*blade,y-.035*blade,-.018]);
-     }
+    const length=spread*(.86+.14*Math.sin(j*2.3+side*.7));
+    const drop=pine?-.032*(1-t):spruce?.054*(1-t):.020*(1-t);
+    const x=cs*length*side,z=sn*length*side;
+    tri([0,y+.012,0],[x*.38,y+.045,z*.38],[x,y-drop,z]);
+    for(let m=0;m<3;m++){
+     const u=.26+m*.22;
+     const twigLen=(.050+.014*Math.sin(j*.87+m*2.3))*(1-t);
+     const qx=x*u,qz=z*u;
+     tri([qx-sn*side*twigLen,y+.019,qz+cs*side*twigLen],
+       [qx+sn*side*twigLen,y+.036*(1-t),qz-cs*side*twigLen],
+       [x*(u+.20),y-drop*u,z*(u+.20)]);
+     if(!pine||m===1)
+       tri([qx,y-.025*(1-t),qz],
+         [x*(u+.22),y-drop*u,z*(u+.22)],
+         [qx+cs*.048*side*(1-t),y+.038*(1-t),qz+sn*.048*side*(1-t)]);
+    }
    }
+  }
  }
  const geometry=new THREE.BufferGeometry();
  geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
@@ -296,34 +311,41 @@ function makeForest(THREE,scene,mobile){
    [[-25,12,17.5],[-22,24,12.5],[-18.1,35,9.7],[-13.8,17,7.2],
     [25,12,17.1],[22,25,12.6],[18.4,35,9.7],[14.1,18,6.9]];
  for(const [x,z,size] of framing)push(x,-6.6,z,size,'#081629');
- const geometry=firGeometry(THREE);
- const u={uTime:{value:0},uWind:{value:0},uDay:{value:0},
+ const uniforms={uTime:{value:0},uWind:{value:0},uDay:{value:0},
    uTwilight:{value:0},uStorm:{value:0},uShadow:{value:0},
    uLightDir:{value:new THREE.Vector3(.1,.7,1).normalize()},
    uLightColor:{value:new THREE.Vector3(1,1,1)},
    uParallax:{value:new THREE.Vector2()}};
- const material=new THREE.ShaderMaterial({
-   uniforms:u,vertexShader:FIR_VS,fragmentShader:FIR_FS,
-   side:THREE.DoubleSide,depthWrite:true
- });
- const mesh=new THREE.InstancedMesh(geometry,material,trees.length);
  const actor=new THREE.Object3D(),shade=new THREE.Color();
- trees.forEach((tree,i)=>{
-   const [x,y,z,h,w,d,angle]=tree;
-   actor.position.set(x,y,z);
-   actor.scale.set(h*w,h,h*d);
-   actor.rotation.set(0,angle,0);
-   actor.updateMatrix();
-   mesh.setMatrixAt(i,actor.matrix);
-   shade.set(colors[i]).multiplyScalar(.73+random()*.36);
-   mesh.setColorAt(i,shade);
- });
- mesh.name='Sculpted multi-depth conifer forest with real wind/parallax';
- mesh.frustumCulled=false;
- mesh.instanceMatrix.needsUpdate=true;
- if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
- scene.add(mesh);
- return {mesh,u,count:trees.length};
+ const pools=[[],[],[]];
+ for(let i=0;i<trees.length;i++){
+   const variant=trees[i][2]>0?i%3:Math.floor(random()*3);
+   pools[variant].push(i);
+ }
+ const meshes=[];
+ for(let variant=0;variant<3;variant++){
+   const geometry=firGeometry(THREE,variant,mobile);
+   const material=new THREE.ShaderMaterial({
+     uniforms,vertexShader:FIR_VS,fragmentShader:FIR_FS,
+     side:THREE.DoubleSide,depthWrite:true
+   });
+   const mesh=new THREE.InstancedMesh(geometry,material,pools[variant].length);
+   pools[variant].forEach((index,j)=>{
+     const [x,y,z,h,w,d,angle]=trees[index];
+     actor.position.set(x,y,z);actor.scale.set(h*w,h,h*d);
+     actor.rotation.set(0,angle,0);actor.updateMatrix();
+     mesh.setMatrixAt(j,actor.matrix);
+     shade.set(colors[index]).multiplyScalar(.73+random()*.34);
+     mesh.setColorAt(j,shade);
+   });
+   mesh.name=['Drooping forest spruce','Sparse alpine pine',
+     'Broad branch mountain fir'][variant];
+   mesh.frustumCulled=false;
+   mesh.instanceMatrix.needsUpdate=true;
+   if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+   scene.add(mesh);meshes.push(mesh);
+ }
+ return {meshes,u:uniforms,count:trees.length,species:3};
 }
 function addOverlook(THREE,scene){
  // Layered foreground in actual 3D, no fixed base image. Keep the center
@@ -434,6 +456,7 @@ if(enabled)try{
  meadow=createMeadowEdge25D(THREE,scene,{mobile:portrait});
  vistaDetails=createVistaDetails25D(THREE,scene,{mobile:portrait});
  state.ridgeCount=ridges.length;state.treeCount=forest.count;
+ state.forestSpecies=forest.species;
  state.atmosphereLayers=atmosphere.count;
  state.shadowCasters=shadows.count;
  state.meadowPlants=meadow.count;
