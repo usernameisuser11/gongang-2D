@@ -98,7 +98,7 @@ void main(){
   float erosionBand=rockNoise(vUV*vec2(8.3,14.6)+vec2(4.,12.));
   float brokenShale=pow(1.-abs(2.*scree-1.),7.);
   float weathering=.79+.18*ravine+.07*scree+.055*mineralDust;
-  float cliffExposure=smoothstep(.51,.83,ravine*.65+erosionBand*.35);
+  float cliffExposure=smoothstep(.40,.71,ravine*.65+erosionBand*.35);
   float texture=(.94+.055*folded+.045*(mineral-.5)+.039*strata
     -cracks*.072+detail*.60)*weathering;
   // Ridgeline facets and fine gullies act like sculpted normal-map detail.
@@ -116,9 +116,9 @@ void main(){
   float terrainShadow=1.-uShadow*(1.-selfOcclusion)*.14;
   vec3 night=vPigment*vec3(.84,.91,1.15);
   vec3 day=mix(vPigment*vec3(1.12,1.25,1.0),
-    uDayHue*(.66+.29*vUV.y),.82);
+    uDayHue*(.65+.31*vUV.y),.62);
   vec3 col=mix(night,day,clamp(uDay,0.,1.));
-  col*=mix(.82,1.38,uDay*.92)*diffuse*ridgeShade*terrainShadow;
+  col*=mix(.82,1.24,uDay*.92)*diffuse*ridgeShade*terrainShadow;
   // A broad daylight bounce from the open sky reaches mid-valley faces.
   col+=uDay*(1.-uDepthWeight)*vec3(.027,.046,.029)*(1.-uStorm*.65);
   // Aerial perspective lets far mountains catch blue-lavender twilight.
@@ -140,13 +140,13 @@ void main(){
   vec2 carved=vec2(vUV.x*18.0+.65*ravine,vUV.y*7.3+.38*erosionBand);
   float drainage=rockNoise(carved+vec2(3.7,21.2));
   float tributary=rockNoise(carved*2.41+vec2(11.5,6.0));
-  float rockChannel=smoothstep(.52,.78,
+  float rockChannel=smoothstep(.35,.68,
     drainage*.79+tributary*.21)
     *smoothstep(.02,.37,1.-vUV.y);
   float exposed=rockNoise(vec2(vUV.x*8.2,vUV.y*12.9)+vec2(18.,7.));
-  float fineCliffs=smoothstep(.56,.81,exposed*.52+erosionBand*.48);
-  float cutDepth=(.09+.20*nearby)*rockChannel
-    +(.05+.09*nearby)*fineCliffs;
+  float fineCliffs=smoothstep(.38,.69,exposed*.52+erosionBand*.48);
+  float cutDepth=(.12+.30*nearby)*rockChannel
+    +(.07+.13*nearby)*fineCliffs;
   col*=1.-cutDepth*(.55+.45*uDay);
   float spill=clamp(dot(relief,lightVector),0.,1.);
   col+=vec3(.11,.12,.115)*fineCliffs*spill*uDay*(.08+.23*nearby);
@@ -573,7 +573,7 @@ if(enabled)try{
  meadow=createMeadowEdge25D(THREE,scene,{mobile:portrait});
  vistaDetails=createVistaDetails25D(THREE,scene,{mobile:portrait});
  state.ridgeCount=ridges.length;state.treeCount=forest.count;
- state.ridgeMaterial='carved-drainage-and-moving-cloud-shadows';
+ state.ridgeMaterial='carved-drainage-v2-and-moving-cloud-shadows';
  state.forestSpecies=forest.species;
  state.atmosphereLayers=atmosphere.count;
  state.shadowCasters=shadows.count;
