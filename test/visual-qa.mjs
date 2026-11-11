@@ -111,7 +111,8 @@ try {
           hybrid: window.GongangHybrid3D?.state || null,
           environment: s.environment || null,
           liveMode: s.liveMode,
-          sculptedRidges:s.sculptedRidges, groveAnchored:s.groveAnchored, freeSeating:s.freeSeating, geologyPieces:s.geologyPieces
+          sculptedRidges:s.sculptedRidges, groveAnchored:s.groveAnchored, freeSeating:s.freeSeating, geologyPieces:s.geologyPieces,
+          terrainTopology:s.terrainTopology, terrainTriangles:s.terrainTriangles, terrainStreamVertices:s.terrainStreamVertices
         };
       });
       const canvas = page.locator('#game');
@@ -134,6 +135,12 @@ try {
           assert.equal(state.liveMode, true, 'Live scene not activated');
           assert.equal(state.environment?.ready, true, 'No living environment');
           assert.equal(state.sculptedRidges, 5, 'The live world must show five actual 3D mountain ridges');
+          assert.equal(state.terrainTopology, 'continuous-heightfield',
+            'Must use connected heightfield terrain, not paper-thin backdrop planes');
+          assert.ok(state.terrainTriangles > 10000,
+            'Actual 3D terrain needs subdivision for erosion');
+          assert.ok(state.terrainStreamVertices > 900,
+            'River must follow sampled terrain surface');
           assert.equal(state.groveAnchored, true, '3D pine trees must follow actual ridge surfaces');
           assert.equal(state.freeSeating, true, 'The middle of the vista must remain available for sitting');
           assert.ok(state.geologyPieces>=20, 'Actual 3D edge geology missing');
