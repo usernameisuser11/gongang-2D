@@ -152,7 +152,7 @@ try {
           if (config.expectedMoon) {
             assert.equal(state.environment.moonVisible, true, 'Crescent preview moon missing');
             const p = state.environment.moonUV;
-            assert.ok(p && p.x > .22 && p.x < .78 && p.y > .08 && p.y < .58,
+            assert.ok(p && p.x > .42 && p.x < .63 && p.y > .21 && p.y < .46,
               'Moon is outside sky framing: ' + JSON.stringify(p));
           }
         }
