@@ -114,11 +114,13 @@
   const m=mountains[index];
   ridge(c,m.pts,m.a,m.b,m.seed);
   // A few authored geology facets, not high-frequency noise over all slopes.
-  if(index<3){c.save();c.globalAlpha=.18;const r=rng(index+200);
-   for(let k=0;k<12;k++){const x=200+r()*1220;const pts=m.pts;let closest=pts[0];
+  if(index<3){c.save();const r=rng(index+200);
+   for(let k=0;k<47;k++){
+    const x=170+r()*1330;const pts=m.pts;let closest=pts[0];
     for(const p of pts)if(Math.abs(p[0]-x)<Math.abs(closest[0]-x))closest=p;
-    const y=closest[1]+6;
-    poly(c,[[x,y],[x+11+r()*28,y+12],[x+33+r()*46,y+37+r()*34],[x-18,y+65]],k%2?'#b7a5bf':'#2d4173');
+    const y=closest[1]+4,dx=(r()-.38)*42,dy=12+r()*68;
+    c.beginPath();c.moveTo(x,y);c.quadraticCurveTo(x+dx*.30,y+dy*.40,x+dx,y+dy);
+    c.lineWidth=.55+r()*1.7;c.strokeStyle=color(k%3?'#bbc2d3':'#233962',.07+r()*.14);c.stroke();
    }c.restore();}
  }
  function fir(c,x,y,height,seed,col,weight=1){
@@ -133,7 +135,17 @@
     const length=wid*Math.pow(1-t,.91)*(.72+r()*.43);
     const tx=lean*t+side*length,tipY=yy+height*(.018+r()*.033);
     c.beginPath();c.moveTo(lean*t,yy-height*.028);c.quadraticCurveTo(tx*.52,yy-height*.065,tx,tipY);
-    c.strokeStyle=color(col,.86);c.lineWidth=Math.max(1,height*.019*(1-t));c.stroke();
+    c.strokeStyle=color(col,.92);c.lineWidth=Math.max(1,height*.019*(1-t));c.stroke();
+    // Overlapping organic branch sprays keep the grove from reading as
+    // a collection of wireframe twigs; serrated tips imitate fir needles.
+    c.beginPath();c.moveTo(lean*t,yy-height*.055);
+    c.quadraticCurveTo(tx*.38,yy-height*.105,tx,tipY);
+    for(let z=4;z>=0;z--){
+      const q=z/4;
+      c.lineTo(lerp(lean*t,tx,q)+side*(r()-.5)*length*.09,
+        lerp(yy,tipY,q)+height*(.025+.026*r())*(1-t));
+    }
+    c.closePath();c.fillStyle=color(col,.47+.18*r());c.fill();
     // Tapered foliage clumps made of multiple slightly varied needles.
     for(let j=0;j<7;j++){const f=(j+.5)/7,ox=lerp(lean*t,tx,f),oy=lerp(yy,tipY,f);
      const size=(1-t)*(2.3+r()*4.5)*height/110;
@@ -188,6 +200,14 @@
    poly(c,[[0,737],[142,749],[310,755],[464,736],[598,736],[737,751],[894,736],[1048,742],[1214,746],[1401,726],[1550,738],[1672,735],[1672,941],[0,941]],
       lgrad(c,0,730,0,941,[[0,'#6a555a'],[.24,'#50434b'],[.7,'#283446'],[1,'#151e35']]));
    c.fillStyle=radial(c,856,748,467,[[0,'rgba(249,157,97,.30)'],[.55,'rgba(194,108,112,.085)'],[1,'rgba(180,97,118,0)']]);c.fillRect(380,630,950,310);
+   // Soft grass and moss are layered under the prominent stones.
+   const sod=rng(17827);
+   for(let p=0;p<420;p++){
+    const x=sod()*W,y=741+sod()*188;
+    if(x>690&&x<1080&&y<808&&sod()>.40)continue;
+    ellipse(c,x,y,8+sod()*42,2+sod()*7,
+      color(p%4===0?'#b2a06e':p%3===0?'#5c8073':'#466b62',.025+sod()*.055),-.12);
+   }
    // Hand-authored large rocks (position in pixels matches the original).
    rock(c,71,823,274,137,131);
    rock(c,364,860,244,103,132);
@@ -246,9 +266,14 @@
   // A fallen wooden sitting log and draped woven blanket, rather than an
   // arbitrary bench rectangle. Photo reference seat at (710..991,724..793).
   c.fillStyle='rgba(10,13,27,.25)';ellipse(c,838,790,172,23,'rgba(8,12,24,.27)');
-  const wood=lgrad(c,730,722,745,788,[[0,'#81513e'],[.25,'#4e3535'],[.62,'#43312d'],[1,'#261d29']]);
-  c.beginPath();c.moveTo(725,727);c.bezierCurveTo(786,716,918,717,978,731);
-  c.lineTo(982,776);c.bezierCurveTo(915,793,780,794,720,768);c.closePath();
+  const wood=lgrad(c,730,722,745,788,[[0,'#94664e'],[.25,'#70483b'],[.62,'#453231'],[1,'#251e28']]);
+  c.beginPath();c.moveTo(725,735);
+  c.bezierCurveTo(766,726,805,728,837,723);
+  c.bezierCurveTo(888,714,930,723,979,732);
+  c.bezierCurveTo(989,742,983,762,975,774);
+  c.bezierCurveTo(909,779,842,780,784,776);
+  c.bezierCurveTo(753,774,722,767,717,757);
+  c.bezierCurveTo(713,749,715,741,725,735);c.closePath();
   c.fillStyle=wood;c.fill();c.strokeStyle='rgba(239,153,119,.43)';c.lineWidth=2;c.stroke();
   for(let k=0;k<20;k++){const x=734+k*12;line(c,[x,732+(k%3)*2],[x+2,768+(k%4)*3],color(k%2?'#9c6854':'#281f29',.15+k%3*.038),1.1);}
   // Folded crimson wool blanket, with a woven border and tassel shapes.
