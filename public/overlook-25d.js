@@ -71,38 +71,56 @@ function sculptedMountainPoint(x,t,layer){
      -gully*(2.05+depth*3.85));
  return {y,z,gully,spine,branch,chips,envelope};
 }
+// Hand-composed skyline profiles, left-to-right, from the viewing seat.
+// Distant luminous alpine summits give the valley a focal point;
+// nearby forest shoulders frame the view without repeating one V shape.
+const RIDGE_X=[-80,-58,-46,-34,-25,-16,-8,0,8,16,26,36,46,58,80];
+const RIDGE_PROFILES=[
+ [-3.0,-4.3,-7.2,-8.9,-8.0,-9.6,-6.4,-4.5,-7.3,-7.8,-8.4,-7.2,-5.8,-4.5,-3.0],
+ [-2.1,-5.0,-6.3,-9.7,-8.5,-5.5,-7.1,-9.0,-7.4,-5.9,-6.7,-9.5,-7.3,-4.5,-1.7],
+ [0,-3,-4.5,-8.1,-9.0,-12.2,-12.8,-11.6,-9.3,-8.7,-7.4,-6.8,-4.3,-3,2],
+ [4,1,-3,-6,-8,-10.5,-12.6,-13.2,-12.8,-10.4,-8.3,-5.5,-4,0,6],
+ [7,3,-1,-4.9,-6.1,-11,-12.6,-12.9,-12.5,-10.3,-8.7,-7.2,-3.5,1.5,8],
+ [10,5,2,-2,-5.5,-9.5,-12,-13.2,-12.1,-10.9,-8,-4.3,1.4,5,12],
+ [14,10,5,1,-3,-8.1,-10.7,-12.5,-12.6,-11,-7,-1.4,4.3,9,15],
+ [17,13,8,3,-2,-6.3,-9.5,-10.6,-12.2,-10.8,-5.2,1,6,12,18]
+];
+const smoothCurve=t=>{const x=clamp(t);return x*x*(3-2*x);};
 function crest(x,l){
- // Each ridge has a different saddle, asymmetric shoulder and eroded spurs.
- // No mirrored V-walls or an identical hill repeated at every distance.
- const axis=x-l.turn+(l.seed%7-3)*.52;
- const distance=Math.abs(axis);
- const hill=(cx,w,h)=>h*Math.exp(-Math.pow((x-cx)/w,2)*1.7);
- const asym=axis<0?.88+((l.seed%4)*.045):1.10-((l.seed%3)*.035);
- const shoulder=l.rise*Math.pow(distance/28.8,1.34)*asym;
- const pedestal=.63*noise(x*.046,l.seed+91)*Math.min(1,distance/16);
- const contour=noise(x*.093,l.seed+5)*1.02
-   +noise(x*.25,l.seed+16)*.34+noise(x*.66,l.seed+33)*.14;
- const alpine=l.alpine||0;
- const farPeak=alpine*(hill(-32+(l.seed%6),7.1,2.4)
-   +hill(24-(l.seed%8),9.5,2.1)
-   +hill(-8+(l.seed%5),4.1,.75))
-   +alpine*Math.pow(Math.max(0,noise(x*.32,l.seed+77)),3)*1.3;
- const spurL=hill(-27+(l.seed%9),12.5,2.1+.26*(l.seed%4));
- const spurR=hill(18+(l.seed%11),9.8,2.0+.32*(l.seed%3));
- const saddle=hill((l.seed%11)-5,8.7,-.80);
- const erosion=contour*(.30+.70*Math.min(1,distance/23));
- return l.center+shoulder+pedestal+erosion+farPeak
-   +spurL+spurR+saddle+hill(4+(l.seed%7),5.9,l.peak*.53);
+ const profile=RIDGE_PROFILES[LAYERS.indexOf(l)];
+ // Keep foreground utility banks and future auxiliary terrain compatible.
+ if(!profile){
+   const d=Math.abs(x-(l.turn||0));
+   return (l.center||-12)+(l.rise||3)*Math.pow(d/30,1.32)
+     +noise(x*.15,l.seed||5)*.35;
+ }
+ let i=0;
+ while(i<RIDGE_X.length-2 && x>RIDGE_X[i+1])i++;
+ const x0=RIDGE_X[i],x1=RIDGE_X[i+1];
+ const u=clamp((x-x0)/(x1-x0));
+ // Hermite interpolation uses hand-picked terraces and summit heights,
+ // not random peaks. A controlled fine erosion breaks the smooth line.
+ const p0=profile[i],p1=profile[i+1];
+ const pm=profile[Math.max(0,i-1)],pp=profile[Math.min(profile.length-1,i+2)];
+ const m0=(p1-pm)/Math.max(1,x1-RIDGE_X[Math.max(0,i-1)]);
+ const m1=(pp-p0)/Math.max(1,RIDGE_X[Math.min(RIDGE_X.length-1,i+2)]-x0);
+ const span=x1-x0,v=u*u,w=v*u;
+ const silhouette=(2*w-3*v+1)*p0+(w-2*v+u)*m0*span
+   +(-2*w+3*v)*p1+(w-v)*m1*span;
+ const depth=LAYERS.indexOf(l);
+ const erosion=(noise(x*.47,l.seed+18)*.19+
+   noise(x*1.14,l.seed+37)*.085)*(depth<2?1.13:.80);
+ return silhouette+erosion;
 }
 const LAYERS=[
- {name:'far alpine snow',z:-172,center:-12.2,rise:3.5,turn:2,peak:2.4,alpine:1.5,seed:8,base:'#849bc9',day:'#b0c5c9'},
- {name:'blue alpine summits',z:-157,center:-13.2,rise:4.1,turn:-1,peak:2.5,alpine:1.8,seed:13,base:'#758bc0',day:'#9fbac3'},
- {name:'horizon foothills',z:-143,center:-13.5,rise:4.5,turn:0,peak:2.3,alpine:.9,seed:19,base:'#6f86b5',day:'#92b1ad'},
- {name:'lavender peaks',z:-126,center:-14.2,rise:5.4,turn:-4,peak:3.0,alpine:.4,seed:27,base:'#6484ba',day:'#7da4aa'},
- {name:'distant cobalt',z:-110,center:-13.8,rise:6.6,turn:3,peak:2.6,seed:33,base:'#386c9b',day:'#6d9e9c'},
- {name:'teal valleys',z:-94,center:-13.7,rise:7.5,turn:-2,peak:2.3,seed:41,base:'#28688d',day:'#6a9a82'},
- {name:'deep fir hills',z:-78,center:-12.8,rise:8.8,turn:2,peak:2.0,seed:55,base:'#173d67',day:'#507f69'},
- {name:'near forest slopes',z:-62,center:-12.0,rise:9.8,turn:-1,peak:1.8,seed:67,base:'#0d2c51',day:'#466c59'}
+ {name:'far alpine snow',z:-172,center:-12.2,rise:3.5,turn:2,peak:2.4,alpine:1.5,seed:8,base:'#849bc9',day:'#c5cfdd'},
+ {name:'blue alpine summits',z:-157,center:-13.2,rise:4.1,turn:-1,peak:2.5,alpine:1.8,seed:13,base:'#758bc0',day:'#adb8d7'},
+ {name:'horizon foothills',z:-143,center:-13.5,rise:4.5,turn:0,peak:2.3,alpine:.9,seed:19,base:'#6f86b5',day:'#a1bfcd'},
+ {name:'lavender peaks',z:-126,center:-14.2,rise:5.4,turn:-4,peak:3.0,alpine:.4,seed:27,base:'#6484ba',day:'#9cabc9'},
+ {name:'distant cobalt',z:-110,center:-13.8,rise:6.6,turn:3,peak:2.6,seed:33,base:'#386c9b',day:'#719bad'},
+ {name:'teal valleys',z:-94,center:-13.7,rise:7.5,turn:-2,peak:2.3,seed:41,base:'#28688d',day:'#619a99'},
+ {name:'deep fir hills',z:-78,center:-12.8,rise:8.8,turn:2,peak:2.0,seed:55,base:'#173d67',day:'#4c867a'},
+ {name:'near forest slopes',z:-62,center:-12.0,rise:9.8,turn:-1,peak:1.8,seed:67,base:'#0d2c51',day:'#427463'}
 ];
 const MOUNTAIN_VS=`
 attribute vec2 aGeology;
@@ -407,11 +425,11 @@ function makeForest(THREE,scene,mobile){
    trees.push([x,y,z,size,.94+random()*.56,.79+random()*.35,random()*6.283]);
    colors.push(color);
  };
- const palette=['#718fb1','#627c9d','#4f7299','#416e9a',
-   '#31648a','#235374','#153d63','#091f3c'];
+ const palette=['#99b3bf','#8fa9b2','#749ca9','#679394',
+   '#548486','#3f7273','#305e5a','#244c50'];
  for(let i=0;i<LAYERS.length;i++){
    const l=LAYERS[i];
-   const count=mobile?35+i*5:65+i*15;
+   const count=mobile?31+i*4:56+i*12;
    for(let k=0;k<count;k++){
      const side=k%2===0?-1:1;
      const gap=i<2?8.0:i<5?6.2:8.1;
@@ -421,11 +439,11 @@ function makeForest(THREE,scene,mobile){
      push(x,y,l.z+1.50,size,palette[i]);
    }
  }
- // Vegetation also grows down the V slopes: tree lines have depth and
+ // Vegetation also grows on actual slopes: tree lines have depth and
  // break up the uniform triangular hill shapes, while the valley stays open.
  for(let i=2;i<LAYERS.length;i++){
    const l=LAYERS[i];
-   const count=mobile?24+i*2:49+i*9;
+   const count=mobile?17+i*2:32+i*6;
    for(let k=0;k<count;k++){
      const side=k%2===0?-1:1;
      const x=side*(4.0+Math.pow(random(),.65)*24);
@@ -444,7 +462,7 @@ function makeForest(THREE,scene,mobile){
    [[-10.5,15,10.1],[-8.5,27,7.3],[10.4,16,10.0],[8.7,28,7.3]]:
    [[-25,12,17.5],[-22,24,12.5],[-18.1,35,9.7],[-13.8,17,7.2],
     [25,12,17.1],[22,25,12.6],[18.4,35,9.7],[14.1,18,6.9]];
- for(const [x,z,size] of framing)push(x,-6.6,z,size,'#081629');
+ for(const [x,z,size] of framing)push(x,-6.6,z,size,'#142e39');
  const uniforms={uTime:{value:0},uWind:{value:0},uDay:{value:0},
    uTwilight:{value:0},uStorm:{value:0},uShadow:{value:0},
    uLightDir:{value:new THREE.Vector3(.1,.7,1).normalize()},
@@ -657,6 +675,7 @@ if(enabled)try{
  state.ridgeSurfaceVertices=ridges.reduce((n,r)=>n+r.vertexCount,0);
  state.ridgeReliefDepths=ridges.map(r=>Number(r.reliefDepth.toFixed(2)));
  state.ridgeGeometry='coherent-carved-3d-mountain-heightfields';
+ state.composition='hand-art-directed-alpine-valley-v1';
  state.visibleCliffReliefVersion=2;
  state.forestAnchoredToSculptedRidges=true;
  state.ridgeMaterial='carved-drainage-v2-and-moving-cloud-shadows';
