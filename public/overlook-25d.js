@@ -261,6 +261,7 @@ function makeMountain(THREE,scene,layer,mobile){
    low=near.clone().multiplyScalar(.39),
    granite=new THREE.Color('#8b899c'),
    lichen=new THREE.Color('#647584'),
+   alpineSnow=new THREE.Color('#c4d4d6'),
    tone=new THREE.Color();
  for(let j=0;j<=rows;j++){
   const t=j/rows;
@@ -289,7 +290,7 @@ function makeMountain(THREE,scene,layer,mobile){
    if(layer.alpine){
      const snowCap=smooth(.28,.91,1-t)
        *smooth(.18,.86,rock.spine*.5+rock.chips*.22+.50);
-     tone.lerp(new THREE.Color('#c4d4d6'),snowCap*layer.alpine*.22);
+     tone.lerp(alpineSnow,snowCap*layer.alpine*.22);
    }
    const faceLight=.88+.13*(.5+.5*rock.branch)
      -.13*rock.gully*rock.envelope;
