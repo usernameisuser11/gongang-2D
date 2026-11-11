@@ -49,31 +49,12 @@ export function buildOverlookDetails(THREE,scene,{mobile=false}={}){
   if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
   scene.add(mesh);
 
-  // A handful of rough woody stems, not symmetrical "cone trees".
-  const barkGeo=new THREE.CylinderGeometry(.07,.18,1,7);
-  const barkMat=new THREE.MeshStandardMaterial({color:'#554c4c',roughness:1});
-  const stems=new THREE.InstancedMesh(barkGeo,barkMat,mobile?14:27);
-  const stemCount=stems.count;
-  for(let i=0;i<stemCount;i++){
-    const side=i%2?1:-1;
-    const z=15+random()*63;
-    const x=side*(15+random()*10);
-    const h=.35+random()*.8;
-    obj.position.set(x,-3.16+h*.42,z);
-    obj.rotation.set((random()-.5)*.18,random()*6.283,
-      (random()-.5)*.17);
-    obj.scale.set(.52+random()*.6,h,.58+random()*.5);
-    obj.updateMatrix();
-    stems.setMatrixAt(i,obj.matrix);
-  }
-  stems.instanceMatrix.needsUpdate=true;
-  stems.frustumCulled=false;
-  scene.add(stems);
-  return {count:count+stemCount,
+  // Sparse natural stones only — no stick-like or rounded filler objects.
+  return {count,
     dispose(){
-      scene.remove(mesh,stems);
-      mesh.dispose();stems.dispose();
-      source.dispose();mat.dispose();barkGeo.dispose();barkMat.dispose();
+      scene.remove(mesh);
+      mesh.dispose();
+      source.dispose();mat.dispose();
     }
   };
 }
