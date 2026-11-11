@@ -421,47 +421,196 @@
  ];
  function paintLayer(fns){const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
    const ctx=canvas.getContext('2d',{alpha:true});for(const fn of fns)fn(ctx);return canvas;}
- const layers=[];
- let painted=false,failed=false,error='';
- const state={ready:false,frames:0,mode:'coordinate-repaint-no-bitmap',coordinates:'1672x941',layers:0,error:null,light:'twilight',galaxy:'quasar-v129-24200-soft-grains-great-rift'};
- function ensure(){if(painted)return;try{
-  for(const defs of layerDefs)layers.push(paintLayer(defs));
-  state.ready=true;state.layers=layers.length;painted=true;
- }catch(e){failed=true;state.error=error=String(e);console.warn('Reference vista paint failed',e);}}
+ const layers=[],skyCache={},cloudCache={};
+ const params=new URLSearchParams(location.search);
+ const timePreview=params.get('time');
+ const timeOverride=/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(timePreview||'')?
+   Number(timePreview.slice(0,2))+Number(timePreview.slice(3))/60:null;
+ const weatherPreview=params.get('weather');
+ let painted=false,failed=false,error='',lastWeatherFetch=-Infinity;
+ let weather={cloud:.24,wind:6,rain:0,snow:0};
+ const state={
+   ready:false,frames:0,mode:'coordinate-repaint-no-bitmap',
+   coordinates:'1672x941',layers:0,error:null,light:'night',
+   galaxy:'quasar-v129-24200-soft-grains-great-rift',
+   hour:0,nightFactor:1,starVisibility:0,cloudCover:.24,
+   windKmh:6,rain:0,snow:0,weather:'clear',weatherSource:'fallback',
+   fetchError:null,moonVisible:false,sunrise:6.5,sunset:18.0
+ };
+ const soften=(a,b,v)=>{const t=clamp((v-a)/(b-a));return t*t*(3-2*t)};
+ function seoulTime(ms=Date.now()){
+   const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Seoul',
+     hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(ms));
+   return Number(parts.find(p=>p.type==='hour').value)+
+     Number(parts.find(p=>p.type==='minute').value)/60;
+ }
+ function solarTimes(ms=Date.now()){
+   // Reuses the approximation from the existing living-environment renderer.
+   const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',
+     year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(ms));
+   const year=Number(parts.find(p=>p.type==='year').value),
+     month=Number(parts.find(p=>p.type==='month').value),
+     day=Number(parts.find(p=>p.type==='day').value);
+   const doy=Math.round((Date.UTC(year,month-1,day)-Date.UTC(year,0,0))/86400000);
+   const daylight=12+2.45*Math.cos((doy-172)*2*Math.PI/365.2425);
+   return {sunrise:12.30-daylight/2,sunset:12.30+daylight/2};
+ }
+ const dailySky=(hour,sunrise,sunset)=>{
+   if(hour<sunrise-1.3)return [['night',1]];
+   if(hour<sunrise+.15){const v=soften(sunrise-1.3,sunrise+.15,hour);return [['night',1-v],['dawn',v]];}
+   if(hour<sunrise+2.2){const v=soften(sunrise+.15,sunrise+2.2,hour);return [['dawn',1-v],['day',v]];}
+   if(hour<sunset-1.0)return [['day',1]];
+   if(hour<sunset+.25){const v=soften(sunset-1.0,sunset+.25,hour);return [['day',1-v],['dusk',v]];}
+   if(hour<sunset+1.7){const v=soften(sunset+.25,sunset+1.7,hour);return [['dusk',1-v],['night',v]];}
+   return [['night',1]];
+ };
+ function setWeather(w,source){
+   weather={
+     cloud:clamp(Number(w.cloud)||0),
+     wind:clamp(Number(w.wind)||0,0,90),
+     rain:clamp(Number(w.rain)||0),
+     snow:clamp(Number(w.snow)||0)
+   };
+   state.weatherSource=source;
+   state.weather=weather.snow>.03?'snow':weather.rain>.03?'rain':
+     weather.cloud>.65?'cloudy':'clear';
+ }
+ if(['clear','cloudy','rain','snow'].includes(weatherPreview)){
+   setWeather({cloud:weatherPreview==='clear'?.12:.83,wind:17,
+     rain:weatherPreview==='rain'?.8:0,
+     snow:weatherPreview==='snow'?.9:0},'preview');
+ }
+ async function fetchWeather(){
+   if(params.get('renderer')!=='reference')return;
+   if(['clear','cloudy','rain','snow'].includes(weatherPreview))return;
+   if(Date.now()-lastWeatherFetch<15*60*1000)return;
+   lastWeatherFetch=Date.now();
+   try{
+     // Same endpoint and Seoul coordinates as living-environment-3d.js.
+     // The two rendering modes are mutually exclusive, so only this
+     // current weather consumer runs in the coordinate-reference scene.
+     const url='https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.978'
+       +'&current=cloud_cover,wind_speed_10m,precipitation,rain,snowfall'
+       +'&timezone=Asia%2FSeoul';
+     const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),4500);
+     let response;try{response=await fetch(url,{signal:ctl.signal})}
+     finally{clearTimeout(timer)}
+     if(!response.ok)throw Error('Weather HTTP '+response.status);
+     const current=(await response.json()).current;
+     if(!current||!Number.isFinite(current.cloud_cover))throw Error('Invalid weather payload');
+     setWeather({cloud:current.cloud_cover/100,wind:current.wind_speed_10m,
+       rain:clamp((current.rain||current.precipitation||0)/2),
+       snow:clamp((current.snowfall||0)/1.2)},'Open-Meteo · Seoul');
+     state.fetchError=null;
+   }catch(e){state.fetchError=String(e?.message||e);}
+ }
+ function weatherParticles(c,now,t){
+   const level=Math.max(weather.rain,weather.snow);
+   if(level<.03)return;
+   const rain=weather.rain>=weather.snow;
+   const count=Math.round((rain?100:65)*level),
+     sc=t.width/W,sy=t.height/H,
+     wind=clamp(weather.wind/26,0,2.7);
+   c.save();c.beginPath();c.rect(t.x,t.y,t.width,t.height);c.clip();
+   for(let j=0;j<count;j++){
+     const x0=(j*139.61+(j%17)*72.1)%W,
+       speed=rain?(.55+(j%13)*.064):(.06+(j%9)*.021),
+       y0=(j*93.3+now*speed)%(H+120)-65;
+     const x=t.x+((x0+now*(rain?.055:.019)*wind)%W)*sc,
+       y=t.y+y0*sy;
+     c.strokeStyle=rain?'rgba(189,212,236,.15)':'rgba(241,246,255,.38)';
+     c.lineWidth=rain?Math.max(.45,sc*.95):Math.max(1,sc*2);
+     c.beginPath();c.moveTo(x,y);
+     c.lineTo(x+(rain?-(3+wind*5)*sc:(Math.sin(now*.0007+j)*3)*sc),
+       y+(rain?22*sy:3*sy));c.stroke();
+   }
+   c.restore();
+ }
+ function ensure(){
+   if(painted||failed)return;
+   try{
+     // Paint these once. Every animation frame only cross-fades their
+     // opacity; this never rebuilds 24,200 star particles per frame.
+     for(const mode of ['night','dawn','day','dusk']){
+       skyCache[mode]=paintLayer([(c)=>skyBase(c,mode)]);
+       cloudCache[mode]=paintLayer([(c)=>skyClouds(c,mode)]);
+     }
+     skyCache.stars=paintLayer([skyStars]);
+     for(const defs of layerDefs)layers.push(paintLayer(defs));
+     state.ready=true;state.layers=layers.length;painted=true;
+     fetchWeather();
+   }catch(e){failed=true;state.error=error=String(e);console.warn('Reference vista paint failed',e);}
+ }
  function draw(ctx,t,now,opts={}){
-  ensure();if(failed||!state.ready)return false;
-  const relative=clamp((opts.scroll||0),-1,1);
-  const scaleX=t.width/W,scaleY=t.height/H;
-  ctx.save();ctx.beginPath();ctx.rect(t.x,t.y,t.width,t.height);ctx.clip();
-  for(let i=0;i<layers.length;i++){
-   const parallax=[0,2.2,5.3,9.2,14.0][i]*relative;
-   const drift= i===3?Math.sin(now*.00008)*.6:0;
-   ctx.drawImage(layers[i],t.x-(parallax+drift)*scaleX,t.y, t.width,t.height);
-  }
-  // Only a few source grains shimmer. The rest of the 24,200
-  // original particles remain still, keeping the view restful.
-  // Clip to the clear upper sky so no stars float over mountains.
-  if(window.StellarGrains?.animate){
-    ctx.save();ctx.beginPath();
-    ctx.rect(t.x,t.y,t.width,t.height*.348);ctx.clip();
-    ctx.translate(t.x,t.y);ctx.scale(t.width/W,t.height/H);
-    window.StellarGrains.animate(ctx,now);
-    ctx.restore();
-  }
-  // Sparse real-time distant haze and firefly twinkle sit on top of
-  // separately authored layers; the painted reference is never loaded.
-  ctx.globalCompositeOperation='screen';
-  const phase=now*.00034;
-  for(let i=0;i<22;i++){
-    const x=t.x+(350+(i*59.71)%920)/W*t.width,
-      y=t.y+(695+(i*13.9)%110)/H*t.height;
-    const alpha=(.06+.11*(.5+.5*Math.sin(phase+i*1.7)));
-    ctx.fillStyle='rgba(255,221,139,'+alpha.toFixed(3)+')';
-    ctx.beginPath();ctx.arc(x,y,Math.max(.35,1.15*scaleX),0,TAU);ctx.fill();
-  }
-  ctx.globalCompositeOperation='source-over';
-  ctx.restore();
-  state.frames++;return true;
+   ensure();if(failed||!state.ready)return false;
+   const realNow=Date.now(),hour=timeOverride===null?seoulTime(realNow):timeOverride,
+     solar=solarTimes(realNow),mix=dailySky(hour,solar.sunrise,solar.sunset);
+   const night=mix.reduce((v,[name,weight])=>v+(name==='night'?weight:0),0);
+   const clouds=weather.cloud,storm=Math.max(weather.rain,weather.snow);
+   const stars=clamp(night*(1-clouds*.87)*(1-storm*.76));
+   state.hour=hour;state.sunrise=solar.sunrise;state.sunset=solar.sunset;
+   state.light=mix.reduce((a,b)=>a[1]>b[1]?a:b)[0];
+   state.nightFactor=night;state.starVisibility=stars;
+   state.windKmh=weather.wind;state.cloudCover=clouds;
+   state.rain=weather.rain;state.snow=weather.snow;
+   // Moon deliberately hidden: no fixed decorative crescent at sunset.
+   state.moonVisible=false;
+   if(Date.now()-lastWeatherFetch>15*60*1000)fetchWeather();
+   const relative=clamp((opts.scroll||0),-1,1),
+     scaleX=t.width/W,scaleY=t.height/H;
+   ctx.save();ctx.beginPath();ctx.rect(t.x,t.y,t.width,t.height);ctx.clip();
+   ctx.globalAlpha=1;
+   for(const [theme,amount] of mix){
+     ctx.globalAlpha=amount;ctx.drawImage(skyCache[theme],t.x,t.y,t.width,t.height);
+   }
+   ctx.globalAlpha=stars;
+   ctx.drawImage(skyCache.stars,t.x,t.y,t.width,t.height);
+   for(const [theme,amount] of mix){
+     ctx.globalAlpha=amount*clamp(.20+clouds*.96+storm*.40);
+     ctx.drawImage(cloudCache[theme],t.x,t.y,t.width,t.height);
+   }
+   if(storm>.08){
+     // Muted, overcast air changes the sky illumination, not mountain geometry.
+     ctx.globalAlpha=storm*.21;
+     ctx.fillStyle=weather.snow>weather.rain?'#d8e0eb':'#64778c';
+     ctx.fillRect(t.x,t.y,t.width,t.height*.74);
+   }
+   ctx.globalAlpha=1;
+   for(let i=1;i<layers.length;i++){
+     const parallax=[0,2.2,5.3,9.2,14.0][i]*relative,
+       drift=i===3?Math.sin(now*.00008)*.6:0;
+     ctx.drawImage(layers[i],t.x-(parallax+drift)*scaleX,t.y,t.width,t.height);
+   }
+   // Weather also affects distant haze and overall natural light,
+   // with a subtle daylight sky bounce, never an opaque overlay.
+   if(storm>.02){
+     ctx.globalAlpha=storm*.08;
+     ctx.fillStyle=weather.snow>weather.rain?'#d8e7ef':'#56667c';
+     ctx.fillRect(t.x,t.y+t.height*.43,t.width,t.height*.42);
+   }
+   ctx.globalAlpha=1;
+   if(stars>.02&&window.StellarGrains?.animate){
+     ctx.save();ctx.globalAlpha=stars;
+     ctx.beginPath();ctx.rect(t.x,t.y,t.width,t.height*.348);ctx.clip();
+     ctx.translate(t.x,t.y);ctx.scale(scaleX,scaleY);
+     window.StellarGrains.animate(ctx,now);
+     ctx.restore();
+   }
+   // Fireflies are scarce in daytime or heavy precipitation.
+   ctx.save();ctx.globalCompositeOperation='screen';
+   const phase=now*.00034;
+   for(let i=0;i<22;i++){
+     const x=t.x+(350+(i*59.71)%920)/W*t.width,
+       y=t.y+(695+(i*13.9)%110)/H*t.height;
+     const alpha=(.06+.11*(.5+.5*Math.sin(phase+i*1.7)))*
+       (.18+.82*night)*(1-storm*.83);
+     ctx.fillStyle='rgba(255,221,139,'+alpha.toFixed(3)+')';
+     ctx.beginPath();ctx.arc(x,y,Math.max(.35,1.15*scaleX),0,TAU);ctx.fill();
+   }
+   ctx.restore();
+   weatherParticles(ctx,now,t);
+   ctx.restore();
+   state.frames++;return true;
  }
  window.GongangReferenceVista={draw,state,get ready(){ensure();return state.ready;},ensure};
 })();
