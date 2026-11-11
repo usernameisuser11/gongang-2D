@@ -48,14 +48,14 @@ function crest(x,l){
    hill(6+l.turn,6,l.peak)+summits;
 }
 const LAYERS=[
- {name:'far alpine snow',z:-172,center:-12.2,rise:4.2,turn:2,peak:2.5,alpine:2.6,seed:8,base:'#849bc9',day:'#9caeae'},
- {name:'blue alpine summits',z:-157,center:-13.2,rise:4.8,turn:-1,peak:2.9,alpine:3.2,seed:13,base:'#758bc0',day:'#81a6b4'},
- {name:'horizon foothills',z:-143,center:-13.5,rise:5.3,turn:0,peak:2.5,alpine:1.5,seed:19,base:'#6f86b5',day:'#7b9b9e'},
- {name:'lavender peaks',z:-126,center:-14.2,rise:6.3,turn:-4,peak:3.3,alpine:.65,seed:27,base:'#6484ba',day:'#648e93'},
- {name:'distant cobalt',z:-110,center:-13.8,rise:7.9,turn:3,peak:2.6,seed:33,base:'#386c9b',day:'#437a81'},
- {name:'teal valleys',z:-94,center:-13.7,rise:9.8,turn:-2,peak:2.4,seed:41,base:'#28688d',day:'#427c75'},
- {name:'deep fir hills',z:-78,center:-12.8,rise:11.2,turn:2,peak:2.0,seed:55,base:'#173d67',day:'#365d59'},
- {name:'near forest slopes',z:-62,center:-12.0,rise:12.8,turn:-1,peak:1.8,seed:67,base:'#0d2c51',day:'#295348'}
+ {name:'far alpine snow',z:-172,center:-12.2,rise:3.5,turn:2,peak:2.4,alpine:1.5,seed:8,base:'#849bc9',day:'#9caeae'},
+ {name:'blue alpine summits',z:-157,center:-13.2,rise:4.1,turn:-1,peak:2.5,alpine:1.8,seed:13,base:'#758bc0',day:'#81a6b4'},
+ {name:'horizon foothills',z:-143,center:-13.5,rise:4.5,turn:0,peak:2.3,alpine:.9,seed:19,base:'#6f86b5',day:'#7b9b9e'},
+ {name:'lavender peaks',z:-126,center:-14.2,rise:5.4,turn:-4,peak:3.0,alpine:.4,seed:27,base:'#6484ba',day:'#648e93'},
+ {name:'distant cobalt',z:-110,center:-13.8,rise:6.6,turn:3,peak:2.6,seed:33,base:'#386c9b',day:'#437a81'},
+ {name:'teal valleys',z:-94,center:-13.7,rise:7.5,turn:-2,peak:2.3,seed:41,base:'#28688d',day:'#427c75'},
+ {name:'deep fir hills',z:-78,center:-12.8,rise:8.8,turn:2,peak:2.0,seed:55,base:'#173d67',day:'#365d59'},
+ {name:'near forest slopes',z:-62,center:-12.0,rise:9.8,turn:-1,peak:1.8,seed:67,base:'#0d2c51',day:'#295348'}
 ];
 const MOUNTAIN_VS=`
 varying vec3 vPigment,vFaceNormal;
