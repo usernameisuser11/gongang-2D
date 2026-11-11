@@ -7,11 +7,11 @@
  * asymmetric side framing. Authored to leave a broad open valley at center.
  */
 const LAYERS=[
- {id:'horizon',z:-140,depth:17,center:-10.7,lift:11.2,width:29,seed:12,top:'#b58dbe',low:'#657aa2'},
- {id:'distant',z:-119,depth:18,center:-12.1,lift:13.4,width:33,seed:31,top:'#7b8cbb',low:'#376b92'},
- {id:'middle',z:-98,depth:18,center:-13.2,lift:15.1,width:34,seed:51,top:'#446f9b',low:'#215978'},
- {id:'near',z:-77,depth:16,center:-15.8,lift:16.5,width:35,seed:79,top:'#215b72',low:'#113c53'},
- {id:'silhouette',z:-58,depth:18,center:-19.3,lift:18.5,width:34,seed:91,top:'#183e57',low:'#0a273c'}
+ {id:'horizon',z:-140,depth:17,center:-5.9,lift:7.6,width:27,seed:12,top:'#d6a8bc',low:'#617ca7'},
+ {id:'distant',z:-119,depth:18,center:-8.5,lift:9.2,width:32,seed:31,top:'#9188bf',low:'#386c98'},
+ {id:'middle',z:-98,depth:18,center:-10.7,lift:11.1,width:34,seed:51,top:'#4479aa',low:'#205781'},
+ {id:'near',z:-77,depth:16,center:-13.7,lift:13.9,width:35,seed:79,top:'#225c80',low:'#10364f'},
+ {id:'silhouette',z:-58,depth:18,center:-17.6,lift:16.4,width:34,seed:91,top:'#183b60',low:'#091e39'}
 ];
 const TAU=Math.PI*2;
 const smooth=t=>t*t*(3-2*t);
@@ -35,10 +35,10 @@ function ridgeAt(x,c){
  const rugged=fbm(x*.11,c.seed)*1.75+
   fbm(x*.34,c.seed+41)*.43+noise(x*.66,c.seed+10)*.18;
  const peaks=c.id==='horizon'
- ?cliff(x,-22,10,18,1.9)+cliff(x,35,18,9,2.0)
- :c.id==='near' ? cliff(x,-38,16,8,2.9)+cliff(x,45,10,18,3.3)
- :cliff(x,-34,15,10,2.4)+cliff(x,29,12,17,1.7);
- const valley=2.0*Math.exp(-Math.pow((x+(c.seed%11)-6)/11.5,2));
+ ?cliff(x,-19,10,18,2.0)+cliff(x,12,7,11,3.8)+cliff(x,34,18,9,1.7)
+ :c.id==='near' ? cliff(x,-22,15,10,2.4)+cliff(x,35,10,16,3.1)
+ :cliff(x,-25,15,10,2.1)+cliff(x,18,9,14,2.3);
+ const valley=1.1*Math.exp(-Math.pow((x+(c.seed%11)-6)/13.5,2));
  return c.center+shoulders+rugged+peaks-valley;
 }
 function erosions(x,t,c){
@@ -131,9 +131,9 @@ export function createValleyGroveLayout({mobile=false}={}){
   // Forested slopes: trees deepen naturally into the scene, while distant
   // ridges and the entire center remain clear for sky watching.
   const groups=[
-    {layer:LAYERS[4],count:mobile?12:17,min:9,max:27,scale:.55},
-    {layer:LAYERS[3],count:mobile?10:18,min:10,max:29,scale:.39},
-    {layer:LAYERS[2],count:mobile?7:14,min:12,max:30,scale:.27}
+    {layer:LAYERS[4],count:mobile?12:17,min:9,max:27,scale:.86},
+    {layer:LAYERS[3],count:mobile?10:18,min:10,max:29,scale:.57},
+    {layer:LAYERS[2],count:mobile?7:14,min:12,max:30,scale:.39}
   ];
   for(const group of groups){
     for(let i=0;i<group.count;i++){
@@ -145,8 +145,8 @@ export function createValleyGroveLayout({mobile=false}={}){
   }
   // Tall framing pines in the real foreground, well outside the sitting
   // area. They are 3D meshes, not background stickers.
-  const near=mobile?[[-16.7,13.8,.70],[7.6,13.4,.63]]:
-    [[-21.6,16.2,1.10],[-18.1,22.0,.76],[21.5,17.0,1.16],[18.2,22.4,.74]];
+  const near=mobile?[[-14.4,13.8,.98],[11.1,13.4,.96]]:
+    [[-21.6,16.2,1.72],[-17.2,22.0,1.06],[21.5,17.0,1.76],[17.3,22.4,1.02]];
   for(const [x,z,scale] of near){
     trees.push({position:[x,-3.18,z],rotationY:random()*TAU,scale});
   }
