@@ -252,6 +252,23 @@
    rock(c,527,715,40,27,203);
    rock(c,526,702,30,18,204);
    rock(c,529,689,19,13,205);
+   // Deep near-field conifers frame the precise view corridors at both
+   // edges. In the reference these are *large* trees, not the uniform
+   // miniature pines of the distant valley. They stay clear of the seat.
+   fir(c,83,678,694,4001,'#101d2e',.94);
+   fir(c,230,691,448,4002,'#172a36',.94);
+   fir(c,1560,682,543,4003,'#101f31',.98);
+   fir(c,1677,676,653,4004,'#0c1729',.96);
+   // Sparse warm grazing light on the side branches; the illuminated
+   // grass below the trees belongs to the same sunset and lantern.
+   for(const [x,y,size,seed] of [[118,443,23,7],[214,565,14,8],[1524,557,13,9]]){
+     const k=rng(seed);
+     for(let i=0;i<38;i++){
+       const px=x+(k()-.5)*size*4,py=y+(k()-.5)*size*5;
+       line(c,[px,py],[px+(k()-.5)*7,py-2-k()*11],
+         color('#e1a078',.014+k()*.062),.45+k()*.9);
+     }
+   }
    // Foreground corners create a subtle vignette, not black rectangles.
    c.fillStyle=radial(c,841,680,1190,[[0,'rgba(10,14,27,0)'],[.72,'rgba(10,14,27,.05)'],[1,'rgba(3,8,18,.38)']]);c.fillRect(0,0,W,H);
  }
