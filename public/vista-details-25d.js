@@ -142,7 +142,7 @@ void main(){
   gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);
 }`;
 const WATER_FS=`
-precision mediump float;
+precision highp float;
 varying vec2 vUv;
 uniform float uTime,uDay,uTwilight;
 void main(){
