@@ -15,6 +15,8 @@ const noise=(x,n)=>{
  return (hash(i,n)*(1-f)+hash(i+1,n)*f)*2-1;
 };
 export function overlookGroundHeight(x,localZ){
+ const edge=smooth(12,92,Math.abs(x));
  return -6.80-.92*smooth(11,40,Math.abs(x))
-   +.055*noise(x*.28+localZ*.22,19);
+   +.055*noise(x*.28+localZ*.22,19)
+   -.32*edge-.20*noise(x*.035+localZ*.06,19);
 }
