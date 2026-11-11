@@ -15,6 +15,7 @@ const snapshots = [
   { name: 'desktop-live-day', width: 1440, height: 900, query: '?map=stargaze&time=13:20&weather=cloudy', kind: 'live', expectedHour: 13.3333, expectedWeather: 'cloudy' },
   { name: 'desktop-live-sunset', width: 1440, height: 900, query: '?map=stargaze&time=18:10&weather=clear', kind: 'live', expectedHour: 18.1667, expectedWeather: 'clear' },
   { name: 'desktop-live-night', width: 1440, height: 900, query: '?map=stargaze&time=23:20&weather=clear', kind: 'live', expectedHour: 23.3333, expectedWeather: 'clear' },
+  { name: 'desktop-cinematic-moon', width: 1440, height: 900, query: '?map=stargaze&time=18:10&weather=clear&moon=show', kind: 'live', expectedHour: 18.1667, expectedWeather: 'clear', expectedMoon: true },
   { name: 'mobile-live-rain', width: 390, height: 844, query: '?map=stargaze&time=16:10&weather=rain', kind: 'live', expectedHour: 16.1667, expectedWeather: 'rain' },
   { name: 'mobile-live-snow', width: 390, height: 844, query: '?map=stargaze&time=08:10&weather=snow', kind: 'live', expectedHour: 8.1667, expectedWeather: 'snow' },
   { name: 'desktop-painterly-baseline', width: 1440, height: 900, query: '?map=stargaze&renderer=2d', kind: 'painterly' },
@@ -139,6 +140,14 @@ try {
           assert.equal(state.environment?.weather, config.expectedWeather, 'Weather preset mismatch');
           assert.ok(Math.abs(state.environment.hour-config.expectedHour)<.025, 'Incorrect time-of-day');
           assert.ok(state.environment.renderCount > 2, 'Sky/lighting did not advance');
+          assert.ok(state.pineCount >= (config.width < 600 ? 500 : 1000),
+            'Dense 3D canopy is missing: ' + state.pineCount);
+          if (config.expectedMoon) {
+            assert.equal(state.environment.moonVisible, true, 'Crescent preview moon missing');
+            const p = state.environment.moonUV;
+            assert.ok(p && p.x > .22 && p.x < .78 && p.y > .08 && p.y < .58,
+              'Moon is outside sky framing: ' + JSON.stringify(p));
+          }
         }
         assert.ok(state.terrainLoaded, 'Terrain model failed: ' + state.terrainError);
         assert.ok(state.groveLoaded, '3D pine forest failed: ' + state.groveError);
