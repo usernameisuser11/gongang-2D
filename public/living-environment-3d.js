@@ -6,7 +6,7 @@ const VS=`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*model
 const SKY=`
 precision highp float;
 varying vec2 vUv;
-uniform float uTime,uNight,uTwilight,uCloud,uRain,uWind;
+uniform float uTime,uNight,uTwilight,uCloud,uRain,uWind,uSunFocus;
 uniform vec3 uTop,uHorizon;
 float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
 float noise(vec2 p){
@@ -27,7 +27,21 @@ void main(){
  float sx=clamp((p.x-.385)*4.35,0.,1.);
  float t=uTime;
  float twilight=uTwilight;
- vec3 col=mix(uHorizon,uTop,pow(h,.78));
+ // Deep cobalt zenith and a warm opening toward the far horizon.
+ // This atmospheric sun glow is broad, never a sharp beam or neon ring.
+ vec3 col=mix(uHorizon,uTop,pow(h,.66));
+ float focus=clamp(uSunFocus,.18,.82);
+ float deltaX=(sx-focus)/.36;
+ float deltaY=(h-.18)/.30;
+ float horizonGlow=exp(-(deltaX*deltaX+deltaY*deltaY)*.90);
+ float solarGlow=(1.-uNight)*(.22+.34*uTwilight);
+ vec3 apricot=mix(vec3(.26,.36,.36),vec3(.62,.30,.18),uTwilight);
+ col+=apricot*horizonGlow*solarGlow*(1.-uRain*.40);
+ // Soft broken light behind the clouds, no hard geometric shafts.
+ float shaft=sin((sx-focus)*12.5+h*6.3+1.1);
+ float sunbreak=smoothstep(.22,.92,shaft)*exp(-pow((h-.28)/.56,2.));
+ col+=vec3(.19,.14,.10)*horizonGlow*sunbreak
+   *(1.-uNight)*(.08+.23*uTwilight)*(1.-uCloud*.54);
  // The sky is dark cobalt overhead, indigo in mid-altitude, and a warm
  // orange-pink band over the far peaks — not a uniform maroon tint.
  col=mix(col,vec3(.48,.12,.33),twilight*gauss(h-.49,.30)*.80);
@@ -198,9 +212,9 @@ void main(){
 }`;
 const C={
  night:{top:'#040715',horizon:'#17335b',fog:'#193b62',key:'#b2bdec',ambient:'#6b7fae'},
- dawn:{top:'#245b91',horizon:'#ffb286',fog:'#a1a8b3',key:'#ffd4ab',ambient:'#c2cce1'},
- day:{top:'#398ec6',horizon:'#d5edf4',fog:'#a6cbd0',key:'#fff7e8',ambient:'#e2ecf1'},
- dusk:{top:'#293c77',horizon:'#ffad7b',fog:'#707ba9',key:'#ffd0a8',ambient:'#c9b6dc'}
+ dawn:{top:'#3555a0',horizon:'#ffbb91',fog:'#8f9bb0',key:'#ffd4ab',ambient:'#c2cce1'},
+ day:{top:'#237fbd',horizon:'#b9dddf',fog:'#82b5b7',key:'#fff4dc',ambient:'#d8e9e7'},
+ dusk:{top:'#394b91',horizon:'#ffb18a',fog:'#777fa3',key:'#ffd0a8',ambient:'#c9b6dc'}
 };
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const curve=(a,b,v)=>{let t=clamp((v-a)/(b-a));return t*t*(3-2*t);};
@@ -246,7 +260,7 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false,camera=
    hour:koreaHour(),nightFactor:1,windKmh:6,cloudCover:.20,rain:0,snow:0,
    fetchError:null,renderCount:0,solarPosition:'Seoul seasonal solar approximation',moonPhase:0,sunrise:0,sunset:0,moonVisible:false,moonUV:null};
  const uniforms={uTime:{value:0},uNight:{value:1},uTwilight:{value:0},
-  uCloud:{value:.25},uRain:{value:0},uWind:{value:.3},
+  uCloud:{value:.25},uRain:{value:0},uWind:{value:.3},uSunFocus:{value:.52},
   uTop:{value:new THREE.Color(C.night.top)},
   uHorizon:{value:new THREE.Color(C.night.horizon)}};
  const sky=new THREE.Mesh(new THREE.PlaneGeometry(230,100),new THREE.ShaderMaterial({
@@ -341,6 +355,7 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false,camera=
     // Modest, distance-aware haze; heavy white fog erased all 3D mountains on mobile.
     scene.fog.density=.0019+cloud*.0027+(rain+snow)*.0042;}
   const sunProgress=(hour-sunrise)/(sunset-sunrise);
+  uniforms.uSunFocus.value=clamp(.50+(sunProgress-.5)*.64,.22,.78);
   const sunY=-14+Math.sin(Math.PI*clamp(sunProgress))*38;
   sun.position.set((sunProgress-.5)*72,sunY,-147);
   sun.visible=sunProgress>-.02&&sunProgress<1.02&&sunY>-11;
