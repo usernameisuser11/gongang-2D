@@ -263,7 +263,8 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false}={}){
   key.color.copy(palette(THREE,'key',hour,sunrise,sunset));key.intensity=.45+daylight*1.5+twilight*.3;
   fill.color.copy(palette(THREE,'ambient',hour,sunrise,sunset));fill.intensity=1.0+daylight*.65;
   if(scene.fog){scene.fog.color.copy(palette(THREE,'fog',hour,sunrise,sunset));
-    scene.fog.density=.004+cloud*.009+(rain+snow)*.01;}
+    // Modest, distance-aware haze; heavy white fog erased all 3D mountains on mobile.
+    scene.fog.density=.0019+cloud*.0027+(rain+snow)*.0042;}
   const sunProgress=(hour-sunrise)/(sunset-sunrise);
   const sunY=-14+Math.sin(Math.PI*clamp(sunProgress))*38;
   sun.position.set((sunProgress-.5)*72,sunY,-147);
