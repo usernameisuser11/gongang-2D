@@ -160,7 +160,7 @@ function moonPhase(ms=Date.now()){
  const jd=ms/86400000+2440587.5;
  return ((jd-2451550.1)/29.530588853%1+1)%1;
 }
-export function createLivingEnvironment(THREE,scene,{reducedMotion=false}={}){
+export function createLivingEnvironment(THREE,scene,{reducedMotion=false,camera=null}={}){
  const query=new URLSearchParams(location.search);
  const requestedHour=query.get('time');
  const hourOverride=/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(requestedHour||'')?
@@ -169,7 +169,7 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false}={}){
  const moonPreview=query.get('moon')==='show';
  const state={ready:true,mode:'real-time-webgl',weatherSource:'fallback',weather:'clear',
    hour:koreaHour(),nightFactor:1,windKmh:6,cloudCover:.20,rain:0,snow:0,
-   fetchError:null,renderCount:0,solarPosition:'Seoul seasonal solar approximation',moonPhase:0,sunrise:0,sunset:0};
+   fetchError:null,renderCount:0,solarPosition:'Seoul seasonal solar approximation',moonPhase:0,sunrise:0,sunset:0,moonVisible:false,moonUV:null};
  const uniforms={uTime:{value:0},uNight:{value:1},uTwilight:{value:0},
   uCloud:{value:.25},uRain:{value:0},uWind:{value:.3},
   uTop:{value:new THREE.Color(C.night.top)},
@@ -283,6 +283,11 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false}={}){
   moon.material.uniforms.uNight.value=night;
   moon.material.uniforms.uPhase.value=phase;
   state.moonPhase=phase;state.sunrise=sunrise;state.sunset=sunset;
+  state.moonVisible=moon.visible;
+  if(camera&&moon.visible){
+    const projected=moon.position.clone().project(camera);
+    state.moonUV={x:(projected.x+1)*.5,y:(1-projected.y)*.5};
+  }else state.moonUV=null;
   precipitation.uniforms.uTime.value=reducedMotion?0:time;
   precipitation.uniforms.uWind.value=wind;
   precipitation.uniforms.uSnow.value=snow>rain?1:0;
