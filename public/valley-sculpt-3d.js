@@ -32,12 +32,19 @@ function cliff(x,center,l,r,height){
 function ridgeAt(x,c){
  const t=Math.abs(x/c.width);
  const shoulders=c.lift*Math.pow(t,1.53);
- const rugged=fbm(x*.11,c.seed)*1.75+
-  fbm(x*.34,c.seed+41)*.43+noise(x*.66,c.seed+10)*.18;
+ const rugged=fbm(x*.11,c.seed)*2.08+
+  fbm(x*.34,c.seed+41)*.86+noise(x*.66,c.seed+10)*.36;
+ // Distinct high/low peaks across the skyline, not symmetrical valley walls.
  const peaks=c.id==='horizon'
- ?cliff(x,-19,10,18,2.0)+cliff(x,12,7,11,3.8)+cliff(x,34,18,9,1.7)
- :c.id==='near' ? cliff(x,-22,15,10,2.4)+cliff(x,35,10,16,3.1)
- :cliff(x,-25,15,10,2.1)+cliff(x,18,9,14,2.3);
+ ?cliff(x,-29,10,15,3.1)+cliff(x,-12,9,10,3.6)
+   +cliff(x,7,7,11,4.3)+cliff(x,24,13,9,2.8)
+ :c.id==='distant'
+ ?cliff(x,-24,10,15,2.1)+cliff(x,-6,8,9,3.0)+cliff(x,15,10,8,3.1)
+ :c.id==='middle'
+ ?cliff(x,-23,13,8,2.5)+cliff(x,4,7,10,2.2)+cliff(x,22,9,9,2.7)
+ :c.id==='near' 
+ ?cliff(x,-25,11,11,2.4)+cliff(x,26,8,13,3.1)
+ :cliff(x,-30,13,12,3.1)+cliff(x,31,13,10,3.0);
  const valley=1.1*Math.exp(-Math.pow((x+(c.seed%11)-6)/13.5,2));
  return c.center+shoulders+rugged+peaks-valley;
 }
