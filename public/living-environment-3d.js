@@ -9,47 +9,76 @@ varying vec2 vUv;
 uniform float uTime,uNight,uTwilight,uCloud,uRain,uWind;
 uniform vec3 uTop,uHorizon;
 float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
-float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
-return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+1.),f.x),f.y);}
-float fbm(vec2 p){float v=0.,w=.5;for(int j=0;j<4;j++){v+=w*noise(p);p=p*2.07+vec2(17.4,4.9);w*=.5;}return v;}
+float noise(vec2 p){
+ vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+ return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),
+            mix(hash(i+vec2(0.,1.)),hash(i+1.),f.x),f.y);
+}
+float fbm(vec2 p){
+ float v=0.,w=.5;
+ for(int j=0;j<4;j++){v+=w*noise(p);p=p*2.07+vec2(17.4,4.9);w*=.5;}
+ return v;
+}
+float gauss(float x,float spread){return exp(-pow(x/spread,2.));}
 void main(){
- vec2 p=vUv;float t=uTime;
- // Screen-composition remap: a near-screen sky must traverse the whole color
- // gradient, rather than displaying only its near-uniform central 25%.
- float h=clamp((p.y-.32)*3.25,0.,1.);
- vec3 col=mix(uHorizon,uTop,pow(h,.91));
- col+=vec3(.47,.075,.13)*uTwilight*exp(-pow((h-.08)/.21,2.));
- col+=vec3(.16,.026,.12)*uTwilight*exp(-pow((h-.35)/.24,2.));
- float n=fbm(vec2(p.x*5.1-t*(.003+.001*uWind),p.y*4.3)+vec2(2.8,6.1));
- float fine=fbm(vec2(p.x*11.6-t*.0048,p.y*7.8)+vec2(19.3,1.4));
- float veil=smoothstep(.48,.73,n*.78+fine*.39);
- float envelope=.15+.85*exp(-pow((h-.34)/.35,2.));
- float cloud=uCloud*veil*envelope;
- vec3 cloudColor=mix(vec3(.075,.09,.21),vec3(.35,.38,.63),fine);
- cloudColor=mix(cloudColor,vec3(.84,.51,.60),uTwilight*.69);
- cloudColor=mix(cloudColor,vec3(.85,.89,.94),1.-uNight);
- col=mix(col,cloudColor,cloud*.85);
- float galaxyBand=p.x*.73+h*.30-.65;
- float galaxy=exp(-pow(galaxyBand/.12,2.))*(.14+.86*fbm(p*13.4+vec2(3.,8.)));
- col+=vec3(.20,.17,.41)*galaxy*uNight*(1.-cloud*.85);
- // A second diffuse dust lane contains dark gaps instead of a bright stripe.
- float dust=fbm(p*vec2(17.,11.)+vec2(27.,3.));
- col+=vec3(.045,.10,.23)*galaxy*dust*uNight;
- col-=vec3(.035,.025,.07)*galaxy*(1.-dust)*uNight;
- vec2 g=p*vec2(188.,96.),id=floor(g),delta=fract(g)-.5;
- vec2 jitter=(vec2(hash(id+7.),hash(id+18.))-.5)*.68;
- float r=length(delta-jitter);
- float exist=step(.933,hash(id+31.));
- float twinkle=.72+.28*sin(t*(.8+hash(id+29.)*.8)+hash(id+16.)*6.28);
- float star=exist*exp(-r*45.)*twinkle;
- // A second, sparser population of bright stars forms a real depth hierarchy.
- vec2 g2=p*vec2(87.,55.)+vec2(.12,.39),i2=floor(g2);
- vec2 d2=fract(g2)-.5-(vec2(hash(i2+2.),hash(i2+8.))-.5)*.60;
- float big=step(.981,hash(i2+32.))*(exp(-length(d2)*23.)*.67
-   +exp(-length(d2)*7.)*.08);
- col+=(vec3(.70,.82,1.)*star+vec3(.73,.64,1.)*big)*uNight*(1.-cloud*.90)*smoothstep(.10,.32,h);
- col+=vec3(.38,.08,.10)*uTwilight*exp(-pow((h-.11)/.19,2.));
- col*=1.-uRain*.11;
+ vec2 p=vUv;
+ // Match visible camera frustum (vUv Y ~.35-.55) to one complete sky dome.
+ float h=clamp((p.y-.355)*5.45,0.,1.);
+ float sx=clamp((p.x-.385)*4.35,0.,1.);
+ float t=uTime;
+ float twilight=uTwilight;
+ vec3 col=mix(uHorizon,uTop,pow(h,.78));
+ // The sky is dark cobalt overhead, indigo in mid-altitude, and a warm
+ // orange-pink band over the far peaks — not a uniform maroon tint.
+ col=mix(col,vec3(.88,.18,.39),twilight*gauss(h-.31,.25)*.86);
+ col=mix(col,vec3(1.06,.49,.23),twilight*gauss(h-.045,.17)*.87);
+ col=mix(col,vec3(.09,.06,.28),twilight*smoothstep(.62,.98,h)*.67);
+ col+=vec3(.20,.038,.11)*twilight*gauss(h-.22,.25)*gauss(sx-.55,.70);
+ // Independent, advecting high-altitude cirrus and stratified lower clouds.
+ vec2 flow=vec2(sx*5.8-t*(.003+.001*uWind),h*4.8);
+ float n=fbm(flow+vec2(11.3,7.8));
+ float fine=fbm(flow*vec2(2.8,1.9)+vec2(26.1,5.5));
+ float swirl=fbm(flow*vec2(1.9,1.3)+vec2(73.,19.));
+ float filament=smoothstep(.54,.70,n*.82+fine*.26+swirl*.16);
+ float cirrus=smoothstep(.62,.82,fbm(vec2(sx*17.-t*.0014,h*4.9)+vec2(17.,51.)))
+   *gauss(h-.68,.33);
+ float cloudCover=clamp(uCloud*.87+.09,0.,.9);
+ float clouds=(filament*(.25+.75*gauss(h-.41,.38))+cirrus*.32)*cloudCover;
+ vec3 cloudTone=mix(vec3(.15,.18,.33),vec3(.29,.38,.62),fine);
+ cloudTone=mix(cloudTone,vec3(.88,.37,.63),twilight*(.36+.35*(1.-h)));
+ cloudTone=mix(cloudTone,vec3(.69,.83,.96),1.-uNight);
+ col=mix(col,cloudTone,clouds*.84);
+ // Detailed Milky Way: a broad translucent dust cloud, dark lanes, cold
+ // blue star clusters. It is not a thin neon line or a flat sprite.
+ float axis=sx*.47+h*.31-.45;
+ float galacticBand=gauss(axis,.19)*smoothstep(.18,.72,h);
+ float core=fbm(vec2(sx*7.6+14.,h*10.8+3.));
+ float dust=fbm(vec2(sx*22.+39.,h*22.+9.));
+ float galactic=galacticBand*(.23+.78*core)*(.67+.33*dust);
+ float veil=max(0.,uNight-.05)*(1.-clouds*.80);
+ col+=vec3(.18,.20,.39)*galactic*veil;
+ col+=vec3(.10,.18,.38)*gauss(axis+.065,.085)*dust*veil*.7;
+ col-=vec3(.06,.045,.08)*galactic*(1.-dust)*veil;
+ // Many independent sub-pixel stars: 3 size populations and deterministic
+ // per-cell twinkle. No screen-covering white flashes.
+ vec2 g=vec2((p.x-.5)*830.,(p.y-.5)*730.);
+ vec2 id=floor(g),d=fract(g)-.5;
+ d-=(vec2(hash(id+vec2(7.,3.)),hash(id+vec2(9.,18.)))-.5)*.64;
+ float starProb=hash(id+vec2(13.,31.));
+ float tiny=step(.986,starProb)*exp(-length(d)*34.);
+ float shine=(.69+.31*sin(t*(.4+hash(id+vec2(7.,21.))*.63)+starProb*6.28));
+ vec2 g2=vec2((p.x-.5)*245.,(p.y-.5)*280.);
+ vec2 i2=floor(g2),d2=fract(g2)-.5;
+ d2-=(vec2(hash(i2+vec2(1.,3.)),hash(i2+vec2(4.,8.)))-.5)*.62;
+ float bright=step(.976,hash(i2+vec2(4.,19.)))*exp(-length(d2)*22.);
+ vec2 g3=vec2((p.x-.5)*83.,(p.y-.5)*96.);
+ vec2 i3=floor(g3),d3=fract(g3)-.5;
+ d3-=(vec2(hash(i3+vec2(2.,8.)),hash(i3+vec2(16.,1.)))-.5)*.50;
+ float beacon=step(.991,hash(i3+vec2(12.,2.)))*exp(-length(d3)*9.);
+ float stars= (tiny*shine*.75+bright*.75+beacon*1.7)*
+   max(uNight,twilight*.62)*smoothstep(.12,.50,h)*(1.-clouds*.91);
+ col+=vec3(.78,.85,1.)*stars;
+ col*=1.-uRain*.17;
  gl_FragColor=vec4(max(col,0.),1.);
 }`;
 const BODY=`
@@ -137,6 +166,7 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false}={}){
  const hourOverride=/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(requestedHour||'')?
   Number(requestedHour.slice(0,2))+Number(requestedHour.slice(3))/60:null;
  const weatherOverride=query.get('weather');
+ const moonPreview=query.get('moon')==='show';
  const state={ready:true,mode:'real-time-webgl',weatherSource:'fallback',weather:'clear',
    hour:koreaHour(),nightFactor:1,windKmh:6,cloudCover:.20,rain:0,snow:0,
    fetchError:null,renderCount:0,solarPosition:'Seoul seasonal solar approximation',moonPhase:0,sunrise:0,sunset:0};
@@ -243,8 +273,8 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false}={}){
   const moonTransit=(12+phase*24)%24;
   const moonDiff=((hour-moonTransit+36)%24)-12;
   const moonHeight=-14+Math.sin((moonDiff+6)*Math.PI/12)*37;
-  moon.position.set(-moonDiff*1.20,14.5+Math.max(-3,moonHeight*.13),-146);
-  moon.visible=night>.12&&Math.abs(moonDiff)<6.5&&phase>.015&&phase<.985;
+  moon.position.set(moonPreview?1.6:-moonDiff*1.20,moonPreview?9.8:14.5+Math.max(-3,moonHeight*.13),-146);
+  moon.visible=moonPreview||(night>.12&&Math.abs(moonDiff)<6.5&&phase>.015&&phase<.985);
   moon.material.uniforms.uNight.value=night;
   moon.material.uniforms.uPhase.value=phase;
   state.moonPhase=phase;state.sunrise=sunrise;state.sunset=sunset;
