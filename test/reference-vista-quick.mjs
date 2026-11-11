@@ -35,7 +35,13 @@ try{
     selected:new URLSearchParams(location.search).get('renderer')
   }));
   console.log('REFERENCE DIAG',JSON.stringify({cfg:cfg.name,state,failures}));
-  if(cfg.name==='reference-night-clear')console.log('BAND DIAGNOSTIC',JSON.stringify(await page.evaluate(()=>window.GongangReferenceVista?.inspectBands?.())));
+  if(cfg.name==='reference-night-clear'){
+    const bands=await page.evaluate(()=>window.GongangReferenceVista?.inspectBands?.());
+    console.log('BAND DIAGNOSTIC',JSON.stringify(bands));
+    const foreground=bands?.find(b=>b.layer===4);
+    assert.ok(foreground?.peaks?.every(p=>p.y!==630||p.color<55),
+      'Warm meadow glow must not produce a hard rectangular seam at y=630');
+  }
   await page.screenshot({path:'artifacts/reference-vista/'+cfg.name+'.png',timeout:60000});
   assert.equal(state.ready,true,JSON.stringify({state,failures}));
   assert.ok(state.frames>1,JSON.stringify({state,failures}));
