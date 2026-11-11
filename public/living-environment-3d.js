@@ -30,9 +30,9 @@ void main(){
  vec3 col=mix(uHorizon,uTop,pow(h,.78));
  // The sky is dark cobalt overhead, indigo in mid-altitude, and a warm
  // orange-pink band over the far peaks — not a uniform maroon tint.
- col=mix(col,vec3(.88,.18,.39),twilight*gauss(h-.31,.25)*.86);
- col=mix(col,vec3(1.06,.49,.23),twilight*gauss(h-.045,.17)*.87);
- col=mix(col,vec3(.09,.06,.28),twilight*smoothstep(.62,.98,h)*.67);
+ col=mix(col,vec3(.96,.16,.41),twilight*gauss(h-.46,.24)*.65);
+ col=mix(col,vec3(1.55,.52,.19),twilight*gauss(h-.24,.29)*.94);
+ col=mix(col,vec3(.018,.025,.18),twilight*smoothstep(.67,.98,h)*.72);
  col+=vec3(.20,.038,.11)*twilight*gauss(h-.22,.25)*gauss(sx-.55,.70);
  // Independent, advecting high-altitude cirrus and stratified lower clouds.
  vec2 flow=vec2(sx*5.8-t*(.003+.001*uWind),h*4.8);
@@ -74,8 +74,8 @@ void main(){
  vec2 g3=vec2((p.x-.5)*83.,(p.y-.5)*96.);
  vec2 i3=floor(g3),d3=fract(g3)-.5;
  d3-=(vec2(hash(i3+vec2(2.,8.)),hash(i3+vec2(16.,1.)))-.5)*.50;
- float beacon=step(.991,hash(i3+vec2(12.,2.)))*exp(-length(d3)*9.);
- float stars= (tiny*shine*.75+bright*.75+beacon*1.7)*
+ float beacon=step(.992,hash(i3+vec2(12.,2.)))*exp(-length(d3)*15.);
+ float stars= (tiny*shine*.74+bright*.62+beacon*.65)*
    max(uNight,twilight*.62)*smoothstep(.12,.50,h)*(1.-clouds*.91);
  col+=vec3(.78,.85,1.)*stars;
  col*=1.-uRain*.17;
@@ -273,7 +273,7 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false}={}){
   const moonTransit=(12+phase*24)%24;
   const moonDiff=((hour-moonTransit+36)%24)-12;
   const moonHeight=-14+Math.sin((moonDiff+6)*Math.PI/12)*37;
-  moon.position.set(moonPreview?1.6:-moonDiff*1.20,moonPreview?9.8:14.5+Math.max(-3,moonHeight*.13),-146);
+  moon.position.set(moonPreview?.9:-moonDiff*1.20,moonPreview?-5.8:-10.0+Math.max(-4,moonHeight)*.52,-146);
   moon.visible=moonPreview||(night>.12&&Math.abs(moonDiff)<6.5&&phase>.015&&phase<.985);
   moon.material.uniforms.uNight.value=night;
   moon.material.uniforms.uPhase.value=phase;
