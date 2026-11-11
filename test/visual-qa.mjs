@@ -108,14 +108,24 @@ try {
       }
       await page.waitForTimeout(1100);
       if(config.checkParallax){
+        // Headless Chromium may focus a previously opened/closed context;
+        // ensure physical keyboard events reach the active game window.
+        await page.bringToFront();
+        await page.evaluate(() => window.focus());
         const initial=await page.evaluate(()=>window.GongangOverlook25D?.state.parallax.x||0);
+        const before=await page.evaluate(()=>window.GongangViewCamera?.sample?.());
         await page.keyboard.down('d');
-        await page.waitForTimeout(1150);
+        await page.waitForTimeout(1400);
         await page.keyboard.up('d');
-        await page.waitForTimeout(120);
+        await page.waitForTimeout(300);
         const shifted=await page.evaluate(()=>window.GongangOverlook25D?.state.parallax.x||0);
+        const after=await page.evaluate(()=>({
+          camera:window.GongangViewCamera?.sample?.(),
+          frames:window.GongangOverlook25D?.state.frameCount
+        }));
         assert.ok(Math.abs(shifted-initial)>.009,
-          'Movement did not drive actual landscape parallax: '+initial+' -> '+shifted);
+          'Movement did not drive actual landscape parallax: '+
+          JSON.stringify({initial,shifted,before,after}));
       }
       const state = await page.evaluate(() => {
         const s = window.GongangDiorama3D?.state || {};
