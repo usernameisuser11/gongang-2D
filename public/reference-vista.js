@@ -45,20 +45,59 @@
                   x+dx*.69-bend*.28,y+dy*.75,x+dx,y+dy);
   c.strokeStyle=stroke;c.lineWidth=width;c.stroke();
  }
+ // Reference anchor points remain pixel-exact. Between them, each ridge
+ // acquires independently eroded shoulders, narrow saddles and rock teeth.
+ // Smooth value noise prevents the sharp zig-zags of raw random vertices;
+ // the sin envelope is zero at every anchor, keeping the approved layout.
+ const ridgeNoise=(x,seed)=>{
+   const i=Math.floor(x),t=x-i,u=t*t*(3-2*t);
+   const hash=k=>{let n=Math.imul((k|0)^Math.imul(seed,7919),0x45d9f3b);
+     n^=n>>>16;n=Math.imul(n,0x45d9f3b);n^=n>>>16;return (n>>>0)/4294967295;};
+   return (hash(i)*(1-u)+hash(i+1)*u)*2-1;
+ };
+ function ridgeHeight(pts,x,seed=11){
+   let i=0;while(i<pts.length-2&&pts[i+1][0]<x)i++;
+   const a=pts[i],b=pts[i+1],p=pts[Math.max(0,i-1)],
+     n=pts[Math.min(pts.length-1,i+2)];
+   const len=b[0]-a[0],u=clamp((x-a[0])/len),
+     dx0=(b[1]-p[1])/(b[0]-p[0]||1),
+     dx1=(n[1]-a[1])/(n[0]-a[0]||1);
+   const h00=2*u*u*u-3*u*u+1,h10=u*u*u-2*u*u+u,
+     h01=-2*u*u*u+3*u*u,h11=u*u*u-u*u;
+   const baseline=h00*a[1]+h10*len*dx0+h01*b[1]+h11*len*dx1;
+   const t=Math.sin(u*Math.PI)**1.65;
+   const ridgeIndex=Math.max(0,Math.min(6,seed-11));
+   const rough=[4.1,3.9,4.5,6.3,7.5,9.7,12.0][ridgeIndex];
+   const noise=(ridgeNoise(x/116,seed+31)*.45+
+     ridgeNoise(x/43,seed+87)*.31+
+     ridgeNoise(x/15,seed+207)*.17+
+     ridgeNoise(x/5.3,seed+401)*.07);
+   const erosion=Math.sin(x*.051+seed*1.71)*Math.sin(x*.119+seed*.73);
+   return baseline+t*(noise*rough+erosion*rough*.24);
+ }
  function ridge(c,pts,top,bottom,seed){
-  c.beginPath();smoothPath(c,pts);c.lineTo(W,H);c.lineTo(0,H);c.closePath();
-  c.fillStyle=lgrad(c,0,pts[0][1],0,H,[[0,top],[.44,top],[1,bottom]]);c.fill();
+  const samples=Math.ceil(W/4);
+  c.beginPath();
+  for(let i=0;i<=samples;i++){
+   const x=i*W/samples,y=ridgeHeight(pts,x,seed);
+   if(i===0)c.moveTo(x,y);else c.lineTo(x,y);
+  }
+  c.lineTo(W,H);c.lineTo(0,H);c.closePath();
+  c.fillStyle=lgrad(c,0,pts[0][1],0,H,[[0,top],[.40,top],[1,bottom]]);c.fill();
   c.save();c.clip();
   const r=rng(seed);
-  for(let i=0;i<73;i++){
-   const x=r()*W,y=337+r()*340,span=24+r()*126;
-   windingFiber(c,x,y,(r()-.36)*span,span*(.23+r()*.52),
-     seed*400+i,color(i%3?'#b4afc9':'#182e54',.015+r()*.051),.45+r()*4);
+  // Valleys/runnels follow the real incline instead of using arbitrary
+  // straight marks; soft bifurcations produce weathered rock surfaces.
+  for(let i=0;i<110;i++){
+   const x=20+r()*(W-40),y=ridgeHeight(pts,x,seed)+r()*94;
+   const fall=12+r()*85,side=(r()-.5)*31;
+   windingFiber(c,x,y,side,fall,seed*400+i,
+     color(i%4===0?'#c4bacb':'#213858',.014+r()*.055),.6+r()*2.8);
   }
-  for(let i=0;i<270;i++){
-   const x=r()*W,y=335+r()*455;
-   windingFiber(c,x,y,(r()-.5)*28,4+r()*20,seed*999+i,
-     color(i%4===0?'#d7aec0':'#162c54',.012+r()*.055),.25+r()*1.1);
+  for(let i=0;i<250;i++){
+   const x=r()*W,y=ridgeHeight(pts,x,seed)+r()*270;
+   windingFiber(c,x,y,(r()-.5)*24,4+r()*23,seed*999+i,
+     color(i%5===0?'#d4acbf':'#182d54',.010+r()*.044),.3+r()*1.1);
   }
   materialGrain(c,.12);
   c.restore();
@@ -214,6 +253,10 @@
  function mountainLayer(c,index){
   const m=mountains[index];
   ridge(c,m.pts,m.a,m.b,m.seed);
+  // Evergreen roots sit on the same displaced terrain geometry. The
+  // previous scene had three *uniform horizontal rows* of pines, leaving
+  // a ruler-straight band across the whole frame.
+  if(index>=3)forestGrove(c,index);
   // A few authored geology facets, not high-frequency noise over all slopes.
   if(index<3){c.save();const r=rng(index+200);
    for(let k=0;k<47;k++){
@@ -255,12 +298,31 @@
    }
    c.restore();
  }
- function treeLine(c,y0,y1,seed,col,count,near=false){
-  const r=rng(seed);
-  for(let i=0;i<count;i++){
-   const x=r()*W,y=y0+(r()-.5)*24,h=20+(near?65:36)*r()+(y-y0)*.25;
-   if(!near&&x>690&&x<1010&&r()<.70)continue;
-   fir(c,x,y,h,seed*193+i,col,near?.84:.71);
+ function forestGrove(c,index){
+  const m=mountains[index],r=rng(7983+index*1171);
+  const groveCount=[0,0,0,162,188,205,216][index];
+  const tones=['','','','#34506d','#284760','#1a3855','#142d47'];
+  const clusters=index===3?[145,438,1170,1490]:
+    index===4?[220,490,1130,1470]:
+    index===5?[180,570,1030,1525]:[130,505,1050,1575];
+  const near=index>=5;
+  // Irregular vegetation clumps follow river valleys and mountain slopes.
+  // Heights and root levels vary together instead of creating a flat strip.
+  for(let i=0;i<groveCount;i++){
+   const center=clusters[Math.floor(r()*clusters.length)];
+   const x=clamp(center+(r()+r()+r()-1.5)*(near?340:400),0,W);
+   const ridgeY=ridgeHeight(m.pts,x,m.seed);
+   const rootY=ridgeY+6+r()*(near?29:20);
+   const density=near?.88:.76;
+   const height=(near?26:16)+(near?75:42)*Math.pow(r(),.77);
+   const col=i%7===0?'#243f55':i%5===0?'#203b58':tones[index];
+   fir(c,x,rootY,height,m.seed*10011+i,col,density);
+  }
+  // Deliberate rare tall firs interrupt long continuous canopy lines.
+  for(let k=0;k<14;k++){
+   const x=65+r()*(W-130),y=ridgeHeight(m.pts,x,m.seed)+11+r()*23;
+   if(index===3&&x>650&&x<1000)continue;
+   fir(c,x,y,38+r()*72,m.seed*26017+k,tones[index],.62+r()*.20);
   }
  }
  function valley(c){
@@ -277,13 +339,9 @@
    if(x<200&&i%2===0)continue;
    ellipse(c,x,y,rx,ry,color(i%3?'#8799c3':'#b2a1c9',.012+r()*.038),-.07);
   }
-  treeLine(c,565,640,751,'#193857',260,false);
-  treeLine(c,622,685,752,'#102c49',310,true);
-  treeLine(c,690,727,753,'#0c2641',190,true);
-  for(let i=0;i<12;i++){
-   const x=430+i*73,y=640+(i%4)*7;
-   ellipse(c,x,y,43+i%3*8,10,color('#647cab',.045+i%3*.012));
-  }
+  // Forest canopies are drawn against actual terrain at each mountain
+  // layer above, leaving no straight horizontal vegetation seam.
+  // Remove the row of repeated horizontal oval fog smudges.
  }
  function foreground(c,lanternLit=true){
    // Left and right framing bluffs. Front and rear edges are separate
