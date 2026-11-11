@@ -269,7 +269,9 @@ function addOverlook(THREE,scene){
  * distant mountains remain lightweight 2.5D parallax geometry.
  */
 function makeOverlookSoil(THREE,scene){
- const geometry=new THREE.PlaneGeometry(86,78,42,26);
+ // One continuous near-camera hillside, not three overlapping foreground
+ // mountain curtain meshes (those created the horizontal cut-off slabs).
+ const geometry=new THREE.PlaneGeometry(294,190,104,54);
  geometry.rotateX(-Math.PI/2);
  const p=geometry.getAttribute('position');
  const rgb=new Float32Array(p.count*3);
@@ -277,11 +279,19 @@ function makeOverlookSoil(THREE,scene){
  const edgeColor=new THREE.Color('#0a1b31');
  for(let i=0;i<p.count;i++){
    const x=p.getX(i),z=p.getZ(i);
-   const edge=smooth(11,40,Math.abs(x));
-   const level=overlookGroundHeight(x,z);
+   const edge=smooth(12,92,Math.abs(x));
+   const level=overlookGroundHeight(x,z)
+      -.32*edge-.20*noise(x*.035+z*.06,19);
+   // The back shoreline follows an eroded natural curve instead of
+   // the straight rectangular rear edge of a PlaneGeometry.
+   const farEdge=1.-smooth(-95,-79,z);
+   const rearWarp=-4.5*Math.exp(-Math.pow(x/38,2))
+     +4.5*edge+2.8*noise(x*.11,31)+1.1*noise(x*.38,43);
+   p.setZ(i,z+farEdge*rearWarp);
    p.setY(i,level);
-   const stone=centerColor.clone().lerp(edgeColor,edge*.84);
-   stone.multiplyScalar(.91+.12*noise(x*.38-z*.11,22));
+   const stone=centerColor.clone().lerp(edgeColor,edge*.58);
+   const grain=noise(x*.23-z*.21,22)*.065+noise(x*.71+z*.44,37)*.021;
+   stone.multiplyScalar(.93+grain);
    rgb[i*3]=stone.r;rgb[i*3+1]=stone.g;rgb[i*3+2]=stone.b;
  }
  p.needsUpdate=true;
@@ -294,7 +304,7 @@ function makeOverlookSoil(THREE,scene){
  });
  const mesh=new THREE.Mesh(geometry,material);
  mesh.name='3D shared sitting platform, soft earthen hillside';
- mesh.position.z=26;
+ mesh.position.z=77;
  mesh.frustumCulled=false;
  scene.add(mesh);
  return {mesh,baseX:mesh.position.x,baseY:mesh.position.y};
@@ -317,7 +327,9 @@ if(enabled)try{
  environment=createLivingEnvironment(THREE,scene,{camera,
    reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches});
  ridges=LAYERS.map(l=>makeMountain(THREE,scene,l,portrait));
- ridges.push(...addOverlook(THREE,scene));
+ // The three older full-width foreground hill curtains were intersecting
+ // each other and clipping the character's feet in every screenshot.
+ // Keep the actual curved resting hillside as the single foreground layer.
  atmosphere=createAtmosphericDepth25D(THREE,scene);
  soil=makeOverlookSoil(THREE,scene);
  forest=makeForest(THREE,scene,portrait);
