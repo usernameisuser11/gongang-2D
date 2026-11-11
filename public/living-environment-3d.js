@@ -62,26 +62,37 @@ void main(){
  // distant bright banks, broken mid-level cloudlets and high thin cirrus.
  // Clouds are density volumes projected through one shader, not
  // repeated oval meshes or rectangles covering the mountains.
- float filament=smoothstep(.29,.61,cloudField);
+ // Broken cloud cover preserves sky-blue negative space between
+ // wind-sheared formations. Dense continuous grey curtains made the
+ // entire panorama appear muddy even in ordinary daylight.
+ float filament=smoothstep(.45,.68,cloudField);
  float veilField=fbm(vec2(sx*13.-t*.0008,h*3.8)+vec2(17.,51.));
- float cirrus=smoothstep(.38,.69,veilField)*gauss(h-.70,.35);
- float bank=smoothstep(.31,.57,n*.70+fine*.30)
-    *gauss(h-.33,.24);
- float breakup=smoothstep(.27,.62,swirl)
-    *gauss(h-.54,.31);
- float clouds=clamp((filament*(.34+.47*gauss(h-.46,.36))
-   +bank*.66+breakup*.16+cirrus*.20)*cloudCover,0.,.91);
+ float cirrus=smoothstep(.48,.70,veilField)*gauss(h-.70,.30);
+ float bank=smoothstep(.45,.68,n*.70+fine*.30)
+    *gauss(h-.34,.20);
+ float breakup=smoothstep(.41,.70,swirl)
+    *gauss(h-.55,.27);
+ float clouds=clamp((filament*(.35+.49*gauss(h-.46,.33))
+   +bank*.48+breakup*.11+cirrus*.18)*cloudCover,0.,.88);
+ // A softly illuminated gap above the valley guides the eye toward
+ // distant mountains without drawing beams, circles or neon halos.
+ float skyWindow=gauss(sx-focus,.235)*gauss(h-.27,.24);
+ clouds*=1.-skyWindow*(.27+.17*twilight)*(1.-uRain*.57);
  // The tops receive solar scatter while undersides remain slate-blue,
  // and low clouds pick up pink/gold only near real twilight.
  float litTop=clamp(.39+(n-fine)*1.36+.35*h,0.,1.);
  vec3 cloudNight=mix(vec3(.061,.11,.23),vec3(.24,.30,.48),litTop);
  // Softer silver tops and blue-grey shaded undersides make actual
  // cumulus masses legible against the bright daytime atmosphere.
- vec3 cloudDay=mix(vec3(.33,.47,.62),vec3(.99,1.01,1.07),litTop);
+ vec3 cloudDay=mix(vec3(.43,.60,.74),vec3(1.02,1.05,1.09),litTop);
  vec3 cloudTone=mix(cloudNight,cloudDay,1.-uNight);
  vec3 sunsetCloud=mix(vec3(.38,.24,.45),vec3(1.04,.64,.53),litTop);
  cloudTone=mix(cloudTone,sunsetCloud,twilight*.82*(1.-.22*h));
- col=mix(col,cloudTone,clouds*.96);
+ col=mix(col,cloudTone,clouds*.91);
+ // Diffuse scattered sunlight sits *behind* cloud edges rather than
+ // becoming a white band across the entire skyline.
+ col+=vec3(.21,.20,.15)*(1.-uNight)*skyWindow
+   *(.075+.13*twilight)*(1.-clouds*.68);
  // Multiple scattering near the horizon is a diffuse gradient, not a
  // hard white strip. Morning haze is bluer, golden only near twilight.
  vec3 daylightHaze=vec3(.17,.30,.37)*(1.-uNight);
