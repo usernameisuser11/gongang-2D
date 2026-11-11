@@ -103,6 +103,7 @@ void main(){
  }
 }`;
 const PARTICLE_VERT=`
+precision highp float;
 attribute float aSeed;uniform float uTime,uWind,uSnow,uIntensity;
 varying float vAlpha;
 void main(){
@@ -114,7 +115,7 @@ void main(){
  vAlpha=uIntensity*(.55+.45*fract(aSeed*23.));
 }`;
 const PARTICLE_FRAG=`
-precision mediump float;uniform float uSnow;varying float vAlpha;
+precision highp float;uniform float uSnow;varying float vAlpha;
 void main(){
  vec2 q=gl_PointCoord-.5;
  float rain=(1.-smoothstep(.04,.18,abs(q.x)))*(1.-smoothstep(.21,.48,abs(q.y)));
