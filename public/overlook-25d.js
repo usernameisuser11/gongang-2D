@@ -217,9 +217,10 @@ function addOverlook(THREE,scene){
  return layers;
 }
 let scene,camera,renderer,environment,ridges=[],forest;
-let initialized=false;
+const requestedRenderer=new URLSearchParams(location.search).get('renderer');
+const enabled=!['2d','painterly','3d','live3d'].includes(requestedRenderer);
 const portrait=innerWidth<700&&innerHeight>innerWidth*1.2;
-try{
+if(enabled)try{
  const canvas=document.createElement('canvas');
  const gl=canvas.getContext('webgl2',{alpha:false});
  if(!gl)throw Error('WebGL2 unavailable');
@@ -239,7 +240,7 @@ try{
  forest=makeForest(THREE,scene,portrait);
  state.ridgeCount=ridges.length;state.treeCount=forest.count;
  state.weather=environment.state;
- state.ready=true;initialized=true;
+ state.ready=true;
 }catch(error){
  state.failed=true;state.error=String(error?.stack||error);
  console.error('Living overlook initialization failed; retaining legacy view',error);
