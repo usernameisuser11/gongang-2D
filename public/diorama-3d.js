@@ -205,12 +205,12 @@ function water(){
    const p=g.getAttribute('position');
    for(let i=0;i<p.count;i++){
      const t=p.getY(i)+.5; // near river = 0; distant river = 1
-     const width=1.2+Math.pow(1-t,1.55)*10.8;
-     const center=2.5*Math.sin(t*5.6+.20)+.75*Math.sin(t*12.5);
+     const width=.65+Math.pow(1-t,1.7)*4.6;
+     const center=1.5*Math.sin(t*5.4+.20)+.35*Math.sin(t*12.5);
      const edge=(Math.abs(p.getX(i))-.36)*.18*
        Math.sin(t*85.+p.getX(i)*11.);
      p.setX(i,center+p.getX(i)*width*2.+edge);
-     p.setY(i,-18+t*93);
+     p.setY(i,-21+t*82);
    }
    p.needsUpdate=true;g.computeVertexNormals();
  }
@@ -257,7 +257,7 @@ function water(){
  });
  const mesh=new THREE.Mesh(g,mat);mesh.rotation.x=-Math.PI/2;
  waterMaterial=mat;
- mesh.position.set(0,liveMode?-3.90:-4,-10);scene.add(mesh);
+ mesh.position.set(0,liveMode?-4.28:-4,-10);scene.add(mesh);
 }
 function land(side){
  const steps=95,rows=15,pos=[],col=[],idx=[];
