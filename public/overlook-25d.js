@@ -120,7 +120,7 @@ function makeMountain(THREE,scene,layer,mobile){
  };
  const mat=new THREE.ShaderMaterial({
    uniforms:u,vertexShader:MOUNTAIN_VS,fragmentShader:MOUNTAIN_FS,
-   side:THREE.DoubleSide,depthWrite:true,fog:false
+   vertexColors:true,side:THREE.DoubleSide,depthWrite:true,fog:false
  });
  const mesh=new THREE.Mesh(g,mat);
  mesh.name='Real parallax mountain / '+layer.name;
