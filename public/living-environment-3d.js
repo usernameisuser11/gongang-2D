@@ -104,13 +104,13 @@ void main(){
  // Detailed Milky Way: a broad translucent dust cloud, dark lanes, cold
  // blue star clusters. It is not a thin neon line or a flat sprite.
  float axis=sx*.47+h*.31-.45;
- float galacticBand=gauss(axis,.19)*smoothstep(.18,.72,h);
+ float galacticBand=gauss(axis,.145)*smoothstep(.18,.72,h);
  float core=fbm(vec2(sx*7.6+14.,h*10.8+3.));
  float dust=fbm(vec2(sx*22.+39.,h*22.+9.));
  float galactic=galacticBand*(.23+.78*core)*(.67+.33*dust);
  float veil=max(0.,uNight-.05)*(1.-clouds*.80);
- col+=vec3(.23,.29,.50)*galactic*veil;
- col+=vec3(.10,.18,.38)*gauss(axis+.065,.085)*dust*veil*.7;
+ col+=vec3(.16,.22,.39)*galactic*veil*.78;
+ col+=vec3(.09,.17,.33)*gauss(axis+.065,.079)*dust*veil*.61;
  col-=vec3(.06,.045,.08)*galactic*(1.-dust)*veil;
  // Many independent sub-pixel stars: 3 size populations and deterministic
  // per-cell twinkle. No screen-covering white flashes.
@@ -179,11 +179,11 @@ void main(){
    vec3 ivory=vec3(.99,.96,.88)*surface*limbShade;
    vec3 earth=vec3(.075,.111,.158)*( .84+.18*sea);
    vec3 color=mix(earth,ivory,lit);
-   float earthshine=.037*uNight*(1.-lit);
+   float earthshine=.012*uNight*(1.-lit);
    float alpha=disk*(lit*.97+earthshine);
    // Restrained atmosphere bloom, mostly perceptible around the night moon.
    color+=vec3(.13,.17,.26)*halo*.16*uNight;
-   gl_FragColor=vec4(color,alpha+halo*.20*uNight);
+   gl_FragColor=vec4(color,alpha+halo*.13*uNight);
  }else{
    float shine=1.-smoothstep(.43,.47,r);
    gl_FragColor=vec4(vec3(1.,.83,.51),shine*.91+halo*.58);
@@ -271,7 +271,8 @@ export function createLivingEnvironment(THREE,scene,{reducedMotion=false,camera=
   const mat=new THREE.ShaderMaterial({vertexShader:VS,fragmentShader:BODY,
    uniforms:{uMoon:{value:moon?1:0},uNight:{value:1},uPhase:{value:.15}},transparent:true,
    depthWrite:false,depthTest:false,fog:false});
-  const mesh=new THREE.Mesh(new THREE.PlaneGeometry(moon?9.2:9.1,moon?9.2:9.1),mat);
+  const size=moon?4.4:5.7;
+  const mesh=new THREE.Mesh(new THREE.PlaneGeometry(size,size),mat);
   mesh.renderOrder=-99;scene.add(mesh);return mesh;
  }
  const sun=celestial(false),moon=celestial(true);
