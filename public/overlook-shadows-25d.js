@@ -5,6 +5,7 @@
  * This is an intentional 2.5D game rendering optimization.
  */
 import { parallaxShift } from '/parallax-25d.js';
+import { overlookGroundHeight } from '/overlook-ground-25d.js';
 const VS=`
 varying vec2 vUV;
 void main(){
@@ -55,7 +56,7 @@ export function createOverlookShadows25D(THREE,scene,{mobile=false}={}){
         // asymmetry from the direction of light. Shadows stay on real ground.
         const x=sx+shift.x-light.direction[0]*length*.62;
         const z=sz-length*.29;
-        actor.position.set(x,-6.74+shift.y,z);
+        actor.position.set(x,overlookGroundHeight(x-shift.x,z-26)+.08+shift.y,z);
         actor.rotation.set(0,light.azimuth*.75,0);
         actor.scale.set(size*.53,1,Math.max(size*.65,length*1.8));
         actor.updateMatrix();mesh.setMatrixAt(i,actor.matrix);
