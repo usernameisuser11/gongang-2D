@@ -430,7 +430,12 @@
    // Central clearing remains broad enough for a shared group photo.
    poly(c,[[0,737],[142,749],[310,755],[464,736],[598,736],[737,751],[894,736],[1048,742],[1214,746],[1401,726],[1550,738],[1672,735],[1672,941],[0,941]],
       lgrad(c,0,730,0,941,[[0,'#6a555a'],[.24,'#50434b'],[.7,'#283446'],[1,'#151e35']]));
-   c.fillStyle=radial(c,856,748,467,[[0,'rgba(249,157,97,.30)'],[.55,'rgba(194,108,112,.085)'],[1,'rgba(180,97,118,0)']]);c.fillRect(380,630,950,310);
+   // Crucial: the old warm meadow bounce was clipped to a hard
+   // 950×310 rectangle beginning at y=630, creating the very straight
+   // horizontal stripe across the forest. Paint the *entire radial
+   // support* so it fades to alpha zero at the circle's real radius.
+   c.fillStyle=radial(c,856,748,467,[[0,'rgba(249,157,97,.30)'],[.55,'rgba(194,108,112,.085)'],[1,'rgba(180,97,118,0)']]);
+   c.fillRect(0,0,W,H);
    // Soft grass and moss are layered under the prominent stones.
    const sod=rng(17827);
    for(let p=0;p<420;p++){
