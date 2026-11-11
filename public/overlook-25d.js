@@ -197,77 +197,102 @@ function makeMountain(THREE,scene,layer,mobile){
 }
 // Original triangulated organic branch silhouette (geometry, not billboard photo).
 function firGeometry(THREE){
- const vert=[],idx=[];let k=0;
- const triangle=(a,b,c)=>{vert.push(...a,...b,...c);idx.push(k,k+1,k+2);k+=3;};
- triangle([-.035,0,0],[.035,0,0],[.017,1.06,0]);
- for(let j=0;j<23;j++){
-  const t=j/23,y=.07+t*.88,spread=Math.pow(1-t,.78)*.36;
-  for(const side of [-1,1]){
-    const offset=(.83+.16*Math.sin(j*2.45+side*.71));
-    const x=side*spread*offset;
-    triangle([0,y+.08,0],[x*.91,y+.012,.012],[x,y-.026,.001]);
-    triangle([0,y-.035,0],[x,y-.026,-.01],[side*spread*.53,y+.045,.015]);
-    // Short needle sprays soften straight triangular branches.
-    for(let l=0;l<2;l++){
-     const b=.42+l*.24;
-     triangle([x*b,y,.01],[x*b+side*.038*(1-t),y+.05*(1-t),.014],
-       [x*b+side*.025*(1-t),y-.025*(1-t),-.012]);
-    }
-  }
+ const vertices=[],indices=[];let k=0;
+ const tri=(a,b,c)=>{vertices.push(...a,...b,...c);indices.push(k,k+1,k+2);k+=3;};
+ // An actual 3D crossed-bough spruce with asymmetrical branches:
+ // several short twig fans instead of a repeated cone silhouette.
+ tri([-.026,0,0],[.032,0,0],[.014,1.08,0]);
+ for(let j=0;j<28;j++){
+   const t=j/28,y=.055+t*.91;
+   const spread=Math.pow(1-t,.70)*(.35+.07*Math.sin(j*2.72));
+   for(const side of [-1,1]){
+     const x=side*spread*(.85+.15*Math.sin(j*2.42+side*.7));
+     const drop=.026+.019*(1-t);
+     tri([0,y+.095,0],[x*.85,y+.008,.018],[x,y-drop,0]);
+     tri([0,y-.035,-.01],[x,y-drop,-.012],
+       [side*spread*.57,y+.042,.025]);
+     for(let l=0;l<3;l++){
+       const b=.28+l*.21,blade=(1-t);
+       tri([x*b,y,.016],[x*b+side*.050*blade,y+.064*blade,.021],
+         [x*b+side*.038*blade,y-.035*blade,-.018]);
+     }
+   }
  }
- const g=new THREE.BufferGeometry();
- g.setAttribute('position',new THREE.Float32BufferAttribute(vert,3));
- g.setIndex(idx);g.computeVertexNormals();
- return g;
+ const geometry=new THREE.BufferGeometry();
+ geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+ geometry.setIndex(indices);
+ geometry.computeVertexNormals();
+ return geometry;
 }
 function makeForest(THREE,scene,mobile){
  const random=(()=>{
-   let s=202611111;return()=>((s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296);
+   let seed=202611111;
+   return()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
  })();
  const trees=[],colors=[];
- const push=(x,y,z,size,c)=>{
-   trees.push([x,y,z,size,.78+random()*.51,.70+random()*.43,random()*6.283]);
-   colors.push(c);
+ const push=(x,y,z,size,color)=>{
+   trees.push([x,y,z,size,.94+random()*.56,.79+random()*.35,random()*6.283]);
+   colors.push(color);
  };
- const pal=['#3c5e78','#294d69','#1e3b5c','#142f50','#0b223f','#081a36'];
+ const palette=['#718fb1','#627c9d','#4f7299','#416e9a',
+   '#31648a','#235374','#153d63','#091f3c'];
  for(let i=0;i<LAYERS.length;i++){
-  const l=LAYERS[i];
-  const count=mobile?45+i*4:95+i*19;
-  for(let k=0;k<count;k++){
-    const side=k%2===0?-1:1;
-    const gap=i<2?8: i<4?11:15;
-    const x=side*(gap+Math.pow(random(),.83)*35);
-    const height=crest(x,l);
-    push(x,height-.2,l.z+1.45,1.4+i*.48+random()*(.9+i*.37),pal[i]);
-  }
+   const l=LAYERS[i];
+   const count=mobile?35+i*5:65+i*15;
+   for(let k=0;k<count;k++){
+     const side=k%2===0?-1:1;
+     const gap=i<2?8.0:i<5?6.2:8.1;
+     const x=side*(gap+Math.pow(random(),.76)*34);
+     const y=crest(x,l)-.14;
+     const size=(1.20+i*.45)+random()*(.64+i*.31);
+     push(x,y,l.z+1.50,size,palette[i]);
+   }
  }
- // Foreground trees frame the valley, leaving the middle clear for visitors.
- const front=mobile?
-  [[-9.0,15,8.7],[-7.4,27,6.2],[9,16,8.3],[7.2,28,6.1]]:
-  [[-24,14,12.4],[-21,23,9.1],[-17.5,36,6.7],
-   [24,15,12.8],[21,24,9.2],[17.7,37,6.6]];
- for(const [x,z,scale] of front)push(x,-6.6,z,scale,'#071327');
- const geo=firGeometry(THREE);
+ // Vegetation also grows down the V slopes: tree lines have depth and
+ // break up the uniform triangular hill shapes, while the valley stays open.
+ for(let i=2;i<LAYERS.length;i++){
+   const l=LAYERS[i];
+   const count=mobile?24+i*2:49+i*9;
+   for(let k=0;k<count;k++){
+     const side=k%2===0?-1:1;
+     const x=side*(4.0+Math.pow(random(),.65)*24);
+     const y=crest(x,l)-(1.0+random()*3.65);
+     const size=(1.25+i*.39)*(.57+random()*.73);
+     push(x,y,l.z+2.5+random()*2.7,size,palette[i]);
+   }
+ }
+ // Close trees rise well above the hills to frame the sky as in the
+ // reference. They do not intrude on the central visitor/photo clearing.
+ const framing=mobile?
+   [[-10.5,15,10.1],[-8.5,27,7.3],[10.4,16,10.0],[8.7,28,7.3]]:
+   [[-25,12,17.5],[-22,24,12.5],[-18.1,35,9.7],[-13.8,17,7.2],
+    [25,12,17.1],[22,25,12.6],[18.4,35,9.7],[14.1,18,6.9]];
+ for(const [x,z,size] of framing)push(x,-6.6,z,size,'#081629');
+ const geometry=firGeometry(THREE);
  const u={uTime:{value:0},uWind:{value:0},uDay:{value:0},
-    uTwilight:{value:0},uStorm:{value:0},uShadow:{value:0},
-    uLightDir:{value:new THREE.Vector3(.1,.7,1).normalize()},
-    uLightColor:{value:new THREE.Vector3(1,1,1)},
-    uParallax:{value:new THREE.Vector2()}};
- const mat=new THREE.ShaderMaterial({
-  uniforms:u,vertexShader:FIR_VS,fragmentShader:FIR_FS,
-  side:THREE.DoubleSide,depthWrite:true
+   uTwilight:{value:0},uStorm:{value:0},uShadow:{value:0},
+   uLightDir:{value:new THREE.Vector3(.1,.7,1).normalize()},
+   uLightColor:{value:new THREE.Vector3(1,1,1)},
+   uParallax:{value:new THREE.Vector2()}};
+ const material=new THREE.ShaderMaterial({
+   uniforms:u,vertexShader:FIR_VS,fragmentShader:FIR_FS,
+   side:THREE.DoubleSide,depthWrite:true
  });
- const mesh=new THREE.InstancedMesh(geo,mat,trees.length);
- const t=new THREE.Object3D(),clr=new THREE.Color();
- trees.forEach((item,i)=>{
-  const [x,y,z,h,w,d,angle]=item;
-  t.position.set(x,y,z);t.scale.set(h*w,h,h*d);
-  t.rotation.set(0,angle,0);t.updateMatrix();mesh.setMatrixAt(i,t.matrix);
-  clr.set(colors[i]).multiplyScalar(.75+random()*.32);
-  mesh.setColorAt(i,clr);
+ const mesh=new THREE.InstancedMesh(geometry,material,trees.length);
+ const actor=new THREE.Object3D(),shade=new THREE.Color();
+ trees.forEach((tree,i)=>{
+   const [x,y,z,h,w,d,angle]=tree;
+   actor.position.set(x,y,z);
+   actor.scale.set(h*w,h,h*d);
+   actor.rotation.set(0,angle,0);
+   actor.updateMatrix();
+   mesh.setMatrixAt(i,actor.matrix);
+   shade.set(colors[i]).multiplyScalar(.73+random()*.36);
+   mesh.setColorAt(i,shade);
  });
- mesh.name='Wind-animated forest, depth-instanced 2.5D';
- mesh.frustumCulled=false;mesh.instanceMatrix.needsUpdate=true;
+ mesh.name='Sculpted multi-depth conifer forest with real wind/parallax';
+ mesh.frustumCulled=false;
+ mesh.instanceMatrix.needsUpdate=true;
  if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
  scene.add(mesh);
  return {mesh,u,count:trees.length};
