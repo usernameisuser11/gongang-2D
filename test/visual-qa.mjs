@@ -146,7 +146,9 @@ try {
         assert.ok(o.ridgeCount >= 6, 'Several depth-separated mountains are required');
         assert.ok(o.atmosphereLayers >= 4, 'Time-responsive depth mist layers are missing');
         assert.ok(o.shadowCasters >= 4, 'Foreground trees do not have projected shadows');
-        assert.ok(o.rockCount >= (config.width < 600 ? 20 : 55),'Rock forms missing');
+        assert.ok(o.rockCount >= (config.width < 600 ? 4 : 8),'Large scenic rocks missing');
+        assert.equal(o.soilDetail,'painted-dirt-lichen-pebbles',
+          'Static dirt and tiny pebbles should be painted into ground shader');
         assert.ok(o.flowerCount >= (config.width < 600 ? 90 : 200),'Wildflowers missing');
         assert.ok(o.meadowPlants >= (config.width < 600 ? 90 : 200),
           'Organic 2.5D wind-driven lookout vegetation is missing');
