@@ -182,9 +182,9 @@
     // Color smoothly alternates along the arm; warmer knots are rare.
     const pink=smooth(.46,.82,noise(x*.013+5,y*.027+3,1901));
     const cyan=smooth(.44,.83,noise(x*.016,y*.023,3907));
-    image.data[idx]  = Math.round(lerp(137,231,pink*.67+(1-cyan)*.14));
-    image.data[idx+1]= Math.round(lerp(160,198,cyan*.58));
-    image.data[idx+2]= Math.round(lerp(203,243,cyan*.45+pink*.20));
+    image.data[idx]  = Math.round(lerp(114,234,pink*.83+(1-cyan)*.12));
+    image.data[idx+1]= Math.round(lerp(144,219,cyan*.78));
+    image.data[idx+2]= Math.round(lerp(188,248,cyan*.48+pink*.25));
     image.data[idx+3]= Math.round(235*clamp(energy*.96));
   }
   nctx.putImageData(image,0,0);
@@ -294,13 +294,13 @@
    line(c,[x,y],[x+span,y-1-R()*12],color(i%3?'#e29abc':'#fe9baf',.014+R()*.055),.4+R()*1.1);}
  }
  const mountains=[
-  {pts:[[0,388],[112,374],[235,379],[335,351],[410,336],[476,373],[523,365],[591,397],[667,397],[753,418],[828,414],[924,420],[1040,414],[1162,376],[1233,355],[1359,336],[1427,375],[1510,365],[1672,394]],a:'#888494',b:'#484555',seed:11},
-  {pts:[[0,397],[128,409],[263,409],[365,416],[461,401],[558,414],[659,428],[742,422],[847,439],[967,434],[1074,421],[1181,405],[1292,398],[1440,411],[1560,409],[1672,392]],a:'#74798b',b:'#3d4355',seed:12},
-  {pts:[[0,439],[149,433],[293,452],[421,439],[568,457],[684,456],[789,461],[902,451],[1078,438],[1205,445],[1338,418],[1478,442],[1672,434]],a:'#68717e',b:'#37424c',seed:13},
-  {pts:[[0,480],[154,465],[306,453],[475,468],[618,465],[723,485],[829,468],[990,476],[1152,450],[1328,460],[1506,443],[1672,473]],a:'#576e71',b:'#283b45',seed:14},
-  {pts:[[0,532],[115,500],[262,479],[413,496],[542,508],[707,497],[852,517],[986,489],[1133,485],[1295,500],[1483,480],[1672,496]],a:'#496467',b:'#213840',seed:15},
-  {pts:[[0,557],[146,531],[281,518],[426,537],[550,537],[694,566],[829,548],[943,570],[1104,536],[1285,531],[1427,535],[1672,505]],a:'#395555',b:'#1b3238',seed:16},
-  {pts:[[0,601],[150,577],[276,561],[411,583],[562,592],[685,611],[826,593],[955,608],[1104,577],[1256,578],[1408,554],[1672,551]],a:'#304949',b:'#142a30',seed:17}
+  {pts:[[0,388],[112,374],[235,379],[335,351],[410,336],[476,373],[523,365],[591,397],[667,397],[753,418],[828,414],[924,420],[1040,414],[1162,376],[1233,355],[1359,336],[1427,375],[1510,365],[1672,394]],a:'#716d7b',b:'#434151',seed:11},
+  {pts:[[0,397],[128,409],[263,409],[365,416],[461,401],[558,414],[659,428],[742,422],[847,439],[967,434],[1074,421],[1181,405],[1292,398],[1440,411],[1560,409],[1672,392]],a:'#6b6a7b',b:'#404250',seed:12},
+  {pts:[[0,439],[149,433],[293,452],[421,439],[568,457],[684,456],[789,461],[902,451],[1078,438],[1205,445],[1338,418],[1478,442],[1672,434]],a:'#626775',b:'#37414b',seed:13},
+  {pts:[[0,480],[154,465],[306,453],[475,468],[618,465],[723,485],[829,468],[990,476],[1152,450],[1328,460],[1506,443],[1672,473]],a:'#4f616b',b:'#293a44',seed:14},
+  {pts:[[0,532],[115,500],[262,479],[413,496],[542,508],[707,497],[852,517],[986,489],[1133,485],[1295,500],[1483,480],[1672,496]],a:'#42575e',b:'#23363e',seed:15},
+  {pts:[[0,557],[146,531],[281,518],[426,537],[550,537],[694,566],[829,548],[943,570],[1104,536],[1285,531],[1427,535],[1672,505]],a:'#344b50',b:'#1b3135',seed:16},
+  {pts:[[0,601],[150,577],[276,561],[411,583],[562,592],[685,611],[826,593],[955,608],[1104,577],[1256,578],[1408,554],[1672,551]],a:'#2b4448',b:'#152b2d',seed:17}
  ];
  function mountainLayer(c,index){
   const m=mountains[index];
@@ -345,6 +345,33 @@
   // previous scene had three *uniform horizontal rows* of pines, leaving
   // a ruler-straight band across the whole frame.
   if(index>=3)forestGrove(c,index);
+  // Irregular folded rock faces and drainages shaded beneath the
+  // silver ridge highlight. Art-directed mountains remain in place.
+  if(index<3){
+   const rr=rng(21833+index*409),peaks=[386,1347,1212,468];
+   c.save();c.beginPath();
+   for(let x=0;x<=W;x+=4){
+     const y=ridgeHeight(m.pts,x,m.seed);
+     if(x===0)c.moveTo(x,y);else c.lineTo(x,y);
+   }
+   c.lineTo(W,H);c.lineTo(0,H);c.closePath();c.clip();
+   for(let j=0;j<62;j++){
+     const p=peaks[Math.floor(rr()*peaks.length)];
+     const x=clamp(p+(rr()+rr()+rr()-1.5)*315,0,W),
+       y=ridgeHeight(m.pts,x,m.seed)+3+rr()*28;
+     const h=17+rr()*81,side=rr()<.5?-1:1;
+     c.beginPath();c.moveTo(x,y);
+     c.bezierCurveTo(x+side*8,y+h*.26,x+side*(13+rr()*22),
+       y+h*.65,x+side*(25+rr()*50),y+h);
+     c.bezierCurveTo(x+side*11,y+h*.75,x-side*8,
+       y+h*.38,x-side*(3+rr()*7),y+8);
+     c.closePath();
+     c.fillStyle=color(j%3===0?'#2e313d':j%4===0?'#c7bbc4':'#766d7d',
+       .018+rr()*.063);
+     c.fill();
+   }
+   c.restore();
+  }
   // A few authored geology facets, not high-frequency noise over all slopes.
   if(index<3){c.save();const r=rng(index+200);
    for(let k=0;k<47;k++){
@@ -414,14 +441,8 @@
   }
  }
  function valley(c){
-  // The thin winding river follows the photographed S-curve, not a
-  // horizontal lake strip. It receives the same late-sunset pink light.
-  const path=[[937,513],[947,529],[926,548],[952,567],[930,583],[955,601],[934,619],[965,648]];
-  c.save();c.lineCap='round';c.lineJoin='round';c.beginPath();smoothPath(c,path);
-  c.strokeStyle='rgba(148,155,186,.18)';c.lineWidth=10;
-  c.shadowColor='#a6aeca';c.shadowBlur=5;c.stroke();
-  c.shadowBlur=0;c.strokeStyle='rgba(231,183,181,.34)';
-  c.lineWidth=1.25;c.stroke();c.restore();
+  // No artificial lightning-shaped river across the forest.
+  // The low valley is defined by broken mist and natural vegetation.
   // Fog is a ragged transparent condensation layer, concentrated in valleys.
   const r=rng(4509);
   for(let i=0;i<115;i++){
