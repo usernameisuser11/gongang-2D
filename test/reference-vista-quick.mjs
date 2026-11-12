@@ -42,7 +42,9 @@ try{
   {name:'reference-autumn-dusk',width:1440,height:900,time:'17:15',weather:'cloudy',season:'autumn',expectedWinter:false,expectedSeason:'autumn',expectedWeather:'cloudy'},
   {name:'reference-winter-warm',width:1440,height:900,time:'13:20',weather:'clear',season:'winter',tempC:9,expectedWinter:false,expectedSeason:'winter',expectedLight:'day'}
  ];
- const configs=process.env.REFERENCE_QA_NIGHT_ONLY==='1'?nightConfigs:[...nightConfigs,
+ const configs=process.env.REFERENCE_QA_CINEMATIC_ONLY==='1'?
+   nightConfigs.filter(cfg=>cfg.expectedCinematic):
+   process.env.REFERENCE_QA_NIGHT_ONLY==='1'?nightConfigs:[...nightConfigs,
   {name:'reference-day-clear',width:1440,height:900,time:'13:20',weather:'clear',expectedLight:'day',maxStars:.03},
   {name:'reference-dusk-cloudy',width:1440,height:900,time:'17:15',weather:'cloudy',expectedWeather:'cloudy'},
   {name:'reference-mobile-rain',width:390,height:844,time:'16:10',weather:'rain',expectedWeather:'rain',expectedMobileFraming:true}
