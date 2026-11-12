@@ -706,15 +706,20 @@
   }
   c.closePath();
   const dark=c.createLinearGradient(0,-h,0,0);
-  dark.addColorStop(0,'rgba(22,45,50,.65)');
-  dark.addColorStop(.42,'rgba(21,48,48,.77)');
-  dark.addColorStop(1,'rgba(18,38,43,.87)');
+  dark.addColorStop(0,'rgba(22,45,50,.66)');
+  dark.addColorStop(.40,'rgba(21,48,48,.79)');
+  dark.addColorStop(.67,'rgba(18,38,43,.83)');
+  // Dissolve the lowest branches into vegetation and nearby rocks.
+  // The old silhouette had a dead-straight rectangular base at y≈650.
+  dark.addColorStop(.84,'rgba(18,38,43,.51)');
+  dark.addColorStop(1,'rgba(18,38,43,0)');
   c.fillStyle=dark;c.fill();
   // Back and front boughs interleave. Fan-shaped needle sprays use
   // jagged Bézier paths with blank spaces between different branches.
   for(let b=0;b<66;b++){
    const t=.09+(b+r()*.72)/68*.88;
    if(t>.97||r()<(.035+t*.07))continue;
+   c.globalAlpha=opacity*clamp((t-.035)/.25);
    const side=(b%2?-1:1)*(r()<.14?-1:1),
      px=axis(t),py=-h*t,
      length=spread(t)*(.60+r()*.52),
@@ -757,6 +762,7 @@
      c.lineWidth=.55+r()*.6;c.stroke();
    }
   }
+  c.globalAlpha=opacity;
   // Trunk glints appear only in sparse slots between overlapping boughs.
   c.beginPath();c.moveTo(axis(.06),-h*.06);
   c.bezierCurveTo(axis(.25),-h*.25,
