@@ -1084,9 +1084,25 @@
  const layers=[],skyCache={},cloudCache={};
  const params=new URLSearchParams(location.search);
  const seasonOverride=params.get('season');
- const monthInSeoul=ms=>Number(new Intl.DateTimeFormat('en-US',{
-   timeZone:'Asia/Seoul',month:'numeric'
- }).format(new Date(ms)));
+ // Reuse timezone formatters instead of constructing them on every
+ // animation frame. The date cache expires every minute, including
+ // midnight and year/season boundaries.
+ const seoulDateFormat=new Intl.DateTimeFormat('en-CA',{
+   timeZone:'Asia/Seoul',year:'numeric',month:'numeric',day:'numeric'
+ });
+ const seoulClockFormat=new Intl.DateTimeFormat('en-GB',{
+   timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+ });
+ let calendarCache=null,solarCache=null;
+ const seoulCalendar=ms=>{
+   const minute=Math.floor(ms/60000);
+   if(calendarCache?.minute===minute)return calendarCache;
+   const p=seoulDateFormat.formatToParts(new Date(ms));
+   const number=k=>Number(p.find(a=>a.type===k).value);
+   calendarCache={minute,year:number('year'),month:number('month'),
+     day:number('day')};
+   return calendarCache;
+ };
  // Seasonal changes are continuous near each calendar boundary. Weather
  // determines whether winter actually looks snowy and changes the air
  // every 15 minutes; an unusually warm December is not forced to be white.
@@ -1094,10 +1110,7 @@
  const seasonBlend=(ms=Date.now())=>{
    if(SEASONS.includes(seasonOverride))return [[seasonOverride,1]];
    if(seasonOverride==='nonwinter')return [['summer',1]];
-   const dateParts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',
-     year:'numeric',month:'numeric',day:'numeric'}).formatToParts(new Date(ms));
-   const part=k=>Number(dateParts.find(p=>p.type===k).value);
-   const year=part('year'),month=part('month'),day=part('day');
+   const {year,month,day}=seoulCalendar(ms);
    const nowDay=Date.UTC(year,month-1,day),half=14*86400000;
    const boundaries=[
      {y:year-1,m:12,previous:'autumn',next:'winter'},
@@ -1140,21 +1153,20 @@
  };
  const soften=(a,b,v)=>{const t=clamp((v-a)/(b-a));return t*t*(3-2*t)};
  function seoulTime(ms=Date.now()){
-   const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Seoul',
-     hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(ms));
+   const parts=seoulClockFormat.formatToParts(new Date(ms));
    return Number(parts.find(p=>p.type==='hour').value)+
      Number(parts.find(p=>p.type==='minute').value)/60;
  }
  function solarTimes(ms=Date.now()){
    // Reuses the approximation from the existing living-environment renderer.
-   const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',
-     year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(ms));
-   const year=Number(parts.find(p=>p.type==='year').value),
-     month=Number(parts.find(p=>p.type==='month').value),
-     day=Number(parts.find(p=>p.type==='day').value);
+   const {year,month,day}=seoulCalendar(ms);
+   const key=year*10000+month*100+day;
+   if(solarCache?.key===key)return solarCache.times;
    const doy=Math.round((Date.UTC(year,month-1,day)-Date.UTC(year,0,0))/86400000);
    const daylight=12+2.45*Math.cos((doy-172)*2*Math.PI/365.2425);
-   return {sunrise:12.30-daylight/2,sunset:12.30+daylight/2};
+   const times={sunrise:12.30-daylight/2,sunset:12.30+daylight/2};
+   solarCache={key,times};
+   return times;
  }
  const dailySky=(hour,sunrise,sunset)=>{
    if(hour<sunrise-1.3)return [['night',1]];
