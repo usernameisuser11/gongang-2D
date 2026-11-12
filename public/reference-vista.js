@@ -679,106 +679,96 @@
  // Hand-sculpted spruce silhouettes for the four *foreground* framing trees.
  // The main crown is an irregular, overlapping canopy; branches do not
  // form horizontal rungs or an exposed telephone-pole trunk.
- function framingPine(c,x,y,h,seed,shade,opacity=1){
-  const r=rng(seed),lean=(r()-.5)*h*.085,dir=r()<.5?-1:1;
-  const axis=t=>lean*(t*t*.91+t*.09)+Math.sin(t*6.3+seed*.19)*h*.012*t;
-  const spread=t=>h*.25*Math.pow(Math.max(0,1-t),.84)*
-    (1+.13*ridgeNoise(t*19,seed*7)+.07*ridgeNoise(t*47,seed*13));
-  c.save();c.translate(x,y);c.globalAlpha*=opacity;
-  c.lineCap='round';c.lineJoin='round';
-  // Organic broad silhouette underneath distinct twigs: this fixes
-  // the accidental leafless pole visible in prior screenshots.
-  c.beginPath();
-  for(let k=0;k<=78;k++){
-   const t=1-k/78,w=spread(t),
-     ragged=.78+.15*ridgeNoise(t*41,seed+10)+
-       .12*ridgeNoise(t*97,seed+31),
-     px=axis(t)-w*ragged,py=-h*t;
-   if(k===0)c.moveTo(px,py);else c.lineTo(px,py);
-  }
-  c.lineTo(axis(0),0);
-  for(let k=78;k>=0;k--){
-   const t=1-k/78,w=spread(t),
-     ragged=.87+.12*ridgeNoise(t*43,seed+83)+
-       .14*ridgeNoise(t*103,seed+139),
-     px=axis(t)+w*ragged,py=-h*t;
-   c.lineTo(px,py);
-  }
-  c.closePath();
-  const dark=c.createLinearGradient(0,-h,0,0);
-  dark.addColorStop(0,'rgba(22,45,50,.66)');
-  dark.addColorStop(.40,'rgba(21,48,48,.79)');
-  dark.addColorStop(.67,'rgba(18,38,43,.83)');
-  // Dissolve the lowest branches into vegetation and nearby rocks.
-  // The old silhouette had a dead-straight rectangular base at y≈650.
-  dark.addColorStop(.84,'rgba(18,38,43,.51)');
-  dark.addColorStop(1,'rgba(18,38,43,0)');
-  c.fillStyle=dark;c.fill();
-  // Back and front boughs interleave. Fan-shaped needle sprays use
-  // jagged Bézier paths with blank spaces between different branches.
-  for(let b=0;b<66;b++){
-   const t=.09+(b+r()*.72)/68*.88;
-   if(t>.97||r()<(.035+t*.07))continue;
-   c.globalAlpha=opacity*clamp((t-.035)/.25);
-   const side=(b%2?-1:1)*(r()<.14?-1:1),
-     px=axis(t),py=-h*t,
-     length=spread(t)*(.60+r()*.52),
-     tip=px+side*length,
-     sag=h*(.008+r()*.040)*(1-t*.65);
-   // Stronger light on windward branches, deep green between them.
-   c.beginPath();c.moveTo(px,py);
-   c.bezierCurveTo(px+side*length*.18,py-h*.012,
-     px+side*length*.72,py+sag*.16,tip,py+sag);
-   c.strokeStyle=color('#23373b',.55+r()*.32);
-   c.lineWidth=Math.max(.7,h*.0043*(1-t));c.stroke();
-   const needles=h*(.013+r()*.023)*(1-t*.72);
-   c.beginPath();c.moveTo(px,py);
-   for(let k=1;k<=17;k++){
-    const q=k/17,dist=length*q,
-      wave=Math.sin(q*Math.PI),jitter=(r()-.5)*needles*.85;
-    c.lineTo(px+side*dist,
-      py+sag*q*q-needles*(.3+.72*wave)+jitter*.35);
+ // Panoramic framing alternatives: an authentic irregular tree canopy
+ // entering from outside the composition, or a more open rockside vista.
+ // Neither adds giant symmetrical triangular conifers or copied imagery.
+ function wildCanopy(c,side,style='canopy'){
+   const r=rng(77123+side*63071),mul=side===0?1:-1;
+   c.save();c.translate(side===0?0:W,0);c.scale(mul,1);
+   const low=side===0?0:31,upper=side===0?0:-27;
+   const limb=(p,w,light=.20)=>{
+     c.save();c.lineCap='round';c.lineJoin='round';
+     c.beginPath();c.moveTo(p[0],p[1]);
+     c.bezierCurveTo(p[2],p[3],p[4],p[5],p[6],p[7]);
+     c.strokeStyle=color('#1a292d',.90);c.lineWidth=w;c.stroke();
+     c.strokeStyle=color('#69766f',light);
+     c.lineWidth=Math.max(.7,w*.18);c.stroke();
+     c.restore();
+   };
+   // The main wood lives mostly OUTSIDE the viewport, while a few
+   // naturally bent horizontal arms enter along the image margins.
+   const B=style==='open'?[
+     [-115,711,-44,650,4,647,48,618],
+     [-92,682,-45,620,9,605,93,589]
+   ]:[
+     [-132,696,-93,583,-54,460,14,348+upper],
+     [-102,568,-34,499,37,444,178,423+low],
+     [-89,443,-35,381,64,345,197,325+upper],
+     [-74,332,-27,281,55,243,139,225+upper],
+     [-67,570,-24,536,36,505,103,486+low],
+     [-75,263,-16,230,24,195,82,171+upper]
+   ];
+   for(let k=0;k<B.length;k++){
+     const p=B[k],width=style==='open'?8-k*1.7:14-k*1.6;
+     limb(p,Math.max(3,width),.095);
    }
-   for(let k=17;k>=0;k--){
-    const q=k/17,dist=length*q,
-      wave=Math.sin(q*Math.PI),jitter=(r()-.5)*needles*.70;
-    c.lineTo(px+side*dist,
-      py+sag*q*q+needles*(.18+.85*wave)+jitter*.42);
+   // Terminal bough coordinates are art directed, then displaced by
+   // seeded natural jitter. Empty negative spaces deliberately remain.
+   const clumps=style==='open'?
+     [[47,618,27],[92,588,32],[18,637,37],[120,614,18]]:
+     [[5,358,42],[45,345,35],[94,333,37],[168,319,24],
+      [36,448,45],[86,431,40],[147,411,30],[188,421,19],
+      [21,232,38],[69,230,34],[121,221,29],
+      [34,511,37],[86,478,36],[140,467,19],
+      [5,174,29],[62,171,22],[-13,282,49]];
+   // Foliage is an assembly of thin drooping twiglets, not solid
+   // ovals or a repeating Christmas-tree row.
+   for(let k=0;k<clumps.length;k++){
+     const [cx,cy,rad]=clumps[k],
+       rr=rad*(.85+r()*.28),seed=k*9131+side*117;
+     const n=style==='open'?16:27;
+     const brush=rng(seed+701);
+     for(let t=0;t<n;t++){
+       const x=cx+(brush()+brush()-1)*rr*.93,
+         y=cy+(brush()+brush()-1)*rr*.42,
+         reach=(5+brush()*rr*.66)*(brush()<.45?-1:1),
+         drop=4+brush()*rr*.40,
+         leaf=1.8+brush()*4.5;
+       c.beginPath();c.moveTo(x-reach*.45,y-drop*.29);
+       c.quadraticCurveTo(x+reach*.15,y-drop*.72,
+         x+reach*.60,y-drop*.25);
+       c.quadraticCurveTo(x+reach*.85,y+drop*.48,
+         x+reach*.90,y+drop*.63);
+       c.quadraticCurveTo(x+reach*.32,y+drop*.23,
+         x-reach*.45,y-drop*.29);
+       c.closePath();
+       const shade=t%7===0?'#637d71':t%5===0?'#405e57':
+         t%3===0?'#263f3c':'#1c3435';
+       c.fillStyle=color(shade,.22+brush()*.39);c.fill();
+       if(t%3===0){
+         for(let n=0;n<5;n++){
+           const u=(n+.5)/5,
+             px=x+reach*(u-.26),py=y+drop*(u*.4-.2);
+           c.beginPath();c.moveTo(px,py);
+           c.quadraticCurveTo(px+leaf*.2,py-leaf*.8,
+             px+leaf*.6,py-leaf*(.9+brush()*.3));
+           c.strokeStyle=color('#91a69b',.08+brush()*.20);
+           c.lineWidth=.4+brush()*.45;c.stroke();
+         }
+       }
+     }
    }
-   c.closePath();
-   const shade=b%7===0?'#59726d':b%6===0?'#344c49':
-     b%5===0?'#263f42':'#223a3a';
-   c.fillStyle=color(shade,.62+r()*.31);c.fill();
-   // Fine needles separate out of the silhouette and catch cool airlight.
-   for(let k=0;k<11;k++){
-     const q=(k+.25+r()*.55)/11,
-       bx=px+side*length*q,
-       by=py+sag*q*q,fan=needles*(.52+r()*.65);
-     c.beginPath();c.moveTo(bx,by+fan*.35);
-     c.quadraticCurveTo(bx+side*fan*.13,by-fan*.50,
-       bx+side*fan*(.2+r()*.44),by-fan*(.75+r()*.45));
-     c.strokeStyle=color(k%4===0?'#869993':
-       k%3===0?'#49645e':'#304e4a',.22+r()*.25);
-     c.lineWidth=.55+r()*.6;c.stroke();
+   // Broken outermost wind-torn twigs soften the silhouette.
+   if(style==='canopy')for(let k=0;k<44;k++){
+     const choice=clumps[k%clumps.length],xx=choice[0]+(r()-.5)*choice[2]*2,
+       yy=choice[1]+(r()-.5)*choice[2]*.8;
+     const dx=(r()-.44)*14,dy=-(3+r()*14);
+     c.beginPath();c.moveTo(xx,yy);
+     c.quadraticCurveTo(xx+dx*.25,yy+dy*.45,xx+dx,yy+dy);
+     c.strokeStyle=color(k%5===0?'#8aa39a':'#35514c',.12+r()*.19);
+     c.lineWidth=.45+r()*.65;c.stroke();
    }
-  }
-  c.globalAlpha=opacity;
-  // Trunk glints appear only in sparse slots between overlapping boughs.
-  c.beginPath();c.moveTo(axis(.06),-h*.06);
-  c.bezierCurveTo(axis(.25),-h*.25,
-    axis(.68),-h*.68,axis(.97),-h*.97);
-  c.strokeStyle=color('#89918c',.095);c.lineWidth=Math.max(.8,h*.004);c.stroke();
-  // Irregular wind-torn crown tips.
-  for(let j=0;j<34;j++){
-   const t=.80+r()*.20,px=axis(t)+(r()-.5)*spread(t)*1.3,
-     py=-h*t,len=h*(.008+r()*.025);
-   c.beginPath();c.moveTo(px,py);
-   c.quadraticCurveTo(px+dir*len*.55,py-len*.48,
-     px+dir*len*.78,py-len);
-   c.strokeStyle=color(j%4===0?'#82948d':'#354b49',.23+r()*.28);
-   c.lineWidth=.45+r()*.65;c.stroke();
-  }
-  c.restore();
+   c.restore();
  }
  function foreground(c,lanternLit=true){
    // Left and right framing bluffs. Front and rear edges are separate
@@ -933,13 +923,11 @@
    rock(c,527,715,40,27,203);
    rock(c,526,702,30,18,204);
    rock(c,529,689,19,13,205);
-   // Deep near-field conifers frame the precise view corridors at both
-   // edges. In the reference these are *large* trees, not the uniform
-   // miniature pines of the distant valley. They stay clear of the seat.
-   framingPine(c,83,678,694,4001,'#203333',.94);
-   framingPine(c,230,691,448,4002,'#223a3b',.87);
-   framingPine(c,1560,682,543,4003,'#203535',.96);
-   framingPine(c,1677,676,653,4004,'#1c2d30',.96);
+   // Frame the photographed vista with asymmetrical trees growing
+   // outside the viewport. ?edgeTrees=open keeps the sky unobstructed.
+   const edgeTrees=params.get('edgeTrees')==='open'?'open':'canopy';
+   wildCanopy(c,0,edgeTrees);
+   wildCanopy(c,1,edgeTrees);
    // Sparse warm grazing light on the side branches; the illuminated
    // grass below the trees belongs to the same sunset and lantern.
    for(const [x,y,size,seed] of [[118,443,23,7],[214,565,14,8],[1524,557,13,9]]){
@@ -1325,6 +1313,7 @@
    hour:0,nightFactor:1,starVisibility:0,cloudCover:.24,
    windKmh:6,rain:0,snow:0,weather:'clear',weatherSource:'fallback',
    fetchError:null,moonVisible:false,sunrise:6.5,sunset:18.0,
+   edgeTrees:params.get('edgeTrees')==='open'?'open':'canopy',
    winterSnow:false,snowyRocks:false,snowSeason:'nonwinter',season:'autumn',
    seasonBlend:[['autumn',1]],temperatureC:null,weeklyTemperatureC:null
  };
