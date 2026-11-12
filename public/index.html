@@ -160,6 +160,7 @@ const lerp=(a,b,t)=>a+(b-a)*t;
 const poses=new Set(['idle','walk','sit','lie']);
 const state={scene:['river','stargaze'].includes(new URLSearchParams(location.search).get('map'))?new URLSearchParams(location.search).get('map'):'stargaze',photo:false,solo:false,showStick:true,ratio:'4:5',stamp:true,gesture:0,signal:0,gestureAt:-1,signalAt:-1,pose:'idle',yaw:0,x:1600,z:1530,target:null,visible:true};
 const cam={x:1600,z:1530,offsetX:0,offsetY:0,scale:1,manualUntil:0};
+let scenicFirstPortraitFit=true; // one-time setup; user zoom wins after entry
 // Single camera source for real visitor movement, touch-drag, and photo exports.
 // The 2.5D WebGL scenery reads this; avatar screen coordinates remain unchanged.
 window.GongangViewCamera={
@@ -173,7 +174,12 @@ let myId='',socket=null,heartbeat=null, reconnect=null, reconnectDelay=1400, onl
 const palette=['#d8a777','#a3beab','#d7a1a4','#b4c3d9','#d6b79c','#9da6a7','#b5b3e0','#e1bf8b'];
 function hashColor(id){let h=17;for(const c of String(id))h=(h*33+c.charCodeAt(0))>>>0;return palette[h%palette.length]}
 function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),2200)}
-function resize(){W=innerWidth;H=innerHeight;DPR=Math.min(2,devicePixelRatio||1);canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);canvas.style.width=W+'px';canvas.style.height=H+'px';if(cam.scale<minimumCameraZoom())cam.scale=minimumCameraZoom();syncZoomRange();drawFrame();}
+function resize(){W=innerWidth;H=innerHeight;
+ if(scenicFirstPortraitFit && state.scene==='stargaze' && W<=650 && H>W*1.26){
+   // On a portrait phone, reveal the entire painted sky before any gesture.
+   cam.scale=minimumCameraZoom();scenicFirstPortraitFit=false;
+ }
+ DPR=Math.min(2,devicePixelRatio||1);canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);canvas.style.width=W+'px';canvas.style.height=H+'px';if(cam.scale<minimumCameraZoom())cam.scale=minimumCameraZoom();syncZoomRange();drawFrame();}
 window.addEventListener('resize',resize);resize();
 function setStatus(kind,text){$('#onlineText').textContent=text;$('#onlineLight').className='indicator'+(kind==='live'?' live':kind==='warn'?' warn':'');$('#roomCount').textContent=online?`· ${Math.min(8,peers.size+1)} / 8`:'';}
 function tryConnect(){
@@ -339,7 +345,9 @@ function drawFrame(){if(!state.photo)return;const aspect=state.ratio==='4:5'?4/5
  Object.assign($('#photoFrame').style,{left:x+'px',top:y+'px',width:width+'px',height:height+'px'});return rect;
 }
 function enterPhoto(){state.photo=true;app.classList.add('photographing');$('#photoLayer').hidden=false;setCameraScale(.72);cam.offsetX=0;cam.offsetY=0;cam.x=state.x;cam.z=state.z;state.ratio='4:5';$$('#ratios button').forEach(b=>b.classList.toggle('selected',b.dataset.ratio==='4:5'));syncZoomRange();drawFrame();if(peers.size)frameGroup();}
-function closePhoto(){state.photo=false;app.classList.remove('photographing');$('#photoLayer').hidden=true;setCameraScale(1);cam.offsetX=0;cam.offsetY=0;}
+function closePhoto(){state.photo=false;app.classList.remove('photographing');$('#photoLayer').hidden=true;
+ setCameraScale(state.scene==='stargaze'&&W<=650&&H>W*1.26?minimumCameraZoom():1);
+ cam.offsetX=0;cam.offsetY=0;}
 $('#enterPhoto').onclick=enterPhoto;$('#closePhoto').onclick=closePhoto;
 $$('#ratios button').forEach(b=>b.onclick=()=>{state.ratio=b.dataset.ratio;$$('#ratios button').forEach(x=>x.classList.toggle('selected',x===b));drawFrame()});
 $('#zoom').oninput=e=>setCameraScale(parseFloat(e.target.value));
@@ -901,4 +909,4 @@ tryConnect();
   attach();showStatus();
 })();
 
-</script><script src="/stellar-grains.js?v=landscape-20261109"></script><script src="/foliage-gpu.js?v=living-meadow-20261110-b"></script><script src="/nature-motion.js?v=living-meadow-20261110-b"></script><script src="/scenic-art.js?v=anchored-meadow-20261110-b"></script><script src="/reference-vista.js?v=nov12-open-lookout"></script><script type="module" src="/overlook-25d.js?v=living-overlook-20261111"></script><script type="module" src="/diorama-3d.js?v=fixed-living-world-20261110"></script><script src="/stargaze.js?v=nov12-open-lookout"></script></body></html>
+</script><script src="/stellar-grains.js?v=landscape-20261109"></script><script src="/foliage-gpu.js?v=living-meadow-20261110-b"></script><script src="/nature-motion.js?v=living-meadow-20261110-b"></script><script src="/scenic-art.js?v=anchored-meadow-20261110-b"></script><script src="/reference-vista.js?v=portrait-framing-20261112"></script><script type="module" src="/overlook-25d.js?v=living-overlook-20261111"></script><script type="module" src="/diorama-3d.js?v=fixed-living-world-20261110"></script><script src="/stargaze.js?v=nov12-open-lookout"></script></body></html>
