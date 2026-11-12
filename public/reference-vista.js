@@ -1567,6 +1567,7 @@
    windKmh:6,rain:0,snow:0,weather:'clear',weatherSource:'fallback',
    fetchError:null,moonVisible:false,sunrise:6.5,sunset:18.0,
    edgeTrees:params.get('edgeTrees')==='canopy'?'canopy':'open',
+   mobileFraming:'desktop',
    treeTexture:params.get('treeTexture')==='needles'?'needles':'painterly',
    winterSnow:false,snowyRocks:false,snowSeason:'nonwinter',season:'autumn',
    seasonBlend:[['autumn',1]],temperatureC:null,weeklyTemperatureC:null
@@ -1699,6 +1700,49 @@
      skyCache.seasons[key]=paintLayer([(c)=>seasonalLayer(c,season,depth)]);
    return skyCache.seasons[key];
  }
+
+ // Portrait layout reuses this scene's hand-drawn trees as a transparent
+ // close-up frame. No bitmap/photo, new scenery or changed avatar positions.
+ let portraitCanopy=null;
+ function paintPortraitCanopy(ctx,relative,night,sun){
+   const viewW=window.innerWidth,viewH=window.innerHeight;
+   const portrait=viewW<=650&&viewH>viewW*1.26;
+   state.mobileFraming=portrait?'portrait-canopy-v1':'desktop';
+   if(!portrait)return;
+   if(!portraitCanopy){
+     const surface=document.createElement('canvas');
+     surface.width=W;surface.height=H;
+     const brush=surface.getContext('2d',{alpha:true});
+     wildCanopy(brush,0,'canopy');
+     wildCanopy(brush,1,'canopy');
+     portraitCanopy=surface;
+   }
+   // Only paint the outside margins. The center valley and player world
+   // remain unmodified. Small parallax shifts preserve the near-tree depth.
+   const shift=clamp(relative,-1,1)*Math.min(11,viewW*.029);
+   const top=viewH*.045,treeH=viewH*.79,treeW=viewW*.36;
+   const strength=.73+.12*night+.09*sun;
+   ctx.save();ctx.beginPath();ctx.rect(0,0,viewW,viewH);ctx.clip();
+   ctx.globalAlpha=strength;
+   ctx.drawImage(portraitCanopy,0,90,192,720,
+     -viewW*.048-shift*.7,top,treeW,treeH);
+   ctx.globalAlpha=strength*.87;
+   ctx.drawImage(portraitCanopy,W-192,90,192,720,
+     viewW-treeW+viewW*.058-shift,top+viewH*.045,treeW,treeH*.91);
+   // Low-contrast sky bounce: no neon rings or flat triangular silhouettes.
+   ctx.globalCompositeOperation='screen';
+   ctx.globalAlpha=(.12+.13*sun)*(1-.48*night);
+   let glow=ctx.createLinearGradient(0,0,viewW*.29,0);
+   glow.addColorStop(0,'rgba(125,161,151,.26)');
+   glow.addColorStop(1,'rgba(125,161,151,0)');
+   ctx.fillStyle=glow;ctx.fillRect(0,viewH*.10,viewW*.29,viewH*.62);
+   glow=ctx.createLinearGradient(viewW,0,viewW*.72,0);
+   glow.addColorStop(0,'rgba(171,161,169,.26)');
+   glow.addColorStop(1,'rgba(171,161,169,0)');
+   ctx.fillStyle=glow;ctx.fillRect(viewW*.71,viewH*.15,viewW*.29,viewH*.57);
+   ctx.restore();
+ }
+
  function draw(ctx,t,now,opts={}){
    ensure();if(failed||!state.ready)return false;
    const realNow=Date.now(),hour=timeOverride===null?seoulTime(realNow):timeOverride,
@@ -1881,6 +1925,8 @@
    }
    // Seasonal airborne petals and autumn leaves drift with live wind.
    seasonalWind(ctx,now,t,seasonal,weather.wind,night);
+   // Mobile-only art-directed framing; the panorama and multiplayer coordinates are intact.
+   paintPortraitCanopy(ctx,relative,night,sun);
    // Fireflies are most active in warm summer nights, very scarce in winter.
    const fireflySeason=seasonal.reduce((v,[name,weight])=>
      v+weight*(name==='summer'?1:name==='spring'?.68:
