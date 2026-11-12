@@ -114,13 +114,33 @@
   const P={
    night:[[0,'#050c20'],[.23,'#101c38'],[.44,'#252a4b'],[.70,'#41435e'],[1,'#635e76']],
    dawn:[[0,'#14234b'],[.24,'#52608a'],[.48,'#aa7597'],[.74,'#f3a191'],[1,'#ffd3a2']],
-   day:[[0,'#267db5'],[.24,'#4a9dc9'],[.47,'#7eb9d7'],[.72,'#b1d6e2'],[1,'#e3e9df']],
+   day:[[0,'#266eaa'],[.18,'#458dbf'],[.42,'#76b6d5'],[.69,'#b2d5e3'],[1,'#e2e9e6']],
    dusk:[[0,'#050d29'],[.23,'#11194c'],[.43,'#39265f'],[.61,'#804078'],[.77,'#e56880'],[.91,'#ff9770'],[1,'#f9af79']]
   };
   c.fillStyle=lgrad(c,0,0,0,635,P[kind]);c.fillRect(0,0,W,H);
   if(kind==='dawn'||kind==='dusk'){
    c.fillStyle=radial(c,845,365,560,[[0,kind==='dawn'?'rgba(255,188,129,.36)':'rgba(255,156,105,.46)'],[.53,'rgba(237,105,130,.12)'],[1,'rgba(238,94,113,0)']]);
    c.fillRect(0,0,W,620);
+  }
+  if(kind==='day'){
+   // Broad thin cirrus feathers catch diffuse sunlight. Clouds stay
+   // translucent and softly varied rather than a flat white gradient.
+   const r=rng(441920);
+   c.save();c.lineCap='round';
+   for(let group=0;group<6;group++){
+     const cx=[180,440,730,1060,1290,1550][group],
+       cy=[108,213,141,177,108,242][group],
+       width=95+r()*196;
+     for(let k=0;k<63;k++){
+       const x=cx+(r()-.5)*width,y=cy+(r()-.5)*25,
+         length=(8+r()*72)*(1-Math.abs(x-cx)/width*.5);
+       c.beginPath();c.moveTo(x,y);
+       c.bezierCurveTo(x+length*.31,y-8-r()*3,
+         x+length*.78,y-6-r()*4,x+length,y-13-r()*6);
+       c.strokeStyle=color(k%5===0?'#fff8e9':'#eaf3f5',.014+r()*.075);
+       c.lineWidth=.4+r()*1.8;c.stroke();
+     }
+   }c.restore();
   }
   if(kind==='night'){
    c.fillStyle=radial(c,930,110,510,[[0,'rgba(79,83,169,.12)'],[1,'rgba(30,61,134,0)']]);
@@ -1428,10 +1448,15 @@
    state.seasonBlend=seasonal.map(([season,weight])=>[season,Number(weight.toFixed(3))]);
    state.temperatureC=weather.temp;
    state.weeklyTemperatureC=weather.weeklyTemp;
-   const stars=clamp(night*(1-clouds*.87)*(1-storm*.76));
+   // Stargazing is the visual heart of this space: keep an art-directed
+   // minimum long-exposure field at night even beneath broken cloud.
+   // Real weather still attenuates contrast, without an empty black sky.
+   const skyTransmission=(1-clouds*.80)*(1-storm*.68);
+   const stars=clamp(night*(.31+.69*skyTransmission));
    state.hour=hour;state.sunrise=solar.sunrise;state.sunset=solar.sunset;
    state.light=mix.reduce((a,b)=>a[1]>b[1]?a:b)[0];
    state.nightFactor=night;state.daylightFactor=sun;state.starVisibility=stars;
+   state.nightSkyMinimum=night*.31;
    state.windKmh=weather.wind;state.cloudCover=clouds;
    state.rain=weather.rain;state.snow=weather.snow;
    // Moon deliberately hidden: no fixed decorative crescent at sunset.
@@ -1459,11 +1484,32 @@
      ctx.globalAlpha=weight*(1-storm*.40);
      ctx.fillStyle=g;ctx.fillRect(t.x,t.y+t.height*.20,t.width,t.height*.32);
    }
+   // The drifting daytime sun only affects diffuse atmospheric light,
+   // not the approved landscape or sky particle positions.
+   if(sun>.01){
+     const progress=clamp((hour-solar.sunrise)/
+       Math.max(1,solar.sunset-solar.sunrise));
+     const sunX=t.x+t.width*(.15+.70*progress),
+       sunY=t.y+t.height*(.19-.125*Math.sin(progress*Math.PI)),
+       radius=t.width*.36;
+     ctx.save();ctx.globalAlpha=sun*(1-clouds*.40)*(1-storm*.64);
+     ctx.globalCompositeOperation='screen';
+     const halo=ctx.createRadialGradient(sunX,sunY,0,sunX,sunY,radius);
+     halo.addColorStop(0,'rgba(255,252,228,.21)');
+     halo.addColorStop(.16,'rgba(251,244,207,.13)');
+     halo.addColorStop(.50,'rgba(237,242,226,.047)');
+     halo.addColorStop(1,'rgba(235,240,228,0)');
+     ctx.fillStyle=halo;ctx.fillRect(t.x,t.y,t.width,t.height*.78);
+     ctx.restore();
+   }
    ctx.globalAlpha=stars;
    ctx.drawImage(skyCache.stars,t.x,t.y,t.width,t.height);
    for(const [theme,amount] of mix){
      ctx.globalAlpha=amount*clamp(.20+clouds*.96+storm*.40);
-     ctx.drawImage(cloudCache[theme],t.x,t.y,t.width,t.height);
+     const highCloudDrift=(now*.0014*clamp(weather.wind/16,.25,2.5))%
+       Math.max(1,t.width*.008);
+     ctx.drawImage(cloudCache[theme],t.x-highCloudDrift,
+       t.y,t.width+highCloudDrift,t.height);
    }
    if(storm>.08){
      // Muted, overcast air changes the sky illumination, not mountain geometry.
