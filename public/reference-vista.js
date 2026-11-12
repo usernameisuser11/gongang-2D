@@ -143,16 +143,64 @@
   };
   c.save();
   c.globalCompositeOperation='screen';
+  // A coherent galactic dust field is rendered as *code-generated pixels*
+  // inside this static Canvas layer. No copied image, bitmap or stock sky.
+  // This brings the luminous rose/cyan star clouds up to the quality of
+  // the reference without introducing a fake straight neon stripe.
+  const nebula=document.createElement('canvas');
+  nebula.width=836;nebula.height=176;
+  const nctx=nebula.getContext('2d');
+  const image=nctx.createImageData(nebula.width,nebula.height);
+  const smooth=(a,b,v)=>{const t=clamp((v-a)/(b-a));return t*t*(3-2*t)};
+  const hash=(x,y,seed)=>{
+    let h=Math.imul((x|0)^seed,374761393)^Math.imul((y|0)+seed,668265263);
+    h=Math.imul(h^(h>>>13),1274126177);
+    return ((h^(h>>>16))>>>0)/4294967295;
+  };
+  const noise=(x,y,seed)=>{
+    const ix=Math.floor(x),iy=Math.floor(y),
+      u=smooth(0,1,x-ix),v=smooth(0,1,y-iy);
+    return lerp(lerp(hash(ix,iy,seed),hash(ix+1,iy,seed),u),
+      lerp(hash(ix,iy+1,seed),hash(ix+1,iy+1,seed),u),v);
+  };
+  for(let j=0;j<nebula.height;j++)for(let i=0;i<nebula.width;i++){
+    const x=i*2,y=j*2,idx=(j*nebula.width+i)*4;
+    const broad=noise(x*.010,y*.012,311),
+      fold=noise(x*.034,y*.038,819),
+      detail=noise(x*.091,y*.103,2117);
+    const drift=(broad-.5)*79+(fold-.5)*17;
+    const core=galaxyCenter(y)+drift;
+    const d=x-core;
+    const spread=123+42*broad;
+    const body=Math.exp(-Math.pow(d/spread,2));
+    const filaments=0.24+0.47*fold+0.30*detail;
+    const knots=Math.pow(smooth(.40,.83,fold*.67+detail*.33),1.25);
+    const laneX=core-28+31*Math.sin(y*.018+.4)+(broad-.5)*51;
+    const lane=Math.exp(-Math.pow((x-laneX)/(13+25*fold),2));
+    const opening=smooth(0,.16,y)*smooth(0,.12,352-y);
+    const energy=body*filaments*(.38+.62*knots)*opening*(1-lane*.77);
+    // Color smoothly alternates along the arm; warmer knots are rare.
+    const pink=smooth(.46,.82,noise(x*.013+5,y*.027+3,1901));
+    const cyan=smooth(.44,.83,noise(x*.016,y*.023,3907));
+    image.data[idx]  = Math.round(lerp(137,231,pink*.67+(1-cyan)*.14));
+    image.data[idx+1]= Math.round(lerp(160,198,cyan*.58));
+    image.data[idx+2]= Math.round(lerp(203,243,cyan*.45+pink*.20));
+    image.data[idx+3]= Math.round(235*clamp(energy*.96));
+  }
+  nctx.putImageData(image,0,0);
+  c.save();c.globalAlpha=.86;
+  c.drawImage(nebula,0,0,W,352);
+  c.restore();
   // A series of low-opacity, multi-hue molecular cloud cores gives the
   // Milky Way a continuous luminous spine rather than random sky dots.
   // They are rendered once underneath the original v129 star grains.
-  for(let k=0;k<145;k++){
+  for(let k=0;k<220;k++){
     const y=galaxyRand()*331;
     const x=galaxyCenter(y)+(galaxyRand()+galaxyRand()+galaxyRand()-1.5)*200;
     if(x<-100||x>W+100)continue;
     const gas=galaxyTransmission(x,y),r=27+galaxyRand()*72;
     const tone=k%5===0?'#f0b4bf':k%4===0?'#c5b8ea':k%3===0?'#86c6e5':'#a5b6e8';
-    const a=(.026+galaxyRand()*.035)*(.35+gas.light*1.7)*(1-gas.dust*.92);
+    const a=(.042+galaxyRand()*.048)*(.35+gas.light*1.7)*(1-gas.dust*.92);
     c.fillStyle=radial(c,x,y,r,[[0,color(tone,a)],[.35,color(tone,a*.53)],[1,color(tone,0)]]);
     c.fillRect(x-r,y-r,2*r,2*r);
   }
@@ -168,7 +216,7 @@
     const size=3+galaxyRand()*38;
     const hue=galaxyRand();
     const tone=hue<.18?'#f4dfb8':hue<.41?'#d2a3d3':hue<.69?'#9b9fe6':'#76b2e2';
-    const alpha=(.004+galaxyRand()*.020)*ridge;
+    const alpha=(.006+galaxyRand()*.028)*ridge;
     windingFiber(c,x,y,14+size*1.7,-2-galaxyRand()*size*.28,j+2121,
       color(tone,alpha),size*(.19+galaxyRand()*.45));
   }
@@ -246,17 +294,53 @@
    line(c,[x,y],[x+span,y-1-R()*12],color(i%3?'#e29abc':'#fe9baf',.014+R()*.055),.4+R()*1.1);}
  }
  const mountains=[
-  {pts:[[0,388],[112,374],[235,379],[335,351],[410,336],[476,373],[523,365],[591,397],[667,397],[753,418],[828,414],[924,420],[1040,414],[1162,376],[1233,355],[1359,336],[1427,375],[1510,365],[1672,394]],a:'#6274b0',b:'#293e73',seed:11},
-  {pts:[[0,397],[128,409],[263,409],[365,416],[461,401],[558,414],[659,428],[742,422],[847,439],[967,434],[1074,421],[1181,405],[1292,398],[1440,411],[1560,409],[1672,392]],a:'#596da2',b:'#2d4578',seed:12},
-  {pts:[[0,439],[149,433],[293,452],[421,439],[568,457],[684,456],[789,461],[902,451],[1078,438],[1205,445],[1338,418],[1478,442],[1672,434]],a:'#536598',b:'#283b70',seed:13},
-  {pts:[[0,480],[154,465],[306,453],[475,468],[618,465],[723,485],[829,468],[990,476],[1152,450],[1328,460],[1506,443],[1672,473]],a:'#405885',b:'#213b70',seed:14},
-  {pts:[[0,532],[115,500],[262,479],[413,496],[542,508],[707,497],[852,517],[986,489],[1133,485],[1295,500],[1483,480],[1672,496]],a:'#314d7c',b:'#173862',seed:15},
-  {pts:[[0,557],[146,531],[281,518],[426,537],[550,537],[694,566],[829,548],[943,570],[1104,536],[1285,531],[1427,535],[1672,505]],a:'#284a70',b:'#123255',seed:16},
-  {pts:[[0,601],[150,577],[276,561],[411,583],[562,592],[685,611],[826,593],[955,608],[1104,577],[1256,578],[1408,554],[1672,551]],a:'#1a3d62',b:'#102647',seed:17}
+  {pts:[[0,388],[112,374],[235,379],[335,351],[410,336],[476,373],[523,365],[591,397],[667,397],[753,418],[828,414],[924,420],[1040,414],[1162,376],[1233,355],[1359,336],[1427,375],[1510,365],[1672,394]],a:'#888494',b:'#484555',seed:11},
+  {pts:[[0,397],[128,409],[263,409],[365,416],[461,401],[558,414],[659,428],[742,422],[847,439],[967,434],[1074,421],[1181,405],[1292,398],[1440,411],[1560,409],[1672,392]],a:'#74798b',b:'#3d4355',seed:12},
+  {pts:[[0,439],[149,433],[293,452],[421,439],[568,457],[684,456],[789,461],[902,451],[1078,438],[1205,445],[1338,418],[1478,442],[1672,434]],a:'#68717e',b:'#37424c',seed:13},
+  {pts:[[0,480],[154,465],[306,453],[475,468],[618,465],[723,485],[829,468],[990,476],[1152,450],[1328,460],[1506,443],[1672,473]],a:'#576e71',b:'#283b45',seed:14},
+  {pts:[[0,532],[115,500],[262,479],[413,496],[542,508],[707,497],[852,517],[986,489],[1133,485],[1295,500],[1483,480],[1672,496]],a:'#496467',b:'#213840',seed:15},
+  {pts:[[0,557],[146,531],[281,518],[426,537],[550,537],[694,566],[829,548],[943,570],[1104,536],[1285,531],[1427,535],[1672,505]],a:'#395555',b:'#1b3238',seed:16},
+  {pts:[[0,601],[150,577],[276,561],[411,583],[562,592],[685,611],[826,593],[955,608],[1104,577],[1256,578],[1408,554],[1672,551]],a:'#304949',b:'#142a30',seed:17}
  ];
  function mountainLayer(c,index){
   const m=mountains[index];
   ridge(c,m.pts,m.a,m.b,m.seed);
+  // Moonlit, fractured rock follows the exact same surveyed ridge.
+  // Stone grays and warm-violet mineral traces replace uniform blue slabs.
+  if(index<4){
+   const rock=rng(51000+index*593);
+   c.save();c.beginPath();
+   for(let x=0;x<=W;x+=4){
+    const y=ridgeHeight(m.pts,x,m.seed);
+    if(x===0)c.moveTo(x,y);else c.lineTo(x,y);
+   }
+   c.lineTo(W,H);c.lineTo(0,H);c.closePath();c.clip();
+   const n=index<2?240:120;
+   for(let k=0;k<n;k++){
+    const mass=rock()<.51?390:1340;
+    const x=clamp(mass+(rock()+rock()+rock()-1.5)*(index<2?390:490),0,W);
+    const upper=ridgeHeight(m.pts,x,m.seed);
+    const yy=upper+2+Math.pow(rock(),1.7)*(index<2?86:58);
+    const slit=rock()<.5,dx=(rock()-.52)*(slit?42:18);
+    const dy=6+rock()*(slit?37:72);
+    const bright=rock()<.62;
+    const tint=bright?(k%4===0?'#e5c7c6':'#b6b3b8'):'#303949';
+    const opacity=(bright?.033:.035)+rock()*(bright?.115:.060);
+    windingFiber(c,x,yy,dx,dy,k*371+index*811,
+      color(tint,opacity),.45+rock()*(index<2?2.1:1.4));
+   }
+   // Light catches only portions of the crest: broken, uneven, no neon line.
+   c.lineCap='round';
+   for(let j=0;j<76;j++){
+    const peak=rock()<.50?390:1340;
+    const x=clamp(peak+(rock()+rock()-1)*180,0,W);
+    const y=ridgeHeight(m.pts,x,m.seed)+1+rock()*8;
+    windingFiber(c,x,y,4+rock()*27,(rock()-.5)*5,
+      9700+j+index*209,color(j%4===0?'#e8c5c2':'#bbafbe',
+      (.020+rock()*.085)*(1-index*.20)),.4+rock()*1.1);
+   }
+   c.restore();
+  }
   // Evergreen roots sit on the same displaced terrain geometry. The
   // previous scene had three *uniform horizontal rows* of pines, leaving
   // a ruler-straight band across the whole frame.
@@ -305,7 +389,7 @@
  function forestGrove(c,index){
   const m=mountains[index],r=rng(7983+index*1171);
   const groveCount=[0,0,0,162,188,205,216][index];
-  const tones=['','','','#34506d','#284760','#1a3855','#142d47'];
+  const tones=['','','','#38504e','#2c4746','#263d3c','#1c3435'];
   const clusters=index===3?[145,438,1170,1490]:
     index===4?[220,490,1130,1470]:
     index===5?[180,570,1030,1525]:[130,505,1050,1575];
@@ -319,7 +403,7 @@
    const rootY=ridgeY+6+r()*(near?29:20);
    const density=near?.88:.76;
    const height=(near?26:16)+(near?75:42)*Math.pow(r(),.77);
-   const col=i%7===0?'#243f55':i%5===0?'#203b58':tones[index];
+   const col=i%7===0?'#3d504f':i%5===0?'#304348':tones[index];
    fir(c,x,rootY,height,m.seed*10011+i,col,density);
   }
   // Deliberate rare tall firs interrupt long continuous canopy lines.
@@ -387,8 +471,8 @@
    const drift=Math.sin(x*.009+2.8)*20+Math.sin(x*.021)*10;
    const y=clamp(668+drift+(bottom()-.5)*121,613,757);
    const h=16+Math.pow(bottom(),.75)*75;
-   const tint=j%7===0?'#29465a':j%4===0?'#223b51':
-     j%5===0?'#1a334a':'#182e46';
+   const tint=j%7===0?'#40514e':j%4===0?'#314343':
+     j%5===0?'#273b3d':'#233436';
    // Small clumped understory, taller firs and shrubs occupy different
    // elevations. No repeated y0 row and no uniform artificial cutoff.
    if(bottom()<.70)fir(c,x,y,h,40381+j*17,tint,.42+bottom()*.33);
