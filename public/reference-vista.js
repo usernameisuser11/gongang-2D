@@ -743,6 +743,49 @@
       ellipse(c,x+Math.cos(a)*sz,bloom+Math.sin(a)*sz,sz*.64,sz*.82,color(i%3?'#ed9bcc':'#c5a7e9',.21+r()*.5));}
      }else ellipse(c,x,bloom,sz*.75,sz*.9,color('#e4d6d7',.22+r()*.55));
    }
+   // Fine moonlit meadow texture: irregular seedheads and warm grazing
+   // highlights tie the lantern, blanket and surrounding stones together.
+   // Each stem has its own depth and hue; no large fake neon glow circles.
+   const meadow=rng(540211);
+   for(let j=0;j<520;j++){
+     const x=meadow()*W,y=728+meadow()*214;
+     const nearLamp=Math.exp(-Math.pow((x-1058)/264,2))*
+       Math.exp(-Math.pow((y-783)/99,2));
+     const nearSeat=Math.exp(-Math.pow((x-808)/290,2))*
+       Math.exp(-Math.pow((y-799)/130,2));
+     const warmth=clamp(nearLamp*.79+nearSeat*.23);
+     if(meadow()>.47+warmth*.48)continue;
+     const h=3+meadow()*11;
+     const drift=(meadow()-.52)*9;
+     const tint=lanternLit?
+       (j%5===0?'#ffca91':j%3===0?'#d5af95':'#ab9b82'):
+       (j%3===0?'#bec9bd':'#879d92');
+     const a=(.045+meadow()*.15)*(lanternLit?.45+warmth*.92:.46);
+     c.beginPath();c.moveTo(x,y);
+     c.quadraticCurveTo(x+drift*.3,y-h*.56,x+drift,y-h);
+     c.strokeStyle=color(tint,a);c.lineWidth=.4+meadow()*.8;c.stroke();
+     if(meadow()<.25){
+       ellipse(c,x+drift,y-h,.5+meadow()*1.25,.75+meadow()*1.35,
+         color(lanternLit?'#f0c8aa':'#c2c7ca',a*.80));
+     }
+   }
+   // The flower beds form groups on the two sides of the sitting area
+   // (important negative space for multi-person photos at the center).
+   for(let j=0;j<144;j++){
+     const left=j<72,cx=left?295:1379;
+     const x=clamp(cx+(meadow()+meadow()+meadow()-1.5)*392,0,W),
+       y=736+meadow()*188,stem=5+meadow()*16;
+     const tint=j%4===0?'#f3c9da':j%3===0?'#d7b5df':'#d18cba';
+     line(c,[x,y],[x+(meadow()-.5)*5,y-stem],
+       color('#83927a',.12+meadow()*.19),.45);
+     const size=.7+meadow()*1.55;
+     for(let p=0;p<4;p++){
+       const a=p*TAU/4,px=x+Math.cos(a)*size,
+         py=y-stem+Math.sin(a)*size;
+       ellipse(c,px,py,size*.57,size*.79,
+         color(tint,.11+meadow()*.27),a*.3);
+     }
+   }
    // Small constellation-like warm fireflies near the grass, restrained.
    if(lanternLit)for(let k=0;k<30;k++){
     const x=350+r()*980,y=665+r()*186,rr=1+r()*1.6;
