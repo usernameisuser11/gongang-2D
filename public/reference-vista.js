@@ -614,7 +614,7 @@
      c.closePath();
      const leafTone=i%8===0?'#7c9288':
        i%5===0?'#4b655e':i%4===0?'#253b41':'#314f4e';
-     c.fillStyle=color(leafTone,.13+r()*.24);c.fill();
+     c.fillStyle=color(leafTone,.16+r()*.25);c.fill();
      // Broken filament strokes appear only on selected boughs and get
      // finer towards the tip: more like painterly feathered needles.
      if(height>=37&&i%2===0){
@@ -626,7 +626,7 @@
          c.quadraticCurveTo(sx+side*dist*.32,sy-dist*.65,
            sx+side*dist*.76,sy-dist*(.68+r()*.40));
          c.strokeStyle=color(k%3===0?'#b1b3a6':'#6c8d80',
-           .045+r()*.13);
+           .060+r()*.16);
          c.lineWidth=.35+r()*.43;c.stroke();
        }
      }
@@ -1311,7 +1311,8 @@
          px+fan*.42,py+len*.14,px-side*len*.36,py+len*.26);
        c.closePath();
        // A dark vegetative mass with just a *hint* of seasonal hue.
-       c.fillStyle=color(b%4===0?tint:'#2e4845',.055+r()*.125);
+       c.fillStyle=color((b%3===0||j%4===0)?tint:'#354e49',
+         .095+r()*.16);
        c.fill();
        // Directional hairline brushstrokes create broken light within.
        for(let k=0;k<3;k++){
@@ -1321,7 +1322,7 @@
            dy=-rise*(.27+r()*.43);
          c.beginPath();c.moveTo(sx,sy);
          c.quadraticCurveTo(sx+dx*.3,sy+dy*.7,sx+dx,sy+dy);
-         c.strokeStyle=color(k===0?tint:'#79958a',.045+r()*.12);
+         c.strokeStyle=color(k===0?tint:'#81958a',.068+r()*.15);
          c.lineWidth=.37+r()*.42;c.stroke();
        }
      }
