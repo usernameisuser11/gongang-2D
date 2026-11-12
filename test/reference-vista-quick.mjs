@@ -27,6 +27,7 @@ try{
   {name:'reference-night-clear',width:1672,height:941,time:'23:20',weather:'clear',season:'summer',expectedWinter:false,expectedLight:'night',minStars:.6},
   {name:'reference-night-desktop',width:1440,height:900,time:'23:20',weather:'clear',season:'summer',expectedWinter:false,expectedLight:'night',minStars:.6},
   {name:'reference-winter-night',width:1440,height:900,time:'23:20',weather:'clear',season:'winter',expectedWinter:true,expectedSeason:'winter',expectedLight:'night',minStars:.6},
+  {name:'reference-overcast-night',width:1440,height:900,time:'23:20',weather:'rain',season:'autumn',expectedWinter:false,expectedWeather:'rain',expectedLight:'night',minStars:.30},
   {name:'reference-spring-dawn',width:1440,height:900,time:'06:55',weather:'clear',season:'spring',expectedWinter:false,expectedSeason:'spring'},
   {name:'reference-summer-day',width:1440,height:900,time:'13:20',weather:'clear',season:'summer',expectedWinter:false,expectedSeason:'summer',expectedLight:'day',maxStars:.03},
   {name:'reference-autumn-dusk',width:1440,height:900,time:'17:15',weather:'cloudy',season:'autumn',expectedWinter:false,expectedSeason:'autumn',expectedWeather:'cloudy'},
@@ -90,9 +91,12 @@ try{
   assert.equal(state.selected,'reference');
   assert.equal(state.traveler,true,'Original traveler renderer must remain available');
   assert.equal(state.moonVisible,false,'Fixed moon must be removed');
-  if(cfg.expectedWinter!==undefined)
+  if(cfg.expectedWinter!==undefined){
     assert.equal(state.winterSnow,cfg.expectedWinter,
       'Snowcaps require both winter and cold real-world conditions');
+    assert.equal(state.snowyRocks,cfg.expectedWinter,
+      'Winter rock snow overlays must follow the exact snowfall condition');
+  }
   if(cfg.expectedSeason)assert.equal(state.season,cfg.expectedSeason,
     'Seasonal foliage layer must match requested season');
   assert.ok(Array.isArray(state.seasonBlend)&&state.seasonBlend.length>=1);
