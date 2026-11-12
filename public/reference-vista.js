@@ -1266,59 +1266,64 @@
 
  // Layered broadleaf painter brush instead of identical branch rows.
  // Used only in spring/summer/autumn, winter keeps the true bare limbs.
+ // Nature-study foliage: wind-shaped, tapered branch leaflets rather
+ // than translucent circles. Its thin painterly masses blend into the
+ // evergreen silhouettes and preserve the actual seasons.
  function painterlySeasonalBranchTree(c,x,y,h,seed,season,opacity){
    if(season==='winter')
      return needleSeasonalBranchTree(c,x,y,h,seed,season,opacity);
    const r=rng(seed),palette=SEASON_TONES[season],
-     lean=(r()-.5)*h*.22,broad=seed%5===0;
-   c.save();c.translate(x,y);c.globalAlpha*=opacity;
-   c.lineJoin='round';c.lineCap='round';
-   // Subordinate branches grow from one continuous curving trunk.
+     lean=(r()-.5)*h*.21,broad=seed%5===0;
+   c.save();c.translate(x,y);c.globalAlpha*=opacity*.91;
+   c.lineCap='round';c.lineJoin='round';
    c.beginPath();c.moveTo(0,0);
-   c.bezierCurveTo(lean*.09,-h*.26,lean*.62,-h*.72,lean,-h);
-   c.strokeStyle='rgba(36,50,47,.54)';
+   c.bezierCurveTo(lean*.10,-h*.28,lean*.64,-h*.74,lean,-h);
+   c.strokeStyle='rgba(29,46,43,.54)';
    c.lineWidth=Math.max(.6,h*.018);c.stroke();
-   for(let b=0;b<9;b++){
-     const t=.28+(b+.6*r())/12,xx=lean*t,yy=-h*t,
-       side=r()<.5?-1:1,
-       len=h*(.15+r()*.19)*(broad?1.22:1);
+   // Asymmetric secondary limbs vary in length and slope.
+   for(let b=0;b<11;b++){
+     const t=.21+(b+r()*.72)/13,side=(b%2?-1:1)*(r()<.13?-1:1),
+       xx=lean*t,yy=-h*t,
+       span=h*(.15+r()*.17)*(broad?1.19:1);
+     const tx=xx+side*span,ty=yy-h*(.045+r()*.14);
      c.beginPath();c.moveTo(xx,yy);
-     c.quadraticCurveTo(xx+side*len*.4,yy-h*.055,
-       xx+side*len,yy-h*(.07+r()*.08));
-     c.strokeStyle='rgba(51,62,51,.35)';
-     c.lineWidth=Math.max(.4,h*.009*(1-t));c.stroke();
-   }
-   // Separate, windswept clumps of overlapping leaves. Their shape is
-   // closer to a painted tapered brush stroke than an SVG circle/ellipse.
-   const clusters=12+(seed%7);
-   for(let i=0;i<clusters;i++){
-     const altitude=.36+r()*.63,
-       px=lean*altitude+(r()+r()-1)*h*(broad?.35:.27),
-       py=-h*altitude+(r()-.5)*h*.052,
-       sz=h*(.043+r()*.088),
-       direction=r()<.5?-1:1,
-       tilt=(r()-.5)*sz*.66;
-     c.beginPath();c.moveTo(px-sz*.92,py+sz*.20);
-     c.bezierCurveTo(px-sz*.72,py-sz*.80,
-       px+tilt-sz*.12,py-sz*(.68+r()*.24),
-       px+sz*.60,py-sz*.27);
-     c.bezierCurveTo(px+sz*(.85+r()*.29),py+sz*.05,
-       px+sz*.66,py+sz*(.56+r()*.13),
-       px-sz*.27,py+sz*(.44+r()*.17));
-     c.bezierCurveTo(px-sz*.73,py+sz*.43,
-       px-sz*.92,py+sz*.37,px-sz*.92,py+sz*.20);
-     c.closePath();
-     const tint=palette[(i+Math.floor(r()*3))%palette.length];
-     c.fillStyle=color(tint,.15+r()*.24);c.fill();
-     // Flecked sparse edge highlights create porous translucent foliage.
-     for(let j=0;j<4;j++){
-       const u=r(),vx=px+(u-.5)*sz*1.5,vy=py+(r()-.5)*sz*.85,
-         dx=direction*(1+r()*sz*.43);
-       c.beginPath();c.moveTo(vx,vy);
-       c.quadraticCurveTo(vx+dx*.38,vy-sz*.18,
-         vx+dx,vy-sz*.34);
-       c.strokeStyle=color(i%4===0?'#c7c5ad':tint,.075+r()*.16);
-       c.lineWidth=.4+r()*.52;c.stroke();
+     c.bezierCurveTo(xx+side*span*.27,yy-h*.055,
+       xx+side*span*.72,ty+h*.017,tx,ty);
+     c.strokeStyle='rgba(37,53,46,.34)';
+     c.lineWidth=Math.max(.38,h*.009*(1-t));c.stroke();
+     // Flat, elongated feather/leaf sprays taper out from each branch.
+     // Avoid any closed oval or circular lobe: the old rendering looked
+     // like rows of bright green bubbles rather than a living forest.
+     const sprays=3+Math.floor(r()*3);
+     for(let j=0;j<sprays;j++){
+       if(r()<.17)continue;
+       const q=.30+(j+r()*.68)/sprays*.65,
+         px=lerp(xx,tx,q)+(r()-.5)*h*.017,
+         py=lerp(yy,ty,q)+(r()-.5)*h*.018,
+         len=h*(.021+r()*.047)*(1-t*.46),
+         fan=side*(len*(.56+r()*.74)),
+         rise=len*(.43+r()*.47),
+         tint=palette[(b+j+(seed%3))%palette.length];
+       c.beginPath();c.moveTo(px-side*len*.36,py+len*.26);
+       c.bezierCurveTo(px-side*len*.07,py-rise*.80,
+         px+fan*.57,py-rise*.93,px+fan,py-rise*.54);
+       c.bezierCurveTo(px+fan*.75,py-rise*.44,
+         px+fan*.42,py+len*.14,px-side*len*.36,py+len*.26);
+       c.closePath();
+       // A dark vegetative mass with just a *hint* of seasonal hue.
+       c.fillStyle=color(b%4===0?tint:'#2e4845',.055+r()*.125);
+       c.fill();
+       // Directional hairline brushstrokes create broken light within.
+       for(let k=0;k<3;k++){
+         const u=(k+.22+r()*.38)/3,
+           sx=px+fan*u,sy=py-rise*.48*u,
+           dx=side*len*(.16+r()*.35),
+           dy=-rise*(.27+r()*.43);
+         c.beginPath();c.moveTo(sx,sy);
+         c.quadraticCurveTo(sx+dx*.3,sy+dy*.7,sx+dx,sy+dy);
+         c.strokeStyle=color(k===0?tint:'#79958a',.045+r()*.12);
+         c.lineWidth=.37+r()*.42;c.stroke();
+       }
      }
    }
    c.restore();
