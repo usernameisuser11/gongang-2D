@@ -28,6 +28,9 @@ try{
   {name:'reference-night-desktop',width:1440,height:900,time:'23:20',weather:'clear',season:'summer',expectedWinter:false,expectedLight:'night',minStars:.6},
   {name:'reference-mobile-night',width:390,height:844,time:'23:20',weather:'clear',season:'summer',expectedLight:'night',expectedMobileFraming:true},
   {name:'reference-mobile-small',width:360,height:780,time:'23:20',weather:'clear',season:'summer',expectedLight:'night',expectedMobileFraming:true},
+  {name:'cinematic-night-desktop',width:1440,height:900,time:'23:20',weather:'clear',season:'summer',expectedLight:'night',art:'cinematic',expectedCinematic:true},
+  {name:'cinematic-night-mobile',width:390,height:844,time:'23:20',weather:'clear',season:'summer',expectedLight:'night',art:'cinematic',expectedMobileFraming:true,expectedCinematic:true},
+  {name:'cinematic-dawn-desktop',width:1440,height:900,time:'06:55',weather:'clear',season:'spring',art:'cinematic',expectedCinematic:true},
   {name:'reference-winter-night',width:1440,height:900,time:'23:20',weather:'clear',season:'winter',expectedWinter:true,expectedSeason:'winter',expectedLight:'night',minStars:.6},
   {name:'reference-overcast-night',width:1440,height:900,time:'23:20',weather:'rain',season:'autumn',expectedWinter:false,expectedWeather:'rain',expectedLight:'night',minStars:.30},
   {name:'reference-edge-canopy',width:1440,height:900,time:'23:20',weather:'clear',season:'summer',edgeTrees:'canopy',expectedEdgeTrees:'canopy',expectedLight:'night',minStars:.6},
@@ -52,6 +55,7 @@ try{
   const url=base+'/?map=stargaze&renderer=reference&time='+encodeURIComponent(cfg.time)+
     '&weather='+cfg.weather+(cfg.season?'&season='+cfg.season:'')+
     (cfg.tempC!==undefined?'&tempC='+cfg.tempC:'')+
+    (cfg.art?'&art='+cfg.art:'')+
     (cfg.edgeTrees?'&edgeTrees='+cfg.edgeTrees:'')+
     (cfg.treeTexture?'&treeTexture='+cfg.treeTexture:'');
   const started=Date.now();
@@ -97,6 +101,10 @@ try{
     const camera=await page.evaluate(()=>window.GongangViewCamera.sample());
     assert.ok(camera.zoom<.9,'Phone camera must start with the full sky visible');
   }else assert.equal(state.mobileFraming,'desktop','Laptop visuals must remain unchanged');
+  if(cfg.expectedCinematic){
+    assert.equal(state.artMode,'cinematic-v1','Cinematic mode must be explicitly selected');
+    assert.ok(state.atmospherePasses>=3,'Fog should composite at three depths');
+  }else assert.equal(state.artMode,'reference','Current stable art must remain default');
   assert.equal(state.ready,true);
   assert.equal(state.error,null);
   assert.equal(state.layers,5);
