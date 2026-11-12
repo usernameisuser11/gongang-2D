@@ -1902,6 +1902,32 @@
      for(let k=0;k<crowns.length;k++){
        const [cx,cy,rx,ry]=crowns[k],
          randomShift=(r()-.5)*16,baseShade=(k%5===0?0:1);
+
+       // Each branch carries overlapping, irregularly torn foliage cushions.
+       // Underpainting provides visual MASS; individual pointed leaves below
+       // keep the edge intricate rather than looking like plain circles.
+       // Small voids between cushions show distant sky and moving light.
+       for(let patch=0;patch<16;patch++){
+         const centerX=cx+(r()+r()-1)*rx*.72,
+           centerY=cy+(r()+r()-1)*ry*.64,
+           radius=(15+r()*21)*(patch%5===0?1.38:1),
+           squash=.53+r()*.32,
+           seedPhase=r()*Math.PI*2,segments=24,
+           tone=P[(patch%11===0?5:patch%5===0?4:patch%3===0?3:2)];
+         g.beginPath();
+         for(let point=0;point<=segments;point++){
+           const angle=point/segments*Math.PI*2,
+             detail=.77+.15*Math.sin(5*angle+seedPhase)+
+               .12*Math.sin(9*angle+seedPhase*.43)+
+               .17*r(),
+             px=centerX+Math.cos(angle)*radius*detail,
+             py=centerY+Math.sin(angle)*radius*detail*squash;
+           if(point===0)g.moveTo(px,py);else g.lineTo(px,py);
+         }
+         g.closePath();
+         g.fillStyle=tone;g.globalAlpha=.54+r()*.25;g.fill();
+       }
+       g.globalAlpha=1;
        // Build leaf sprays from thin curved shoots. Interior leaflets are
        // smaller and darker; outer foliage contains individual irregular tips.
        for(let spray=0;spray<11;spray++){
@@ -1959,21 +1985,23 @@
    const movement=reducedCinematicMotion?0:Math.sin(now*.00018)*.0029;
    c.save();
    c.beginPath();
-   c.rect(t.x,t.y,t.width,t.height);
+   if(portrait)c.rect(0,0,window.innerWidth,window.innerHeight);
+   else c.rect(t.x,t.y,t.width,t.height);
    c.clip();
    for(const [theme,weight] of mix){
      if(weight<.004)continue;
      c.globalAlpha=weight*(.83+.1*night+.045*sun);
      const atlas=forestAtlases[theme];
      if(portrait){
-       // Art-directed framing around the full-height mobile view rather
-       // than cropping a giant desktop tree to a disembodied trunk.
-       const width=t.width*.355,height=t.height*.76,
-         move=relative*t.width*.015+movement*t.width;
+       // Mobile has a deliberately separate cinematic crop, in viewport
+       // coordinates. It MUST NOT inherit the off-screen laptop world X.
+       const w=window.innerWidth,h=window.innerHeight;
+       const width=w*.405,height=h*.79,
+         move=relative*w*.023+movement*w;
        c.drawImage(atlas,0,0,350,690,
-         t.x-t.width*.09-move,t.y-t.height*.025,width,height);
+         -w*.080-move,-h*.036,width,height);
        c.drawImage(atlas,350,0,350,690,
-         t.x+t.width*.75-move*.72,t.y+t.height*.026,width*.95,height*.90);
+         w-width+w*.068-move*.78,-h*.005,width*.97,height*.91);
      }else{
        const drift=relative*t.width*.0055+movement*t.width;
        c.drawImage(atlas,0,0,350,690,
@@ -2160,9 +2188,12 @@
        ctx.globalAlpha=1;
      }else{
        const hue=i===1?-24:i===2?-14:-6;
-       ctx.filter='brightness('+(1+mountainDaylight*(i===1?.20:.17)).toFixed(3)+
-         ') hue-rotate('+(hue*mountainDaylight).toFixed(2)+'deg)' +
-         ' saturate('+(1+mountainDaylight*.04).toFixed(3)+')';
+       // Sunlit foliage needs reflected green-gold rather than the blue
+       // monochrome wash suitable only for night. Mountain shape is fixed.
+       const lushDay=cinematicMode&&i>1?sun*.23:0;
+       ctx.filter='brightness('+(1+mountainDaylight*(i===1?.20:.17)+lushDay).toFixed(3)+
+         ') hue-rotate('+(hue*mountainDaylight-lushDay*55).toFixed(2)+'deg)' +
+         ' saturate('+(1+mountainDaylight*.04+lushDay*.85).toFixed(3)+')';
        // Winter variant is painted once on demand. Switching seasons
        // changes only mountain snow; trees, visitors and photos retain
        // their original world coordinates.
