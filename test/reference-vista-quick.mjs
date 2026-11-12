@@ -98,6 +98,12 @@ try{
       'Warm meadow glow must not produce a hard rectangular seam at y=630');
   }
   if(cfg.expectedMobileFraming){
+    const compact=page.locator('#skyDock [data-sky-menu]');
+    await compact.click();
+    assert.equal(await page.locator('#skyDock').evaluate(el=>el.classList.contains('expanded')),true);
+    await compact.click();
+    assert.equal(await page.locator('#skyDock').evaluate(el=>el.classList.contains('expanded')),false);
+
     assert.equal(state.mobileFraming,'portrait-canopy-v1',
       'Portrait decorative trees must frame the original world');
     const camera=await page.evaluate(()=>window.GongangViewCamera.sample());
