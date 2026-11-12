@@ -1790,7 +1790,7 @@
        const spread=t.width*(.07+.043*Math.abs(side));
        const fill=c.createLinearGradient(x,top,x,bottom);
        fill.addColorStop(0,'rgba(255,239,206,0)');
-       fill.addColorStop(.49,'rgba(255,220,187,'+(shaft*.058).toFixed(4)+')');
+       fill.addColorStop(.49,'rgba(255,220,187,'+(shaft*.021).toFixed(4)+')');
        fill.addColorStop(1,'rgba(255,231,207,0)');
        c.beginPath();c.moveTo(x,top);
        c.bezierCurveTo(x+side*spread*.22,top+t.height*.09,
