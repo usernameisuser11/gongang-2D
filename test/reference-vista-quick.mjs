@@ -31,6 +31,8 @@ try{
   {name:'cinematic-night-desktop',width:1440,height:900,time:'23:20',weather:'clear',season:'summer',expectedLight:'night',art:'cinematic',expectedCinematic:true},
   {name:'cinematic-night-mobile',width:390,height:844,time:'23:20',weather:'clear',season:'summer',expectedLight:'night',art:'cinematic',expectedMobileFraming:true,expectedCinematic:true},
   {name:'cinematic-dawn-desktop',width:1440,height:900,time:'06:55',weather:'clear',season:'spring',art:'cinematic',expectedCinematic:true},
+  {name:'cinematic-day-desktop',width:1440,height:900,time:'13:20',weather:'clear',season:'summer',expectedLight:'day',art:'cinematic',expectedCinematic:true},
+  {name:'cinematic-dusk-desktop',width:1440,height:900,time:'17:15',weather:'clear',season:'autumn',art:'cinematic',expectedCinematic:true},
   {name:'reference-winter-night',width:1440,height:900,time:'23:20',weather:'clear',season:'winter',expectedWinter:true,expectedSeason:'winter',expectedLight:'night',minStars:.6},
   {name:'reference-overcast-night',width:1440,height:900,time:'23:20',weather:'rain',season:'autumn',expectedWinter:false,expectedWeather:'rain',expectedLight:'night',minStars:.30},
   {name:'reference-edge-canopy',width:1440,height:900,time:'23:20',weather:'clear',season:'summer',edgeTrees:'canopy',expectedEdgeTrees:'canopy',expectedLight:'night',minStars:.6},
