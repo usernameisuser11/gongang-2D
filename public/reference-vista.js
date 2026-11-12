@@ -1220,7 +1220,7 @@
    autumn:['#bd8760','#a27755','#9d6457','#c39674','#887460'],
    winter:['#607071','#718083','#5c696d','#576368','#828b8b']
  };
- function seasonalBranchTree(c,x,y,h,seed,season,opacity){
+ function needleSeasonalBranchTree(c,x,y,h,seed,season,opacity){
    const rand=rng(seed),palette=SEASON_TONES[season],
      bark=season==='winter'?'#53666c':'#3c4b49';
    c.save();c.globalAlpha=opacity;c.lineCap='round';
@@ -1262,6 +1262,71 @@
      }
    }
    c.restore();
+ }
+
+ // Layered broadleaf painter brush instead of identical branch rows.
+ // Used only in spring/summer/autumn, winter keeps the true bare limbs.
+ function painterlySeasonalBranchTree(c,x,y,h,seed,season,opacity){
+   if(season==='winter')
+     return needleSeasonalBranchTree(c,x,y,h,seed,season,opacity);
+   const r=rng(seed),palette=SEASON_TONES[season],
+     lean=(r()-.5)*h*.22,broad=seed%5===0;
+   c.save();c.translate(x,y);c.globalAlpha*=opacity;
+   c.lineJoin='round';c.lineCap='round';
+   // Subordinate branches grow from one continuous curving trunk.
+   c.beginPath();c.moveTo(0,0);
+   c.bezierCurveTo(lean*.09,-h*.26,lean*.62,-h*.72,lean,-h);
+   c.strokeStyle='rgba(36,50,47,.54)';
+   c.lineWidth=Math.max(.6,h*.018);c.stroke();
+   for(let b=0;b<9;b++){
+     const t=.28+(b+.6*r())/12,xx=lean*t,yy=-h*t,
+       side=r()<.5?-1:1,
+       len=h*(.15+r()*.19)*(broad?1.22:1);
+     c.beginPath();c.moveTo(xx,yy);
+     c.quadraticCurveTo(xx+side*len*.4,yy-h*.055,
+       xx+side*len,yy-h*(.07+r()*.08));
+     c.strokeStyle='rgba(51,62,51,.35)';
+     c.lineWidth=Math.max(.4,h*.009*(1-t));c.stroke();
+   }
+   // Separate, windswept clumps of overlapping leaves. Their shape is
+   // closer to a painted tapered brush stroke than an SVG circle/ellipse.
+   const clusters=12+(seed%7);
+   for(let i=0;i<clusters;i++){
+     const altitude=.36+r()*.63,
+       px=lean*altitude+(r()+r()-1)*h*(broad?.35:.27),
+       py=-h*altitude+(r()-.5)*h*.052,
+       sz=h*(.043+r()*.088),
+       direction=r()<.5?-1:1,
+       tilt=(r()-.5)*sz*.66;
+     c.beginPath();c.moveTo(px-sz*.92,py+sz*.20);
+     c.bezierCurveTo(px-sz*.72,py-sz*.80,
+       px+tilt-sz*.12,py-sz*(.68+r()*.24),
+       px+sz*.60,py-sz*.27);
+     c.bezierCurveTo(px+sz*(.85+r()*.29),py+sz*.05,
+       px+sz*.66,py+sz*(.56+r()*.13),
+       px-sz*.27,py+sz*(.44+r()*.17));
+     c.bezierCurveTo(px-sz*.73,py+sz*.43,
+       px-sz*.92,py+sz*.37,px-sz*.92,py+sz*.20);
+     c.closePath();
+     const tint=palette[(i+Math.floor(r()*3))%palette.length];
+     c.fillStyle=color(tint,.15+r()*.24);c.fill();
+     // Flecked sparse edge highlights create porous translucent foliage.
+     for(let j=0;j<4;j++){
+       const u=r(),vx=px+(u-.5)*sz*1.5,vy=py+(r()-.5)*sz*.85,
+         dx=direction*(1+r()*sz*.43);
+       c.beginPath();c.moveTo(vx,vy);
+       c.quadraticCurveTo(vx+dx*.38,vy-sz*.18,
+         vx+dx,vy-sz*.34);
+       c.strokeStyle=color(i%4===0?'#c7c5ad':tint,.075+r()*.16);
+       c.lineWidth=.4+r()*.52;c.stroke();
+     }
+   }
+   c.restore();
+ }
+ function seasonalBranchTree(c,x,y,h,seed,season,opacity){
+   if(params.get('treeTexture')==='needles')
+     return needleSeasonalBranchTree(c,x,y,h,seed,season,opacity);
+   return painterlySeasonalBranchTree(c,x,y,h,seed,season,opacity);
  }
  function seasonalLayer(c,season,depth){
    const r=rng(9753+depth*619+SEASONS.indexOf(season)*3197);
