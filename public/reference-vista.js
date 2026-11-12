@@ -917,6 +917,166 @@
   poly(c,[[x-17,y-56],[x,y-67],[x+17,y-56]],'#2d2834');
   line(c,[x-19,y-8],[x+19,y-8],'#252531',4);
  }
+
+ // Four seasons are separate authored/algorithmic canopy layers. Their
+ // original roots remain registered to the approved mountain coordinates;
+ // only leaves, flowers, dry grasses and occasional snow differ.
+ const SEASON_TONES={
+   spring:['#8ca997','#bad1b0','#d9a4bb','#c5b1c7','#9eb8ad'],
+   summer:['#4c796a','#628f76','#729b74','#436c65','#85a18a'],
+   autumn:['#bd8760','#a27755','#9d6457','#c39674','#887460'],
+   winter:['#607071','#718083','#5c696d','#576368','#828b8b']
+ };
+ function seasonalBranchTree(c,x,y,h,seed,season,opacity){
+   const rand=rng(seed),palette=SEASON_TONES[season],
+     bark=season==='winter'?'#53666c':'#3c4b49';
+   c.save();c.globalAlpha=opacity;c.lineCap='round';
+   const lean=(rand()-.5)*h*.16;
+   c.beginPath();c.moveTo(x,y);c.quadraticCurveTo(x+lean*.1,y-h*.51,x+lean,y-h);
+   c.strokeStyle=color(bark,.66);c.lineWidth=Math.max(.7,h*.025);c.stroke();
+   for(let b=0;b<9;b++){
+     const t=(b+.45)/10,side=b%2?-1:1,
+       by=y-h*(.22+t*.69),axis=x+lean*(.20+t*.72);
+     const reach=h*(.15+rand()*.21)*(1-t*.40),endX=axis+side*reach,
+       endY=by-h*(.08+rand()*.13);
+     c.beginPath();c.moveTo(axis,by+2);c.quadraticCurveTo(
+       axis+side*reach*.55,by-h*.045,endX,endY);
+     c.strokeStyle=color(bark,.47+rand()*.20);
+     c.lineWidth=Math.max(.45,h*.012*(1-t));c.stroke();
+     if(season==='winter'){
+       for(let j=0;j<4;j++){
+         const q=(j+.6)/5,xx=lerp(axis,endX,q),yy=lerp(by,endY,q);
+         line(c,[xx,yy],[xx+side*reach*.11,yy-h*(.035+rand()*.045)],
+           color('#819092',.17+rand()*.17),.35+rand()*.48);
+       }
+       continue;
+     }
+     // Needle-thin leaf clusters are pointed Bezier brush dabs, not
+     // geometric circles or repeating scalloped 2D foliage polygons.
+     const sprays=season==='summer'?14:season==='spring'?11:9;
+     for(let j=0;j<sprays;j++){
+       const q=(j+rand()*.78)/sprays,
+         px=lerp(axis,endX,q)+side*(rand()-.5)*h*.09,
+         py=lerp(by,endY,q)+(rand()-.5)*h*.15;
+       const size=(.65+rand()*1.8)*(h/42)*(1-t*.44);
+       const hue=palette[(b+j+Math.floor(rand()*3))%palette.length];
+       const alpha=season==='autumn'?.27+rand()*.35:.17+rand()*.33;
+       const dx=side*size*(1.2+rand()),dy=-size*(.6+rand()*.9);
+       c.beginPath();c.moveTo(px-size*.24,py+size*.42);
+       c.quadraticCurveTo(px+dx*.14,py+dy*.80,px+dx,py+dy);
+       c.quadraticCurveTo(px+dx*.68,py+size*.35,px-size*.24,py+size*.42);
+       c.fillStyle=color(hue,alpha);c.fill();
+     }
+   }
+   c.restore();
+ }
+ function seasonalLayer(c,season,depth){
+   const r=rng(9753+depth*619+SEASONS.indexOf(season)*3197);
+   if(depth===2||depth===3){
+     const ids=depth===2?[3,4]:[5,6],near=depth===3;
+     for(const index of ids){
+       const m=mountains[index];
+       const count=near?83:61;
+       const zones=index===3?[188,450,1165,1457]:
+         index===4?[230,517,1127,1495]:
+         index===5?[200,564,1108,1480]:[132,510,1034,1584];
+       for(let k=0;k<count;k++){
+         const center=zones[Math.floor(r()*zones.length)];
+         const x=clamp(center+(r()+r()+r()-1.5)*(near?354:398),0,W);
+         const root=ridgeHeight(m.pts,x,m.seed)+15+r()*(near?62:44);
+         const height=(near?28:19)+(near?79:55)*Math.pow(r(),.73);
+         const opacity=near?.72:.57;
+         seasonalBranchTree(c,x,root,height,40000+index*911+k*37,
+           season,opacity);
+       }
+     }
+     return;
+   }
+   if(depth!==4)return;
+   const isSpring=season==='spring',isSummer=season==='summer',
+     isAutumn=season==='autumn';
+   const n=isSummer?540:isSpring?380:isAutumn?460:300;
+   for(let j=0;j<n;j++){
+     const x=r()*W,y=732+r()*207;
+     if(x>675&&x<1130&&y<815&&r()>.44)continue;
+     const h=(isSummer?10:6)+r()*(isSummer?27:17);
+     const shift=(r()-.5)*10;
+     const stem=isSpring?'#9eab90':isSummer?'#68947b':
+       isAutumn?'#9c8566':'#7c807f';
+     c.beginPath();c.moveTo(x,y);c.quadraticCurveTo(
+       x+shift*.33,y-h*.49,x+shift,y-h);
+     c.strokeStyle=color(stem,(isSummer?.16:.12)+r()*.24);
+     c.lineWidth=.34+r()*.85;c.stroke();
+     if(isAutumn){
+       if(r()<.61){
+         const px=x+(r()-.5)*19,py=y+r()*7;
+         c.beginPath();c.moveTo(px-4,py);
+         c.quadraticCurveTo(px-1,py-3,px+2,py-1);
+         c.quadraticCurveTo(px+5,py+2,px+1,py+3);
+         c.closePath();c.fillStyle=color(r()<.5?'#b08a63':'#b56f5a',.18+r()*.24);c.fill();
+       }
+     }else if(isSpring&&r()<.28){
+       const px=x+shift,py=y-h;
+       for(let z=0;z<4;z++){
+         const a=z*TAU/4;
+         ellipse(c,px+Math.cos(a)*1.6,py+Math.sin(a)*1.7,
+           .7+r()*1.15,.75+r()*1.0,color(
+             r()<.6?'#f2bad2':'#d7c7e0',.17+r()*.30),a*.3);
+       }
+     }else if(isSummer&&r()<.31){
+       const px=x+shift,py=y-h*.65,side=r()<.5?-1:1;
+       c.beginPath();c.moveTo(px,py);
+       c.quadraticCurveTo(px+side*3,py-7,px+side*8,py-4);
+       c.quadraticCurveTo(px+side*4,py,px,py);
+       c.fillStyle=color('#7c9b75',.16+r()*.22);c.fill();
+     }
+   }
+ }
+ // Cold weather adds frost patches only when real temperature and recent
+ // snowfall support them. Warm winter days remain free of white snow.
+ function winterGround(c){
+   const r=rng(20260112);
+   for(let k=0;k<330;k++){
+     const x=r()*W,y=739+r()*206;
+     const width=(3+r()*25)*(y/941);
+     ellipse(c,x,y,width,.65+r()*3.1,
+       color(k%5===0?'#ebeaeb':'#b4c3c4',.025+r()*.083),-.09);
+   }
+   for(let k=0;k<175;k++){
+     const x=r()*W,y=753+r()*187;
+     line(c,[x,y],[x+(r()-.5)*4,y-1-r()*9],
+       color('#e3e6e5',.055+r()*.15),.4+r()*.68);
+   }
+ }
+ function seasonalWind(c,now,t,seasonWeights,wind,night){
+   const sc=t.width/W,sy=t.height/H;
+   const gust=clamp(wind/17,.22,2.5);
+   c.save();c.beginPath();c.rect(t.x,t.y,t.width,t.height);c.clip();
+   for(const [season,blend] of seasonWeights){
+     if(blend<.03||(season!=='spring'&&season!=='autumn'))continue;
+     const count=Math.round((season==='spring'?26:34)*blend);
+     const rr=rng(season==='spring'?1729:1764);
+     const isPetal=season==='spring';
+     for(let i=0;i<count;i++){
+       const x0=rr()*W,y0=rr()*610,
+         speed=.018+(i%7)*.008,
+         py=370+(y0+now*speed)%(H-335),
+         px=(x0+now*(.008+i%4*.002)*gust)%W;
+       if(px>700&&px<1100&&py<813)continue;
+       const x=t.x+px*sc,y=t.y+py*sy,
+         size=(isPetal?.7:1.2)+(i%5)*.24;
+       c.save();c.translate(x,y);
+       c.rotate((now*.00039+i*1.17)*(isPetal?1:-1));
+       c.beginPath();c.moveTo(-size,0);
+       c.quadraticCurveTo(0,-size*1.2,size*.8,0);
+       c.quadraticCurveTo(0,size*.58,-size,0);
+       c.fillStyle=isPetal?'rgba(245,189,210,.32)':
+         i%3===0?'rgba(207,137,83,.28)':'rgba(176,117,84,.26)';
+       c.fill();c.restore();
+     }
+   }
+   c.restore();
+ }
  const layerDefs=[
   [],[(c)=>mountainLayer(c,0),(c)=>mountainLayer(c,1),(c)=>mountainLayer(c,2)],
   [(c)=>mountainLayer(c,3),(c)=>mountainLayer(c,4)],
