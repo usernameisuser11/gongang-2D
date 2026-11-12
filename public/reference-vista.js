@@ -1106,6 +1106,48 @@
  }
  // Cold weather adds frost patches only when real temperature and recent
  // snowfall support them. Warm winter days remain free of white snow.
+ // Frost/snow gathers on the flat, upper stone shoulders instead of
+ // painting every rock white. Use exactly the same rock silhouette data.
+ function winterRockCap(c,x,y,w,h,seed){
+   const r=rng(seed*97+127),p=[
+     [x-w*.49,y],[x-w*.40,y-h*.57],[x-w*.20,y-h*.91],
+     [x+w*.15,y-h],[x+w*.43,y-h*.69],
+     [x+w*.52,y-h*.23],[x+w*.43,y+h*.12],[x-w*.37,y+h*.17]
+   ];
+   c.save();c.beginPath();c.moveTo(...p[0]);
+   for(let j=1;j<p.length;j++)c.lineTo(...p[j]);
+   c.closePath();c.clip();
+   // One discontinuous mantle per sheltered plateau, separated by bare
+   // rock joints, never a uniform artificial snowy outline.
+   for(const segment of [[1,2],[2,3],[3,4]]){
+     const a=p[segment[0]],b=p[segment[1]],pieces=10;
+     for(let k=0;k<pieces;k++){
+       if(r()<.35)continue;
+       const u=k/pieces+(r()-.5)*.035,v=Math.min(1,u+.07+r()*.063);
+       const x1=lerp(a[0],b[0],u),y1=lerp(a[1],b[1],u),
+         x2=lerp(a[0],b[0],v),y2=lerp(a[1],b[1],v);
+       const depth=h*(.025+r()*.066);
+       c.beginPath();c.moveTo(x1,y1-1);
+       c.quadraticCurveTo((x1+x2)*.5,y1+depth*.48,x2,y2);
+       c.lineTo(x2-(r()-.5)*w*.025,y2+depth);
+       c.quadraticCurveTo((x1+x2)*.5,y1+depth*(.34+r()*.6),
+         x1,y1+depth*.52);c.closePath();
+       c.fillStyle=color(k%4===0?'#e5e7e8':
+         k%3===0?'#bdcacf':'#c9d0d5',.11+r()*.36);
+       c.fill();
+     }
+   }
+   // Wind-blown powder lingers in rock fissures and small upper cracks.
+   for(let k=0;k<44;k++){
+     const xx=x+(r()-.5)*w*.80,yy=y-h*(.21+r()*.69);
+     const size=.5+r()*Math.max(1.7,w*.028);
+     c.beginPath();c.moveTo(xx-size,yy);
+     c.quadraticCurveTo(xx,yy-size*.35,xx+size*1.25,yy-size*.11);
+     c.strokeStyle=color(k%3===0?'#f2f1ef':'#adbbc4',.07+r()*.20);
+     c.lineWidth=.4+r()*.9;c.stroke();
+   }
+   c.restore();
+ }
  function winterGround(c){
    const r=rng(20260112);
    for(let k=0;k<330;k++){
@@ -1119,6 +1161,14 @@
      line(c,[x,y],[x+(r()-.5)*4,y-1-r()*9],
        color('#e3e6e5',.055+r()*.15),.4+r()*.68);
    }
+   const rocks=[
+     [71,823,274,137,131],[364,860,244,103,132],
+     [1360,841,291,116,133],[1293,754,177,82,134],
+     [521,736,137,61,135],[1043,764,118,49,136],
+     [818,860,145,70,137],[527,715,40,27,203],
+     [526,702,30,18,204],[529,689,19,13,205]
+   ];
+   for(const [x,y,w,h,seed] of rocks)winterRockCap(c,x,y,w,h,seed);
  }
  function seasonalWind(c,now,t,seasonWeights,wind,night){
    const sc=t.width/W,sy=t.height/H;
@@ -1224,7 +1274,7 @@
    hour:0,nightFactor:1,starVisibility:0,cloudCover:.24,
    windKmh:6,rain:0,snow:0,weather:'clear',weatherSource:'fallback',
    fetchError:null,moonVisible:false,sunrise:6.5,sunset:18.0,
-   winterSnow:false,snowSeason:'nonwinter',season:'autumn',
+   winterSnow:false,snowyRocks:false,snowSeason:'nonwinter',season:'autumn',
    seasonBlend:[['autumn',1]],temperatureC:null,weeklyTemperatureC:null
  };
  const soften=(a,b,v)=>{const t=clamp((v-a)/(b-a));return t*t*(3-2*t)};
@@ -1372,6 +1422,7 @@
    const winterSnow=winterWeight>.55&&coldEnough&&
      (weather.snow>.03||weather.snowRecent>.5||thermal===null||thermal<1.5);
    state.winterSnow=winterSnow;
+   state.snowyRocks=winterSnow;
    state.snowSeason=winterSnow?'snowy-winter':dominant;
    state.season=dominant;
    state.seasonBlend=seasonal.map(([season,weight])=>[season,Number(weight.toFixed(3))]);
