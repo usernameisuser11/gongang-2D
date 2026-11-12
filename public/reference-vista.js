@@ -295,8 +295,8 @@
  function alpineCrests(c,m,index){
   if(index>1)return;
   const crests=index===0?
-    [{x:347,radius:166,thick:43},{x:1353,radius:213,thick:47}]:
-    [{x:342,radius:106,thick:17},{x:1343,radius:123,thick:17}];
+    [{x:347,radius:166,thick:30},{x:1353,radius:213,thick:33}]:
+    [{x:342,radius:106,thick:11},{x:1343,radius:123,thick:11}];
   const r=rng(8321+index*311);
   for(const peak of crests){
    const left=Math.max(0,peak.x-peak.radius),
@@ -308,10 +308,14 @@
       y=ridgeHeight(m.pts,x,m.seed);
     const crestAltitude=clamp((397-y)/63,.07,1),
       shoulder=Math.pow(Math.max(0,1-slope*slope),1.45);
-    const fractures=ridgeNoise(x/38,m.seed+188)*.22+
-      ridgeNoise(x/12,m.seed+711)*.075;
+    // Sharp wet-rock exposures cut across the snow mantle. This
+    // irregular lower boundary follows erosion, not a smooth icing cap.
+    const fractures=ridgeNoise(x/31,m.seed+188)*.34+
+      ridgeNoise(x/8,m.seed+711)*.25+
+      ridgeNoise(x/2.6,m.seed+1277)*.13;
+    const exposed=Math.pow(clamp(ridgeNoise(x/17,m.seed+612)*.5+.5),2)*.32;
     const h=Math.max(0,peak.thick*crestAltitude*shoulder*
-      (.84+fractures)-Math.pow(slope,3)*3);
+      (.56+fractures-exposed)-Math.pow(slope,3)*2.7);
     top.push([x,y]);
     bottom.push([x,y+h]);
    }
@@ -320,18 +324,34 @@
    for(const p of bottom.slice().reverse())c.lineTo(...p);
    c.closePath();
    const glacier=c.createLinearGradient(0,318,0,409);
-   glacier.addColorStop(0,index===0?'rgba(231,220,226,.87)':'rgba(187,189,206,.38)');
-   glacier.addColorStop(.55,index===0?'rgba(172,174,192,.74)':'rgba(133,143,161,.30)');
-   glacier.addColorStop(1,'rgba(110,122,151,.02)');
+   glacier.addColorStop(0,index===0?'rgba(220,211,221,.63)':'rgba(168,175,191,.25)');
+   glacier.addColorStop(.45,index===0?'rgba(160,167,183,.52)':'rgba(125,135,157,.20)');
+   glacier.addColorStop(1,'rgba(100,110,135,.02)');
    c.fillStyle=glacier;c.fill();c.clip();
+   // Small exposed scree pockets follow the glacier itself; the viewer
+   // should still read the underlying granite rather than white fondant.
+   for(let j=0;j<104;j++){
+    const x=peak.x+(r()+r()-1)*peak.radius*.88,
+      topY=ridgeHeight(m.pts,x,m.seed),
+      y=topY+2+r()*peak.thick*.85;
+    const crackSpan=3+r()*24,crackH=2+r()*11;
+    c.beginPath();c.moveTo(x,y);
+    c.lineTo(x+crackSpan*.58,y+crackH*.27);
+    c.lineTo(x+crackSpan,y+crackH);
+    c.lineTo(x+crackSpan*.22,y+crackH*.79);
+    c.closePath();
+    c.fillStyle=color(j%3===0?'#566076':'#4a5166',
+      (.028+r()*.18)*(index===0?1:.6));
+    c.fill();
+   }
    // Broken ice shelves and exposed grey limestone seams. A few short
    // diagonal gulleys read as an authentic snowy rock face, not a cone.
    for(let k=0;k<135;k++){
     const x=peak.x+(r()+r()-1)*peak.radius*.92,
       y=ridgeHeight(m.pts,x,m.seed)+r()*peak.thick*.78;
-    const shade=k%5===0?'#ede3e5':k%3===0?'#4b5369':'#8590a6';
-    windingFiber(c,x,y,(r()-.42)*(11+r()*35),2+r()*17,
-      5331+k+index*107,color(shade,(.035+r()*.18)*(index===0?1:.43)),
+    const shade=k%6===0?'#e4d5e1':k%3===0?'#323d54':'#78849f';
+    windingFiber(c,x,y,(r()-.42)*(11+r()*35),2+r()*18,
+      5331+k+index*107,color(shade,(.040+r()*.21)*(index===0?1:.43)),
       .35+r()*1.65);
    }
    for(let k=0;k<24;k++){
