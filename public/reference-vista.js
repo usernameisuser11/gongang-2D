@@ -653,6 +653,82 @@
      color(i%4===0?'#91a1a7':'#74898f',.012+bottom()*.026),-.04);
   }
  }
+ // The edge-framing conifers use individual, asymmetric bough architecture.
+ // They are NOT upscaled copies of the repeating midground fir sprites.
+ // Keep original trunk/root coordinates, but break Christmas-tree tiers.
+ function framingPine(c,x,y,h,seed,shade,opacity=1){
+   const r=rng(seed),lean=(r()-.5)*h*.085;
+   const axis=t=>lean*(t*t*.92+t*.08)+Math.sin(t*6.7+seed*.19)*h*.012*t;
+   c.save();c.translate(x,y);c.globalAlpha*=opacity;c.lineCap='round';c.lineJoin='round';
+   // Soft staggered timber line and narrow rim of sky light.
+   c.beginPath();c.moveTo(0,0);
+   c.bezierCurveTo(lean*.12,-h*.27,lean*.67,-h*.75,axis(1),-h);
+   c.strokeStyle=color('#101a23',.94);c.lineWidth=h*.022;c.stroke();
+   c.beginPath();c.moveTo(-h*.006,-h*.045);
+   c.bezierCurveTo(lean*.08-h*.006,-h*.34,lean*.64-h*.004,-h*.73,axis(1),-h);
+   c.strokeStyle=color('#85959a',.13);c.lineWidth=Math.max(1,h*.0035);c.stroke();
+   for(let j=0;j<36;j++){
+     const t=.095+j/42+(r()-.5)*.024;
+     if(t>.969||r()<(.045+t*.07))continue;
+     const a=axis(t),py=-h*t,
+       side=r()<.5?-1:1,
+       width=h*(.22+.055*r())*Math.pow(1-t,.87),
+       length=width*(.62+r()*.61),
+       end=a+side*length,
+       sag=h*(.014+r()*.049)*(1-t*.67),
+       endY=py+sag;
+     // Branches sometimes fork, swerve or skip levels; no mirrored pairs.
+     c.beginPath();c.moveTo(a,py);
+     c.bezierCurveTo(a+side*length*.20,py-h*.016,
+       a+side*length*.81,py+sag*.48,end,endY);
+     c.strokeStyle=color('#28363b',.78);
+     c.lineWidth=Math.max(.7,h*.006*(1-t));c.stroke();
+     // Uneven tapered foliage spray, each with distinct open spaces.
+     const clusters=5+Math.floor(r()*7);
+     for(let k=0;k<clusters;k++){
+       if(r()<.12)continue;
+       const q=(k+.13+r()*.62)/clusters,
+         bx=lerp(a,end,q),by=py+sag*q*q,
+         blade=h*(.025+r()*.043)*(1-t*.68)*(1-q*.29),
+         lateral=length*(.035+r()*.11)*(1-t*.4);
+       const top=by-blade*(.54+r()*.26),bottom=by+blade*(.36+r()*.61);
+       c.beginPath();c.moveTo(bx-side*lateral*.85,by+blade*.12);
+       c.bezierCurveTo(bx-side*lateral*.44,top,
+         bx+side*lateral*.49,top, bx+side*lateral*.76,by-blade*.29);
+       c.bezierCurveTo(bx+side*lateral*.87,by+blade*.14,
+         bx+side*lateral*.34,bottom,bx-side*lateral*.85,by+blade*.12);
+       c.closePath();
+       const tone=(j+k)%7;
+       c.fillStyle=color(tone===0?'#5e7776':tone<3?'#344d4b':
+         tone===5?'#1c3033':'#263d3e',.33+r()*.30);
+       c.fill();
+       // The tiny needle fans split into fine silhouette tips.
+       for(let n=0;n<3;n++){
+         const offset=(r()-.5)*lateral*.96,
+           tipX=bx+offset,tipY=by-blade*(.30+r()*.28);
+         c.beginPath();c.moveTo(tipX,by+blade*.32);
+         c.quadraticCurveTo(tipX+side*blade*.12,tipY+blade*.17,
+           tipX+side*blade*(.10+r()*.16),tipY);
+         c.strokeStyle=color(n===0?'#839592':'#38504e',.16+r()*.22);
+         c.lineWidth=.4+r()*.55;c.stroke();
+       }
+     }
+     if(r()<.29){
+       const forkX=lerp(a,end,.52+r()*.29),forkY=py+sag*.63;
+       const forkLen=h*(.022+r()*.047)*(1-t);
+       line(c,[forkX,forkY],[forkX+side*forkLen,forkY-forkLen*.59],
+         color('#617674',.15+r()*.13),.45+r()*.48);
+     }
+   }
+   // Finely broken upper crown: many thin, short, asymmetric twigs.
+   for(let k=0;k<16;k++){
+     const t=.80+r()*.20,px=axis(t)+(r()-.5)*h*.045,
+       py=-h*t;
+     line(c,[axis(t),py+2],[px,py-h*(.012+r()*.022)],
+       color(k%3===0?'#849592':'#334849',.20+r()*.29),.4+r()*.65);
+   }
+   c.restore();
+ }
  function foreground(c,lanternLit=true){
    // Left and right framing bluffs. Front and rear edges are separate
    // curves so every stone has a discernible top and side plane.
@@ -809,10 +885,10 @@
    // Deep near-field conifers frame the precise view corridors at both
    // edges. In the reference these are *large* trees, not the uniform
    // miniature pines of the distant valley. They stay clear of the seat.
-   fir(c,83,678,694,4001,'#101d2e',.94);
-   fir(c,230,691,448,4002,'#172a36',.94);
-   fir(c,1560,682,543,4003,'#101f31',.98);
-   fir(c,1677,676,653,4004,'#0c1729',.96);
+   framingPine(c,83,678,694,4001,'#203333',.94);
+   framingPine(c,230,691,448,4002,'#223a3b',.87);
+   framingPine(c,1560,682,543,4003,'#203535',.96);
+   framingPine(c,1677,676,653,4004,'#1c2d30',.96);
    // Sparse warm grazing light on the side branches; the illuminated
    // grass below the trees belongs to the same sunset and lantern.
    for(const [x,y,size,seed] of [[118,443,23,7],[214,565,14,8],[1524,557,13,9]]){
