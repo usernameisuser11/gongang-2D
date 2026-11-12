@@ -1,62 +1,120 @@
 import assert from 'node:assert/strict';
-import {spawn} from 'node:child_process';
-import {mkdir,writeFile} from 'node:fs/promises';
+import {spawn,execFileSync} from 'node:child_process';
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 import {chromium} from 'playwright';
+
 const port=43119,base='http://127.0.0.1:'+port;
+const output='artifacts/reference-vista';
+const sourceHash=createHash('sha256').update(await readFile('public/reference-vista.js')).digest('hex');
+const revision=process.env.GITHUB_SHA||execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
+const report={revision,sourceSha256:sourceHash,runUrl:process.env.GITHUB_RUN_ID?
+  `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`:null,
+  generatedAt:new Date().toISOString(),results:[]};
 const server=spawn(process.execPath,['server.mjs'],{env:{...process.env,PORT:String(port)},stdio:'ignore'});
 let browser;
+await mkdir(output,{recursive:true});
 try{
+ let healthy=false;
  for(let i=0;i<100;i++){
-  try{const r=await fetch(base+'/healthz');if(r.ok)break;}
+  try{const r=await fetch(base+'/healthz');if(r.ok){healthy=true;break;}}
   catch{}
   await new Promise(res=>setTimeout(res,180));
  }
+ assert.ok(healthy,'Local game server must become healthy before capture');
  browser=await chromium.launch({headless:true,args:['--enable-webgl','--enable-unsafe-swiftshader','--use-angle=swiftshader']});
- await mkdir('artifacts/reference-vista',{recursive:true});
- const results=[];
- const configs=[
-  {name:'reference-night-clear',width:1440,height:900,time:'23:20',weather:'clear',expectedLight:'night',minStars:.6},
+ const nightConfigs=[
+  {name:'reference-night-clear',width:1672,height:941,time:'23:20',weather:'clear',expectedLight:'night',minStars:.6},
+  {name:'reference-night-desktop',width:1440,height:900,time:'23:20',weather:'clear',expectedLight:'night',minStars:.6}
+ ];
+ const configs=process.env.REFERENCE_QA_NIGHT_ONLY==='1'?nightConfigs:[...nightConfigs,
   {name:'reference-day-clear',width:1440,height:900,time:'13:20',weather:'clear',expectedLight:'day',maxStars:.03},
   {name:'reference-dusk-cloudy',width:1440,height:900,time:'17:15',weather:'cloudy',expectedWeather:'cloudy'},
   {name:'reference-mobile-rain',width:390,height:844,time:'16:10',weather:'rain',expectedWeather:'rain'}
  ];
- for(const cfg of (process.env.REFERENCE_QA_NIGHT_ONLY ? configs.slice(0,1): configs)){
+ for(const cfg of configs){
   const page=await browser.newPage({viewport:{width:cfg.width,height:cfg.height},deviceScaleFactor:1});
-  const failures=[];
+  const failures=[],failedAssets=[];
   page.on('pageerror',e=>failures.push(String(e)));
-  await page.goto(base+'/?map=stargaze&renderer=reference&time='+encodeURIComponent(cfg.time)+'&weather='+cfg.weather,{waitUntil:'domcontentloaded'});
-  await page.waitForTimeout(3500);
+  page.on('response',r=>{if(r.url().startsWith(base)&&r.status()>=400)failedAssets.push({url:r.url(),status:r.status()});});
+  const url=base+'/?map=stargaze&renderer=reference&time='+encodeURIComponent(cfg.time)+'&weather='+cfg.weather;
+  const started=Date.now();
+  await page.goto(url,{waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>window.GongangReferenceVista?.state?.ready&&window.GongangReferenceVista.state.frames>=3,null,{timeout:60000});
+  await page.evaluate(()=>document.fonts.ready);
   const state=await page.evaluate(()=>({
-    ...(window.GongangReferenceVista?.state||{}),
+    ...window.GongangReferenceVista.state,
     loaded:!!window.GongangReferenceVista,
     stargaze:!!window.GongangStargaze,
-    painterly:window.GongangPainterly?.state?.renderCount,
-    overlook:window.GongangOverlook25D?.state?.frameCount,
+    traveler:typeof window.GongangStargaze?.drawTraveler==='function',
     selected:new URLSearchParams(location.search).get('renderer')
   }));
-  console.log('REFERENCE DIAG',JSON.stringify({cfg:cfg.name,state,failures}));
+  const pixels=await page.evaluate(()=>{
+    const canvas=document.querySelector('#game'),ctx=canvas.getContext('2d');
+    const {data}=ctx.getImageData(0,0,canvas.width,canvas.height);
+    let opaque=0,samples=0,min=255,max=0;const colors=new Set();
+    for(let y=0;y<canvas.height;y+=13)for(let x=0;x<canvas.width;x+=13){
+      const i=(y*canvas.width+x)*4,luma=(data[i]+data[i+1]+data[i+2])/3;
+      samples++;if(data[i+3]>240)opaque++;
+      min=Math.min(min,luma);max=Math.max(max,luma);
+      colors.add((data[i]>>3)+','+(data[i+1]>>3)+','+(data[i+2]>>3));
+    }
+    return {width:canvas.width,height:canvas.height,opaqueFraction:opaque/samples,
+      quantizedColors:colors.size,luminanceRange:max-min};
+  });
+  const result={name:cfg.name,viewport:{width:cfg.width,height:cfg.height},url,
+    elapsedMs:Date.now()-started,state,pixels,failures,failedAssets};
+  report.results.push(result);
+  // Save the real browser frame before assertions so failed captures remain inspectable.
+  const capture=await page.screenshot({path:output+'/'+cfg.name+'.png',timeout:60000});
+  result.screenshot={file:cfg.name+'.png',sha256:createHash('sha256').update(capture).digest('hex')};
   if(cfg.name==='reference-night-clear'){
-    const bands=await page.evaluate(()=>window.GongangReferenceVista?.inspectBands?.());
-    console.log('BAND DIAGNOSTIC',JSON.stringify(bands));
-    const foreground=bands?.find(b=>b.layer===4);
+    const bands=await page.evaluate(()=>window.GongangReferenceVista.inspectBands());
+    result.bands=bands;
+    const foreground=bands.find(b=>b.layer===4);
     assert.ok(foreground?.peaks?.every(p=>p.y!==630||p.color<55),
       'Warm meadow glow must not produce a hard rectangular seam at y=630');
   }
-  await page.screenshot({path:'artifacts/reference-vista/'+cfg.name+'.png',timeout:60000});
-  assert.equal(state.ready,true,JSON.stringify({state,failures}));
-  assert.ok(state.frames>1,JSON.stringify({state,failures}));
+  assert.equal(state.ready,true);
+  assert.equal(state.error,null);
   assert.equal(state.layers,5);
+  assert.equal(state.coordinates,'1672x941','Approved world coordinate system must remain unchanged');
   assert.equal(state.mode,'coordinate-repaint-no-bitmap');
+  assert.equal(state.selected,'reference');
+  assert.equal(state.traveler,true,'Original traveler renderer must remain available');
   assert.equal(state.moonVisible,false,'Fixed moon must be removed');
   assert.equal(state.weatherSource,'preview','Weather override must drive actual sky');
+  const [hour,minute]=cfg.time.split(':').map(Number);
+  assert.ok(Math.abs(state.hour-(hour+minute/60))<.001,'Requested capture time must drive actual sky');
   if(cfg.expectedLight)assert.equal(state.light,cfg.expectedLight,JSON.stringify(state));
   if(cfg.expectedWeather)assert.equal(state.weather,cfg.expectedWeather,JSON.stringify(state));
   if(cfg.minStars!==undefined)assert.ok(state.starVisibility>=cfg.minStars,JSON.stringify(state));
   if(cfg.maxStars!==undefined)assert.ok(state.starVisibility<=cfg.maxStars,JSON.stringify(state));
+  assert.equal(pixels.width,cfg.width);
+  assert.equal(pixels.height,cfg.height);
+  assert.ok(pixels.opaqueFraction>.98,'Actual game canvas must cover the viewport');
+  assert.ok(pixels.quantizedColors>70&&pixels.luminanceRange>45,'Canvas must contain a detailed rendered scene');
   assert.deepEqual(failures,[],'Javascript errors '+JSON.stringify(failures));
-  results.push({name:cfg.name,...state});
+  assert.deepEqual(failedAssets,[],'Failed local assets '+JSON.stringify(failedAssets));
+  if(cfg.name==='reference-night-clear'){
+    // Exercise the unchanged photograph/camera UI against this real renderer.
+    await page.locator('#enterPhoto').click();
+    await page.waitForFunction(()=>window.__photoUxDebug?.get().photo===true);
+    const before=await page.evaluate(()=>window.GongangReferenceVista.state.frames);
+    await page.waitForFunction(n=>window.GongangReferenceVista.state.frames>n+1,before);
+    result.photo=await page.evaluate(()=>window.__photoUxDebug.get());
+    assert.ok(result.photo.crop.w>0&&result.photo.crop.h>0,'Photo crop must remain valid');
+    await page.locator('#closePhoto').click();
+    await page.waitForFunction(()=>window.__photoUxDebug.get().photo===false);
+  }
+  assert.deepEqual(failures,[],'Javascript errors after photograph check '+JSON.stringify(failures));
+  assert.deepEqual(failedAssets,[],'Failed local assets after photograph check '+JSON.stringify(failedAssets));
+  console.log('REFERENCE DIAG',JSON.stringify(result));
   await page.close();
  }
- await writeFile('artifacts/reference-vista/result.json',JSON.stringify(results,null,2));
- console.log(JSON.stringify(results));
-}finally{if(browser)await browser.close();server.kill();}
+ report.passed=true;
+}catch(error){report.passed=false;report.error=String(error?.stack||error);throw error;}
+finally{
+ await writeFile(output+'/result.json',JSON.stringify(report,null,2));
+ if(browser)await browser.close();server.kill();
+}

@@ -10,10 +10,16 @@ on:
       - 'test/reference-vista-quick.mjs'
       - '.github/workflows/reference-vista-quick.yml'
   workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: Include day, dusk and mobile rain captures
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   preview:
+    if: github.ref == 'refs/heads/threejs-model-assets'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -24,18 +30,21 @@ jobs:
       - name: Install
         run: |
           npm install --no-audit --no-fund
-          npm install --no-save playwright --no-audit --no-fund
+          npm install --no-save --package-lock=false playwright@1.56.1 --no-audit --no-fund
           # GitHub's runner already has browser OS dependencies. Avoid
           # apt downloads; apt mirrors have intermittent DNS failures.
           npx playwright install chromium
+      - name: Check reference renderer syntax
+        run: npm run check:reference
       - name: Capture coordinate-redrawn vista
         env:
-          REFERENCE_QA_NIGHT_ONLY: '1'
+          REFERENCE_QA_NIGHT_ONLY: ${{ inputs.full_matrix && '0' || '1' }}
         run: node test/reference-vista-quick.mjs
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gongang-reference-coordinate-redraw
+          name: gongang-reference-coordinate-redraw-${{ github.sha }}
           path: artifacts/reference-vista/
           if-no-files-found: warn
+          retention-days: 14

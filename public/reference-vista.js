@@ -87,21 +87,22 @@
    if(i===0)c.moveTo(x,y);else c.lineTo(x,y);
   }
   c.lineTo(W,H);c.lineTo(0,H);c.closePath();
-  c.fillStyle=lgrad(c,0,pts[0][1],0,H,[[0,top],[.40,top],[1,bottom]]);c.fill();
+  const stoneTop=seed===11?'#414452':seed===12?'#424753':seed===13?'#414c54':top;
+  c.fillStyle=lgrad(c,0,pts[0][1],0,H,[[0,stoneTop],[.40,stoneTop],[1,bottom]]);c.fill();
   c.save();c.clip();
   const r=rng(seed);
-  // Valleys/runnels follow the real incline instead of using arbitrary
-  // straight marks; soft bifurcations produce weathered rock surfaces.
-  for(let i=0;i<110;i++){
+  // Fine mineral breakup follows the incline. Broad faces and drainage
+  // shadows are painted by mountainLayer, so these marks stay subordinate.
+  for(let i=0;i<135;i++){
    const x=20+r()*(W-40),y=ridgeHeight(pts,x,seed)+r()*94;
    const fall=12+r()*85,side=(r()-.5)*31;
    windingFiber(c,x,y,side,fall,seed*400+i,
-     color(i%4===0?'#c4bacb':'#213858',.014+r()*.055),.6+r()*2.8);
+     color(i%4===0?'#c4b6b7':'#363c43',.012+r()*.037),.5+r()*1.8);
   }
   for(let i=0;i<250;i++){
    const x=r()*W,y=ridgeHeight(pts,x,seed)+r()*270;
    windingFiber(c,x,y,(r()-.5)*24,4+r()*23,seed*999+i,
-     color(i%5===0?'#d4acbf':'#182d54',.010+r()*.044),.3+r()*1.1);
+     color(i%5===0?'#c6b0b9':'#30383e',.009+r()*.032),.3+r()*1.1);
   }
   materialGrain(c,.12);
   c.restore();
@@ -111,7 +112,7 @@
  // do NOT change; only the light in the sky responds to time and weather.
  function skyBase(c,kind){
   const P={
-   night:[[0,'#040a22'],[.23,'#0c1741'],[.44,'#20275a'],[.70,'#343a67'],[1,'#4e5678']],
+   night:[[0,'#050c20'],[.23,'#101c38'],[.44,'#252a4b'],[.70,'#41435e'],[1,'#635e76']],
    dawn:[[0,'#14234b'],[.24,'#52608a'],[.48,'#aa7597'],[.74,'#f3a191'],[1,'#ffd3a2']],
    day:[[0,'#267db5'],[.24,'#4a9dc9'],[.47,'#7eb9d7'],[.72,'#b1d6e2'],[1,'#e3e9df']],
    dusk:[[0,'#050d29'],[.23,'#11194c'],[.43,'#39265f'],[.61,'#804078'],[.77,'#e56880'],[.91,'#ff9770'],[1,'#f9af79']]
@@ -127,30 +128,9 @@
   }
  }
  function skyStars(c){
-  // THE GALAXY: this calls our existing Stellar Explosion v31.9 / Quasar
-  // v129 particle engine (8500 sky grains + 15700 Milky Way grains).
-  // The GPU-era round-core, colored-aura, 0.82..1.0 feather profile is
-  // preserved: 95% tiny grains, very few bright stars, subtle twinkles.
-  // All geometry is reprojected into the reference's 1672x941 sky.
-  const galaxyRand=rng(301779);
+  // A domain-warped molecular cloud field follows the established diagonal
+  // galaxy coordinates. All pixels originate in noise equations below.
   const galaxyCenter=y=>1195-1.08*(y/.42);
-  const galaxyTransmission=(x,y)=>{
-    const u=y/.42,core=1195-1.08*u;
-    const side=x-core,rift=core-31+16*Math.sin(u*.014+1.5);
-    const dust=Math.exp(-Math.pow((x-rift)/(18+u*.020),2));
-    const soft=Math.exp(-Math.pow(side/258,2));
-    return {light:soft*(.23+.24*Math.cos(u*.007)),dust:dust*.91};
-  };
-  c.save();
-  c.globalCompositeOperation='screen';
-  // A coherent galactic dust field is rendered as *code-generated pixels*
-  // inside this static Canvas layer. No copied image, bitmap or stock sky.
-  // This brings the luminous rose/cyan star clouds up to the quality of
-  // the reference without introducing a fake straight neon stripe.
-  const nebula=document.createElement('canvas');
-  nebula.width=836;nebula.height=176;
-  const nctx=nebula.getContext('2d');
-  const image=nctx.createImageData(nebula.width,nebula.height);
   const smooth=(a,b,v)=>{const t=clamp((v-a)/(b-a));return t*t*(3-2*t)};
   const hash=(x,y,seed)=>{
     let h=Math.imul((x|0)^seed,374761393)^Math.imul((y|0)+seed,668265263);
@@ -158,96 +138,90 @@
     return ((h^(h>>>16))>>>0)/4294967295;
   };
   const noise=(x,y,seed)=>{
-    const ix=Math.floor(x),iy=Math.floor(y),
-      u=smooth(0,1,x-ix),v=smooth(0,1,y-iy);
+    const ix=Math.floor(x),iy=Math.floor(y),u=smooth(0,1,x-ix),v=smooth(0,1,y-iy);
     return lerp(lerp(hash(ix,iy,seed),hash(ix+1,iy,seed),u),
       lerp(hash(ix,iy+1,seed),hash(ix+1,iy+1,seed),u),v);
   };
+  const fbm=(x,y,seed)=>noise(x,y,seed)*.48+noise(x*2.07,y*2.07,seed+31)*.26+
+    noise(x*4.19,y*4.19,seed+79)*.15+noise(x*8.41,y*8.41,seed+137)*.075+
+    noise(x*16.81,y*16.81,seed+311)*.035;
+  const field=(x,y)=>{
+    const u=x*.932-y*.362, v=(x-galaxyCenter(y))*.362;
+    const warp=(noise(u*.009,v*.014,311)-.5)*26+
+      (noise(u*.032,v*.039,713)-.5)*7;
+    const d=v+warp, width=58+noise(u*.008,0,179)*26;
+    const body=Math.exp(-((d/width)**2));
+    const gas=fbm(u*.020+(noise(u*.006,v*.009,19)-.5)*2.6,
+      d*.032+(noise(u*.011,v*.012,39)-.5)*1.7,819);
+    const curls=noise(u*.070+gas*2.4,d*.083+gas,2117);
+    const lane=d+8+9*Math.sin(u*.012)+
+      (noise(u*.018,d*.025,3117)-.5)*18;
+    const dust=Math.exp(-((lane/(5+gas*8))**2))*(.66+.30*noise(u*.032,d*.04,917));
+    const branch=Math.exp(-(((d-20-9*Math.sin(u*.015+.7))/(3+gas*5))**2))*
+      smooth(.39,.68,noise(u*.011,d*.031,871));
+    return {u,d,body,gas,curls,dust:clamp(dust+branch*.54),
+      light:body*(.14+gas*.66),fade:1-smooth(293,420,y)};
+  };
+  const galaxyTransmission=(x,y)=>{
+    const q=field(x,y);
+    return {light:q.light,dust:q.dust*.94};
+  };
+  const nebula=document.createElement('canvas');
+  nebula.width=1115;nebula.height=280;
+  const nctx=nebula.getContext('2d'),pixels=nctx.createImageData(nebula.width,nebula.height);
+  const gaussian=(u,at,width)=>Math.exp(-(((u-at)/width)**2));
   for(let j=0;j<nebula.height;j++)for(let i=0;i<nebula.width;i++){
-    const x=i*2,y=j*2,idx=(j*nebula.width+i)*4;
-    const broad=noise(x*.010,y*.012,311),
-      fold=noise(x*.034,y*.038,819),
-      detail=noise(x*.091,y*.103,2117);
-    const drift=(broad-.5)*79+(fold-.5)*17;
-    const core=galaxyCenter(y)+drift;
-    const d=x-core;
-    const spread=123+42*broad;
-    const body=Math.exp(-Math.pow(d/spread,2));
-    const filaments=0.24+0.47*fold+0.30*detail;
-    const knots=Math.pow(smooth(.40,.83,fold*.67+detail*.33),1.25);
-    const laneX=core-28+31*Math.sin(y*.018+.4)+(broad-.5)*51;
-    const lane=Math.exp(-Math.pow((x-laneX)/(13+25*fold),2));
-    const opening=smooth(0,.16,y)*smooth(0,.12,352-y);
-    const energy=body*filaments*(.38+.62*knots)*opening*(1-lane*.77);
-    // Color smoothly alternates along the arm; warmer knots are rare.
-    const pink=smooth(.46,.82,noise(x*.013+5,y*.027+3,1901));
-    const cyan=smooth(.44,.83,noise(x*.016,y*.023,3907));
-    image.data[idx]  = Math.round(lerp(114,234,pink*.83+(1-cyan)*.12));
-    image.data[idx+1]= Math.round(lerp(144,219,cyan*.78));
-    image.data[idx+2]= Math.round(lerp(188,248,cyan*.48+pink*.25));
-    image.data[idx+3]= Math.round(235*clamp(energy*.96));
+    const x=i*W/nebula.width,y=j*1.5,idx=(j*nebula.width+i)*4,q=field(x,y);
+    const {u,d,body,gas,curls,dust,fade}=q;
+    // Sparse hot knots emerge from a mottled, translucent blue envelope.
+    // Fine scales modulate the light as well as the color, avoiding a flat band.
+    const knot=smooth(.43,.76,gas*.80+curls*.20);
+    const pearl=fbm(u*.011+gas*.7,d*.019,1921);
+    const grains=noise(u*.34,d*.41,7371);
+    const spine=Math.exp(-(((d-12)/27)**2));
+    const energy=fade*(.042*Math.exp(-((d/117)**2))*(.5+pearl)+
+      body*(.075+pearl*.19+gas*.12+knot*.32)*(1-dust*.86)+
+      spine*knot*.10*(1-dust))*(.91+grains*.18);
+    const rose=clamp((gaussian(u,556,83)+gaussian(u,694,52)+
+      gaussian(u,922,63)+gaussian(u,1088,43))*(.48+gas*.70));
+    const cyan=clamp((gaussian(u,793,41)+gaussian(u,846,29)+
+      gaussian(u,1037,46))*(.40+gas*.85))*(1-rose*.6);
+    const ivory=knot*.27+pearl*.10;
+    pixels.data[idx]=lerp(lerp(130,238,rose),105,cyan)+ivory*36;
+    pixels.data[idx+1]=lerp(lerp(157,159,rose),223,cyan)+ivory*47;
+    pixels.data[idx+2]=lerp(lerp(211,219,rose),237,cyan)+ivory*27;
+    pixels.data[idx+3]=Math.round(255*clamp(energy));
   }
-  nctx.putImageData(image,0,0);
-  c.save();c.globalAlpha=.86;
-  c.drawImage(nebula,0,0,W,352);
-  c.restore();
-  // A series of low-opacity, multi-hue molecular cloud cores gives the
-  // Milky Way a continuous luminous spine rather than random sky dots.
-  // They are rendered once underneath the original v129 star grains.
-  for(let k=0;k<220;k++){
-    const y=galaxyRand()*331;
-    const x=galaxyCenter(y)+(galaxyRand()+galaxyRand()+galaxyRand()-1.5)*200;
-    if(x<-100||x>W+100)continue;
-    const gas=galaxyTransmission(x,y),r=27+galaxyRand()*72;
-    const tone=k%5===0?'#f0b4bf':k%4===0?'#c5b8ea':k%3===0?'#86c6e5':'#a5b6e8';
-    const a=(.042+galaxyRand()*.048)*(.35+gas.light*1.7)*(1-gas.dust*.92);
-    c.fillStyle=radial(c,x,y,r,[[0,color(tone,a)],[.35,color(tone,a*.53)],[1,color(tone,0)]]);
-    c.fillRect(x-r,y-r,2*r,2*r);
-  }
-  // Broad, feathered luminous gas: cold cyan-blue edges surrounding
-  // warm ivory/rose substructures. These are fine transparent fibers,
-  // never single giant ellipse glows or an artificial laser stripe.
-  for(let j=0;j<420;j++){
-    const y=galaxyRand()*336;
-    const x=galaxyCenter(y)+(galaxyRand()+galaxyRand()+galaxyRand()-1.5)*285;
-    if(x<-50||x>W+50)continue;
-    const field=galaxyTransmission(x,y);
-    const ridge=(.09+.91*field.light)*(1-field.dust*.87);
-    const size=3+galaxyRand()*38;
-    const hue=galaxyRand();
-    const tone=hue<.18?'#f4dfb8':hue<.41?'#d2a3d3':hue<.69?'#9b9fe6':'#76b2e2';
-    const alpha=(.006+galaxyRand()*.028)*ridge;
-    windingFiber(c,x,y,14+size*1.7,-2-galaxyRand()*size*.28,j+2121,
-      color(tone,alpha),size*(.19+galaxyRand()*.45));
-  }
-  // Fine luminous gas strands and a curving 'Great Rift' between the
-  // densely populated bands. Keep the rift transparent enough that the
-  // underlying midnight blue remains visible.
-  for(let k=0;k<265;k++){
-    const y=galaxyRand()*337;
-    const core=galaxyCenter(y);
-    const x=core+(galaxyRand()-.5)*385;
-    const q=galaxyTransmission(x,y);
-    const alpha=(.009+galaxyRand()*.047)*(1-q.dust)*(q.light+.14);
-    windingFiber(c,x,y,18+galaxyRand()*95,galaxyRand()*17-5,k+9182,
-      color(k%5===0?'#f1c5d1':k%4===0?'#dfdbf3':'#95b0f1',alpha),
-      .5+galaxyRand()*3.2);
+  nctx.putImageData(pixels,0,0);
+  c.save();c.globalCompositeOperation='screen';
+  c.drawImage(nebula,0,0,W,420);
+  // A few finer suspended grains form broken, branching emission filaments.
+  // Their opacity follows the same density and dust field as the cloud pixels.
+  const r=rng(301779);
+  for(let j=0;j<2100;j++){
+    const y=r()*355,x=galaxyCenter(y)+(r()+r()+r()-1.5)*268;
+    if(x<0||x>W)continue;
+    const q=field(x,y),a=q.body*q.fade*(1-q.dust)*
+      smooth(.39,.72,q.gas)*(.012+r()*.052);
+    if(a<.003)continue;
+    const pink=Math.sin(q.u*.027+1.5)>.1;
+    const tone=pink?'#edb5dc':j%3===0?'#9fdfeb':'#bfc8f0';
+    const size=.35+r()*1.25;
+    ellipse(c,x,y,size*1.6,size,color(tone,a),-.36);
   }
   c.restore();
-  // Quasar v129 native soft round-grain texture and the exact original
-  // six-color palette are reused from /stellar-grains.js, not recreated
-  // as square pixel stars. Starfield is separate from every cloud layer.
+  // Reuse the native Quasar soft-grain engine and its original population.
+  // Its stars sample these same curved dust lanes, preserving dark cavities.
   if(window.StellarGrains?.paint){
     window.StellarGrains.paint(c,W,H,galaxyTransmission,()=>1,{
       projectBackground:(x,y)=>[x,y*.58],
       projectGalaxy:(x,y)=>[x,y*.42]
     });
   }else{
-    // Graceful native Canvas fallback if the stellar engine is blocked.
     const fallback=rng(4328);
     for(let i=0;i<10500;i++){
-      const x=fallback()*W,y=fallback()*338,r=fallback(),size=r>.995?1.7:.45;
-      c.fillStyle=color(r>.74?'#f4ddc0':r>.4?'#bbc6fa':'#7ca9ed',.12+fallback()*.45);
+      const x=fallback()*W,y=fallback()*338,v=fallback(),size=v>.995?1.7:.45;
+      c.fillStyle=color(v>.74?'#f4ddc0':v>.4?'#bbc6fa':'#7ca9ed',.12+fallback()*.45);
       c.fillRect(x,y,size,size);
     }
   }
@@ -305,140 +279,197 @@
  function mountainLayer(c,index){
   const m=mountains[index];
   ridge(c,m.pts,m.a,m.b,m.seed);
-  // Moonlit, fractured rock follows the exact same surveyed ridge.
-  // Stone grays and warm-violet mineral traces replace uniform blue slabs.
-  if(index<4){
-   const rock=rng(51000+index*593);
+  // The stone surface has large eroded buttresses, smaller folded planes
+  // and grain at independent scales. All relief is clipped to the original
+  // surveyed ridge; no summit or photo-composition anchor is displaced.
+  if(index<3){
+   const rock=rng(51000+index*593),strength=1-index*.20;
    c.save();c.beginPath();
    for(let x=0;x<=W;x+=4){
     const y=ridgeHeight(m.pts,x,m.seed);
     if(x===0)c.moveTo(x,y);else c.lineTo(x,y);
    }
    c.lineTo(W,H);c.lineTo(0,H);c.closePath();c.clip();
-   const n=index<2?240:120;
-   for(let k=0;k<n;k++){
-    const mass=rock()<.51?390:1340;
-    const x=clamp(mass+(rock()+rock()+rock()-1.5)*(index<2?390:490),0,W);
-    const upper=ridgeHeight(m.pts,x,m.seed);
-    const yy=upper+2+Math.pow(rock(),1.7)*(index<2?86:58);
-    const slit=rock()<.5,dx=(rock()-.52)*(slit?42:18);
-    const dy=6+rock()*(slit?37:72);
-    const bright=rock()<.62;
-    const tint=bright?(k%4===0?'#e5c7c6':'#b6b3b8'):'#303949';
-    const opacity=(bright?.033:.035)+rock()*(bright?.115:.060);
-    windingFiber(c,x,yy,dx,dy,k*371+index*811,
-      color(tint,opacity),.45+rock()*(index<2?2.1:1.4));
+   // A code-built relief material modulates the planes without the old
+   // blue vertical scratches. Warped multi-scale noise forms connected
+   // mineral folds instead of unrelated speckles or a repeating bitmap.
+   const stone=document.createElement('canvas');stone.width=836;stone.height=180;
+   const sc=stone.getContext('2d'),pixels=sc.createImageData(836,180);
+   const hash=(x,y)=>{
+    let h=Math.imul((x|0)+m.seed*193,374761393)^Math.imul((y|0)+53,668265263);
+    h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))>>>0)/4294967295;
+   };
+   const noise=(x,y)=>{
+    const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,
+      u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);
+    return lerp(lerp(hash(ix,iy),hash(ix+1,iy),u),
+      lerp(hash(ix,iy+1),hash(ix+1,iy+1),u),v);
+   };
+   const crests=new Float32Array(836);
+   for(let i=0;i<836;i++)crests[i]=ridgeHeight(m.pts,i*2,m.seed);
+   for(let j=0;j<180;j++)for(let i=0;i<836;i++){
+    const x=i*2,y=300+j*2,depth=y-crests[i];if(depth<0)continue;
+    const warp=(noise(x*.014,y*.018)-.5)*29,
+      u=x+warp+depth*.42,
+      broad=noise(u*.023,y*.018),
+      folds=noise((u-depth*.72)*.073,y*.035),
+      chip=noise(u*.21,y*.17),fine=hash(i,j);
+    const relief=(broad-.56)*.43+(folds-.52)*.18+(chip-.5)*.075;
+    const warm=noise(x*.037+20,y*.03);
+    const p=(j*836+i)*4;
+    const light=relief>0,alpha=Math.abs(relief)*strength*230;
+    pixels.data[p]=light?139+warm*22:33+warm*11;
+    pixels.data[p+1]=light?132+warm*18:37+warm*8;
+    pixels.data[p+2]=light?146+warm*16:48+warm*8;
+    pixels.data[p+3]=Math.round((alpha+fine*8)*clamp((145-depth)/85));
    }
-   // Light catches only portions of the crest: broken, uneven, no neon line.
-   c.lineCap='round';
-   for(let j=0;j<76;j++){
-    const peak=rock()<.50?390:1340;
-    const x=clamp(peak+(rock()+rock()-1)*180,0,W);
-    const y=ridgeHeight(m.pts,x,m.seed)+1+rock()*8;
-    windingFiber(c,x,y,4+rock()*27,(rock()-.5)*5,
-      9700+j+index*209,color(j%4===0?'#e8c5c2':'#bbafbe',
-      (.020+rock()*.085)*(1-index*.20)),.4+rock()*1.1);
+   sc.putImageData(pixels,0,0);c.drawImage(stone,0,300,W,360);
+   // Broad asymmetrical gullies run away from the authored summit
+   // shoulders. Curved, fading shadows give the mountain one connected
+   // mass rather than a tessellation of bright triangular facets.
+   const summits=index===0?[335,410,523,1162,1233,1359,1510]:
+     index===1?[461,742,1181,1292]:[149,421,789,1078,1338];
+   for(let k=0;k<38;k++){
+    const summit=summits[k%summits.length],side=rock()<.5?-1:1;
+    const x=clamp(summit+side*(8+rock()*58),0,W),
+      y=ridgeHeight(m.pts,x,m.seed)+rock()*15;
+    const h=27+rock()*91,dx=side*(20+rock()*71),width=6+rock()*19;
+    c.beginPath();c.moveTo(x,y);
+    c.bezierCurveTo(x+dx*.18-width*.2,y+h*.18,
+      x+dx*.44-width*.7,y+h*.63,x+dx-width*.4,y+h);
+    c.bezierCurveTo(x+dx+width,y+h*.88,x+dx*.52+width*.5,
+      y+h*.30,x+width*.24,y+5);c.closePath();
+    c.fillStyle=lgrad(c,x,y,x+dx,y+h,[[0,color('#272c39',.14*strength)],
+      [.48,color('#30313e',.22*strength)],[1,color('#343841',0)]]);c.fill();
+    // A broken side of the drainage catches the light, in very short
+    // fragments separated by shadow and scree, never one silver stripe.
+    for(let n=0;n<5;n++){
+     const t=.08+rock()*.76,sx=x+dx*t-width*.28,sy=y+h*t;
+     windingFiber(c,sx,sy,dx*.09+(rock()-.5)*7,h*.08,
+       k*211+n+m.seed,color('#b9a9b2',(.025+rock()*.055)*strength),.5+rock());
+    }
    }
+   // Fine erosion splits and bends at irregular depths. These provide
+   // rock texture without giving every mountain an identical sawtooth.
+   for(let k=0;k<430;k++){
+    const x=rock()*W,y=ridgeHeight(m.pts,x,m.seed)+Math.pow(rock(),1.5)*92;
+    const slope=(ridgeHeight(m.pts,x+6,m.seed)-ridgeHeight(m.pts,x-6,m.seed))/12;
+    const h=3+rock()*20,dx=clamp(slope,-1,1)*h*.5+(rock()-.5)*13;
+    windingFiber(c,x,y,dx,h,k*393+m.seed,
+      color(k%5===0?'#c4b4bc':'#303440',(.018+rock()*.052)*strength),.3+rock()*.65);
+   }
+   // Broken mineral ledges stay close to the crest and face the light;
+   // they never trace the entire outline with a uniform glowing stroke.
+   for(let k=0;k<120;k++){
+    const x=rock()*W,upper=ridgeHeight(m.pts,x,m.seed),
+      slope=(ridgeHeight(m.pts,x+3,m.seed)-ridgeHeight(m.pts,x-3,m.seed))/6;
+    if(slope>.26&&rock()<.78)continue;
+    const y=upper+rock()*10,span=2+rock()*11;
+    poly(c,[[x,y],[x+span,y+slope*span*.65],
+      [x+span*.68,y+3+rock()*5],[x-span*.32,y+4+rock()*4]],
+      color(k%5===0?'#d9b9b5':'#b9acba',(.035+rock()*.09)*strength));
+   }
+   materialGrain(c,.16*strength);
    c.restore();
   }
-  // Evergreen roots sit on the same displaced terrain geometry. The
-  // previous scene had three *uniform horizontal rows* of pines, leaving
-  // a ruler-straight band across the whole frame.
   if(index>=3)forestGrove(c,index);
-  // Irregular folded rock faces and drainages shaded beneath the
-  // silver ridge highlight. Art-directed mountains remain in place.
-  if(index<3){
-   const rr=rng(21833+index*409),peaks=[386,1347,1212,468];
-   c.save();c.beginPath();
-   for(let x=0;x<=W;x+=4){
-     const y=ridgeHeight(m.pts,x,m.seed);
-     if(x===0)c.moveTo(x,y);else c.lineTo(x,y);
-   }
-   c.lineTo(W,H);c.lineTo(0,H);c.closePath();c.clip();
-   for(let j=0;j<62;j++){
-     const p=peaks[Math.floor(rr()*peaks.length)];
-     const x=clamp(p+(rr()+rr()+rr()-1.5)*315,0,W),
-       y=ridgeHeight(m.pts,x,m.seed)+3+rr()*28;
-     const h=17+rr()*81,side=rr()<.5?-1:1;
-     c.beginPath();c.moveTo(x,y);
-     c.bezierCurveTo(x+side*8,y+h*.26,x+side*(13+rr()*22),
-       y+h*.65,x+side*(25+rr()*50),y+h);
-     c.bezierCurveTo(x+side*11,y+h*.75,x-side*8,
-       y+h*.38,x-side*(3+rr()*7),y+8);
-     c.closePath();
-     c.fillStyle=color(j%3===0?'#2e313d':j%4===0?'#c7bbc4':'#766d7d',
-       .018+rr()*.063);
-     c.fill();
-   }
-   c.restore();
-  }
-  // A few authored geology facets, not high-frequency noise over all slopes.
-  if(index<3){c.save();const r=rng(index+200);
-   for(let k=0;k<47;k++){
-    const x=170+r()*1330;const pts=m.pts;let closest=pts[0];
-    for(const p of pts)if(Math.abs(p[0]-x)<Math.abs(closest[0]-x))closest=p;
-    const y=closest[1]+4,dx=(r()-.38)*42,dy=12+r()*68;
-    c.beginPath();c.moveTo(x,y);c.quadraticCurveTo(x+dx*.30,y+dy*.40,x+dx,y+dy);
-    c.lineWidth=.55+r()*1.7;c.strokeStyle=color(k%3?'#bbc2d3':'#233962',.07+r()*.14);c.stroke();
-   }c.restore();}
  }
+ // Branch whorls, drooping needle fans and reflected sky light are
+ // attached to the existing trunks. Large framing trees keep their roots.
  function fir(c,x,y,height,seed,col,weight=1){
-   const r=rng(seed);const wid=height*(.19+r()*.06);
-   c.save();c.translate(x,y);c.globalAlpha=weight;
-   // Leaning organic trunk and irregular forked branches.
-   const lean=(r()-.5)*height*.07;
-   c.beginPath();c.moveTo(-1,0);c.quadraticCurveTo(lean*.3,-height*.5,lean,-height);
-   c.strokeStyle=color(col,.87);c.lineWidth=Math.max(1.2,height*.028);c.stroke();
-   for(let i=0;i<19;i++){
-    const t=i/19; const yy=-height*(.14+t*.77),side=i%2?1:-1;
-    const length=wid*Math.pow(1-t,.91)*(.72+r()*.43);
-    const tx=lean*t+side*length,tipY=yy+height*(.018+r()*.033);
-    c.beginPath();c.moveTo(lean*t,yy-height*.028);c.quadraticCurveTo(tx*.52,yy-height*.065,tx,tipY);
-    c.strokeStyle=color(col,.92);c.lineWidth=Math.max(1,height*.019*(1-t));c.stroke();
-    // Overlapping organic branch sprays keep the grove from reading as
-    // a collection of wireframe twigs; serrated tips imitate fir needles.
-    c.beginPath();c.moveTo(lean*t,yy-height*.055);
-    c.quadraticCurveTo(tx*.38,yy-height*.105,tx,tipY);
-    for(let z=4;z>=0;z--){
-      const q=z/4;
-      c.lineTo(lerp(lean*t,tx,q)+side*(r()-.5)*length*.09,
-        lerp(yy,tipY,q)+height*(.025+.026*r())*(1-t));
+   const r=rng(seed),wid=height*(.17+r()*.18),lean=(r()-.5)*height*.07;
+   const rgb=parseInt(col.slice(1),16),rr=(rgb>>16)&255,gg=(rgb>>8)&255,bb=rgb&255;
+   const lit=(v,a)=>'rgba('+Math.round(rr+v*.65)+','+Math.round(gg+v*.90)+','+Math.round(bb+v)+','+a+')';
+   c.save();c.translate(x,y);c.globalAlpha*=weight;
+   if(height<145){
+    const edges=[[],[]];
+    for(let j=1;j<16;j++)for(let k=0;k<2;k++){
+     const t=j/16,side=k?1:-1;
+     edges[k].push([lean*(1-t)+side*wid*Math.pow(t,.92)*(.59+r()*.30),
+       -height+height*t*.87+(r()-.5)*height*.025]);
     }
-    c.closePath();c.fillStyle=color(col,.47+.18*r());c.fill();
-    // Tapered foliage clumps made of multiple slightly varied needles.
-    for(let j=0;j<7;j++){const f=(j+.5)/7,ox=lerp(lean*t,tx,f),oy=lerp(yy,tipY,f);
-     const size=(1-t)*(2.3+r()*4.5)*height/110;
-     line(c,[ox-size*.45,oy-size*.66],[ox+side*size*.7,oy+size*.38],color(col,.42+r()*.42),Math.max(.55,height*.006));
+    poly(c,[[lean,-height],...edges[0],[0,-height*.07],...edges[1].reverse()],color(col,.66));
+   }
+   c.beginPath();c.moveTo(-1,0);c.quadraticCurveTo(lean*.3,-height*.5,lean,-height);
+   c.strokeStyle=color(col,.94);c.lineWidth=Math.max(.65,height*.020);c.stroke();
+   if(height>140)line(c,[-height*.004,-height*.06],[lean*.82,-height*.79],lit(15,.25),height*.004);
+   const levels=height>160?27:17;
+   for(let i=0;i<levels;i++){
+    const t=(i+(r()-.5)*.42)/levels,yy=-height*(.12+t*.85),axis=lean*(.12+t*.88);
+    for(const side of [-1,1]){
+     if(i>2&&r()<.065)continue;
+     const span=wid*Math.pow(1-t,.90)*(.62+r()*.47);
+     const tip=axis+side*span,drop=height*(.014+r()*.028)*(1-t*.7);
+     // Separate drooping sprays break up the old regular sawtooth cones.
+     // Each spray shares a curved branch, with air between its needles.
+     for(let k=0;k<7;k++){
+      const q=(k+.45)/7,px=lerp(axis,tip,q),py=yy+drop*q*q;
+      const len=height*(.019+r()*.021)*(1-t*.85)*(1-q*.43);
+      const reach=span*(.11+r()*.13),dy=height*.008;
+      c.beginPath();c.moveTo(px-side*reach*.23,py-height*.006);
+      c.bezierCurveTo(px+side*reach*.2,py-dy,px+side*reach*.72,py+len*.24,px+side*reach,py+len*.8);
+      for(let n=6;n>=0;n--){
+       const u=n/6,edge=py+len*(.37+u*.45)+(n%2?height*.003:0);
+       c.lineTo(px+side*reach*u,edge);
+      }
+      c.quadraticCurveTo(px-side*reach*.1,py+len*.42,px-side*reach*.23,py-height*.006);
+      c.fillStyle=lit(k%3===0?5:0,.83+r()*.17);c.fill();
+     }
+     c.beginPath();c.moveTo(axis,yy-height*.017);
+     c.quadraticCurveTo(axis+side*span*.43,yy-height*.012,tip,yy+drop);
+     c.strokeStyle=lit(10,.23);c.lineWidth=Math.max(.35,height*.003);c.stroke();
+     const sprays=height>160?11:5;
+     for(let j=0;j<sprays;j++){
+      const q=(j+.3)/sprays,px=lerp(axis,tip,q),py=yy+drop*q;
+      const size=height*(.006+r()*.012)*(1-t*.8);
+      line(c,[px,py],[px-side*size*.55,py-size],lit(10+r()*19,.20+r()*.31),Math.max(.30,height*.0023));
+      if(height>160)line(c,[px,py],[px+side*size*.8,py+size*.6],lit(4,.55),Math.max(.35,height*.002));
+     }
     }
    }
+   line(c,[lean,-height],[lean*.88,-height*.90],lit(9,.88),Math.max(.5,height*.004));
    c.restore();
+ }
+ function forestMist(c,index){
+   const m=mountains[index],tile=document.createElement('canvas');
+   tile.width=418;tile.height=108;
+   const tc=tile.getContext('2d'),img=tc.createImageData(418,108);
+   for(let j=0;j<108;j++)for(let i=0;i<418;i++){
+    const x=i*4,y=360+j*4,root=ridgeHeight(m.pts,x,m.seed);
+    const billow=ridgeNoise(x/133,index+271)*12+ridgeNoise(x/41,index+611)*4;
+    const h=(y-root-19-billow)/(18+index*2.6);
+    const veil=Math.exp(-h*h)*(.46+.27*ridgeNoise(x/112+j*.05,index+420));
+    const edge=Math.min(1,j/8,(107-j)/8),p=(j*418+i)*4;
+    img.data[p]=123-index*3;img.data[p+1]=137-index*2;img.data[p+2]=150-index*2;
+    img.data[p+3]=Math.round(veil*edge*(index<5?43:31));
+   }
+   tc.putImageData(img,0,0);c.drawImage(tile,0,360,W,432);
  }
  function forestGrove(c,index){
   const m=mountains[index],r=rng(7983+index*1171);
-  const groveCount=[0,0,0,162,188,205,216][index];
-  const tones=['','','','#38504e','#2c4746','#263d3c','#1c3435'];
+  const groveCount=[0,0,0,235,280,310,345][index];
+  const tones=['','','','#39494c','#2e4142','#24393b','#1d3133'];
   const clusters=index===3?[145,438,1170,1490]:
     index===4?[220,490,1130,1470]:
     index===5?[180,570,1030,1525]:[130,505,1050,1575];
-  const near=index>=5;
-  // Irregular vegetation clumps follow river valleys and mountain slopes.
-  // Heights and root levels vary together instead of creating a flat strip.
+  const near=index>=5,trees=[];
   for(let i=0;i<groveCount;i++){
    const center=clusters[Math.floor(r()*clusters.length)];
    const x=clamp(center+(r()+r()+r()-1.5)*(near?340:400),0,W);
-   const ridgeY=ridgeHeight(m.pts,x,m.seed);
-   const rootY=ridgeY+6+r()*(near?29:20);
-   const density=near?.88:.76;
-   const height=(near?26:16)+(near?75:42)*Math.pow(r(),.77);
-   const col=i%7===0?'#3d504f':i%5===0?'#304348':tones[index];
-   fir(c,x,rootY,height,m.seed*10011+i,col,density);
+   const rootY=ridgeHeight(m.pts,x,m.seed)+6+r()*(near?43:29);
+   const height=(near?24:13)+(near?81:48)*Math.pow(r(),.86);
+   const col=i%9===0?'#3d4d4c':i%5===0?'#304146':tones[index];
+   trees.push({x,y:rootY,h:height,seed:m.seed*10011+i,col});
   }
-  // Deliberate rare tall firs interrupt long continuous canopy lines.
+  // Back-to-front ordering keeps overlapping crowns readable at all depths.
+  trees.sort((a,b)=>a.y-b.y);
+  for(const t of trees)fir(c,t.x,t.y,t.h,t.seed,t.col,near?.92:.83);
   for(let k=0;k<14;k++){
    const x=65+r()*(W-130),y=ridgeHeight(m.pts,x,m.seed)+11+r()*23;
    if(index===3&&x>650&&x<1000)continue;
-   fir(c,x,y,38+r()*72,m.seed*26017+k,tones[index],.62+r()*.20);
+   fir(c,x,y,38+r()*72,m.seed*26017+k,tones[index],.74+r()*.16);
   }
+  forestMist(c,index);
  }
  function valley(c){
   // No artificial lightning-shaped river across the forest.
@@ -448,7 +479,7 @@
   for(let i=0;i<115;i++){
    const x=60+r()*1500,y=480+r()*170,rx=22+r()*135,ry=4+r()*18;
    if(x<200&&i%2===0)continue;
-   ellipse(c,x,y,rx,ry,color(i%3?'#8799c3':'#b2a1c9',.012+r()*.038),-.07);
+   ellipse(c,x,y,rx,ry,color(i%3?'#83949f':'#aaa2b5',.012+r()*.038),-.07);
   }
   // Soft, rolling forest-floor transition covers the formerly empty
   // mountain skirt. Its leading edge undulates independently across X:
@@ -468,9 +499,9 @@
    for(let p=1;p<points.length;p++)c.lineTo(...points[p]);
    c.lineTo(W,775);c.lineTo(0,775);c.closePath();
    c.fillStyle=lgrad(c,0,base-30,0,780,[
-     [0,depth%2?'#22425d':'#23425c'],
-     [.45,depth%2?'#223a54':'#1d394f'],
-     [1,'#293a51']]);c.fill();c.restore();
+     [0,depth%2?'#293d43':'#2c4147'],
+     [.45,depth%2?'#283b40':'#253a3e'],
+     [1,'#29383f']]);c.fill();c.restore();
   }
   // Dappled canopy shade diffuses across the ridgeline instead of
   // stopping at y=630 like a painted rectangular panel.
@@ -478,7 +509,7 @@
    const x=ecotone()*W,y=591+ecotone()*149,
      r=8+ecotone()*62;
    ellipse(c,x,y,r,2+ecotone()*15,
-     color(j%4===0?'#263c50':'#54728b',.016+ecotone()*.04),-.05);
+     color(j%4===0?'#293b41':'#526b73',.016+ecotone()*.04),-.05);
   }
   // Forest canopies above follow the real ridge geometry. Below them,
   // an irregular understory fills the 620-740px depth interval. The old
@@ -517,20 +548,38 @@
    const x=bottom()*W,y=636+bottom()*103;
    const rad=20+bottom()*79;
    ellipse(c,x,y,rad,4+bottom()*11,
-     color(i%4===0?'#92a4ba':'#6d819d',.012+bottom()*.026),-.04);
+     color(i%4===0?'#91a1a7':'#74898f',.012+bottom()*.026),-.04);
   }
  }
  function foreground(c,lanternLit=true){
    // Left and right framing bluffs. Front and rear edges are separate
    // curves so every stone has a discernible top and side plane.
-   poly(c,[[0,510],[55,520],[100,530],[144,551],[185,568],[214,619],[278,668],[336,711],[374,768],[340,807],[190,825],[0,806]],lgrad(c,0,515,260,830,[[0,'#263d60'],[.46,'#263453'],[1,'#101d37']]));
-   poly(c,[[1672,520],[1618,521],[1569,534],[1524,568],[1497,610],[1450,652],[1387,676],[1323,727],[1291,770],[1432,840],[1672,806]],lgrad(c,1410,515,1620,833,[[0,'#343e67'],[.35,'#26345b'],[1,'#15213c']]));
+   const bluffs=[
+    [[0,510],[55,520],[100,530],[144,551],[185,568],[214,619],[278,668],[336,711],[374,768],[340,807],[190,825],[0,806]],
+    [[1672,520],[1618,521],[1569,534],[1524,568],[1497,610],[1450,652],[1387,676],[1323,727],[1291,770],[1432,840],[1672,806]]
+   ];
    for(let side=0;side<2;side++){
-    const r=rng(side+171);
-    for(let j=0;j<50;j++){const x=side?1320+r()*355:r()*345,y=558+r()*205;
-     const xx=x+(side?-1:1)*(20+r()*59),yy=y+15+r()*90;
-     line(c,[x,y],[xx,yy],color(j%4?'#7e709b':'#dc8295',.025+r()*.16),.55+r()*2.7);
+    const pts=bluffs[side],r=rng(side+171),cx=side?1520:150;
+    poly(c,pts,lgrad(c,cx,520,cx,835,[[0,'#545364'],[.36,'#3c4351'],[.72,'#2b3542'],[1,'#1e2934']]));
+    c.save();c.beginPath();c.moveTo(...pts[0]);for(let j=1;j<pts.length;j++)c.lineTo(...pts[j]);c.closePath();c.clip();
+    // Large fractured strata lie under fine mineral grain. Broken ledges
+    // receive the same cool sky bounce as the free-standing foreground rocks.
+    for(let k=0;k<85;k++){
+     const x=side?1280+r()*430:r()*400,y=512+r()*330;
+     const span=14+r()*70,fall=13+r()*75,dir=side?-1:1;
+     poly(c,[[x,y],[x+dir*span*.54,y-fall*.1],[x+dir*span,y+fall*.71],
+       [x+dir*span*.62,y+fall],[x+dir*span*.10,y+fall*.48]],
+       color(k%4===0?'#ac929d':k%3?'#172a36':'#6b6b79',.03+r()*.095));
+     windingFiber(c,x,y,dir*span*.72,fall,17100+side*99+k,
+       color('#192733',.11+r()*.15),.6+r()*1.6);
+     if(k%3===0)windingFiber(c,x-1,y,dir*span*.72,fall,17100+side*99+k,color('#aea0a4',.12),.5);
     }
+    for(let k=0;k<1600;k++){
+     const x=side?1280+r()*430:r()*400,y=510+r()*320;
+     c.fillStyle=color(k%3?'#97918f':'#1c2933',.02+r()*.095);
+     c.fillRect(x,y,.4+r()*1.6,.4+r()*.7);
+    }
+    materialGrain(c,.16);c.restore();
    }
    // Central clearing remains broad enough for a shared group photo.
    poly(c,[[0,737],[142,749],[310,755],[464,736],[598,736],[737,751],[894,736],[1048,742],[1214,746],[1401,726],[1550,738],[1672,735],[1672,941],[0,941]],
@@ -539,8 +588,21 @@
    // 950×310 rectangle beginning at y=630, creating the very straight
    // horizontal stripe across the forest. Paint the *entire radial
    // support* so it fades to alpha zero at the circle's real radius.
-   c.fillStyle=radial(c,856,748,467,[[0,'rgba(249,157,97,.30)'],[.55,'rgba(194,108,112,.085)'],[1,'rgba(180,97,118,0)']]);
-   c.fillRect(0,0,W,H);
+   c.save();c.translate(856,748);c.scale(1,.27);
+   c.fillStyle=radial(c,0,0,467,[[0,'rgba(249,167,117,.25)'],[.55,'rgba(194,127,119,.067)'],[1,'rgba(180,97,118,0)']]);
+   c.fillRect(-467,-467,934,934);c.restore();
+   // Broken turf and low sedges cross the clearing lip so the original
+   // meadow outline reads as soil among plants, rather than a bare ribbon.
+   const edge=rng(61129);
+   for(let k=0;k<370;k++){
+    const x=edge()*W,y=745+ridgeNoise(x/81,813)*7+edge()*11;
+    const h=3+edge()*12;
+    for(let n=0;n<3;n++){
+     c.beginPath();c.moveTo(x+n*1.4,y);
+     c.quadraticCurveTo(x+(n-1)*2,y-h*.65,x+(n-1)*4,y-h*(.7+edge()*.5));
+     c.strokeStyle=color(k%5?'#697565':'#b69d79',.12+edge()*.24);c.lineWidth=.5+edge()*.6;c.stroke();
+    }
+   }
    // Soft grass and moss are layered under the prominent stones.
    const sod=rng(17827);
    for(let p=0;p<420;p++){
@@ -568,7 +630,17 @@
     const x=r()*W,y=721+r()*215;
     const amount=.13+.87*Math.pow((y-713)/231,.67);
     const len=(4+r()*26)*amount, tilt=(r()-.5)*13;
-    line(c,[x,y],[x+tilt,y-len],color(k%8===0?'#f1bf81':k%4===0?'#a1a27a':k%3===0?'#8c8b73':'#526d61',.08+r()*.32),.35+r()*1.25);
+    c.beginPath();c.moveTo(x,y);
+    c.quadraticCurveTo(x+tilt*.22,y-len*.70,x+tilt,y-len);
+    c.strokeStyle=color(k%8===0?'#d9b387':k%4===0?'#9d9e7d':k%3===0?'#898b75':'#526b61',.10+r()*.34);
+    c.lineWidth=.35+r()*.95;c.stroke();
+    if(k%5===0&&len>8){
+     const tip=x+tilt*.35,leafY=y-len*.45,side=k%2?1:-1;
+     c.beginPath();c.moveTo(tip,leafY+2);
+     c.quadraticCurveTo(tip+side*5,leafY-5,tip+side*(4+r()*5),leafY-4);
+     c.quadraticCurveTo(tip+side*4,leafY+1,tip,leafY+2);
+     c.fillStyle=color('#8e987b',.16+r()*.22);c.fill();
+    }
    }
    // Irregular pink and pale alpine wildflowers, carefully kept off center.
    for(let i=0;i<285;i++){
@@ -615,22 +687,54 @@
  }
  function rock(c,x,y,w,h,seed){
    const r=rng(seed),pts=[[x-w*.49,y],[x-w*.40,y-h*.57],[x-w*.20,y-h*.91],[x+w*.15,y-h],[x+w*.43,y-h*.69],[x+w*.52,y-h*.23],[x+w*.43,y+h*.12],[x-w*.37,y+h*.17]];
-   poly(c,pts,lgrad(c,x,y-h,x+w*.13,y+h*.18,[[0,'#72718e'],[.28,'#485577'],[.66,'#323b59'],[1,'#182743']]));
-   poly(c,[[x-w*.49,y],[x-w*.40,y-h*.57],[x-w*.20,y-h*.91],[x+w*.06,y-h*.88],[x-w*.11,y-h*.33]],'rgba(167,153,170,.12)');
-   for(let k=0;k<28;k++){const xx=x+(r()-.5)*w*.85,yy=y-h*r()*.79;line(c,[xx,yy],[xx+(r()-.5)*w*.19,yy+(r()-.5)*h*.12],color(k%4?'#a8a3ba':'#e89d99',.04+r()*.22),.5+r()*1.8);}
-   // Eroded mineral speckles, irregular vein scratches and recessed
-   // cracks are clipped to each stone's existing silhouette.
+   // Same surveyed silhouette, with warm granite crowns and slate shadow.
+   poly(c,pts,lgrad(c,x-w*.2,y-h,x+w*.3,y+h*.18,[[0,'#827a86'],[.22,'#635f71'],[.58,'#424652'],[1,'#232e3c']]));
    c.save();c.beginPath();c.moveTo(...pts[0]);for(let i=1;i<pts.length;i++)c.lineTo(...pts[i]);c.closePath();c.clip();
-   for(let k=0;k<96;k++){
-     const sx=x+(r()-.5)*w*.94,sy=y-r()*h*.91;
-     const grain=.4+r()*2.2;
-     c.fillStyle=color(k%4===0?'#b6adc3':k%3===0?'#243654':'#807d96',.04+r()*.13);
-     c.fillRect(sx,sy,grain,grain*.42);
-     if(k%4===0)windingFiber(c,sx,sy,(r()-.5)*w*.16,r()*h*.22,seed*101+k,
-       color(k%8===0?'#c9b2b9':'#263752',.05+r()*.21),.35+r()*1.3);
+   const rows=7,cols=10,mesh=[];
+   for(let j=0;j<=rows;j++){
+    mesh[j]=[];
+    for(let i=0;i<=cols;i++)mesh[j].push([x-w*.6+(i+(r()-.5)*.60)*w*1.2/cols,y-h*1.1+(j+(r()-.5)*.58)*h*1.35/rows]);
+   }
+   for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){
+    const a=mesh[j][i],b=mesh[j][i+1],d=mesh[j+1][i],e=mesh[j+1][i+1];
+    for(const tri of [[a,b,d],[b,e,d]]){
+     const light=r()>.43;
+     poly(c,tri,color(light?'#b7a6aa':'#172733',.014+r()*(light?.075:.12)));
+    }
+   }
+   // Fine mineral inclusions are coherent across several scales; this is
+   // generated material color, never a sampled photograph or stock texture.
+   const tw=Math.max(8,Math.ceil(w)),th=Math.max(8,Math.ceil(h*1.2));
+   const tex=document.createElement('canvas');tex.width=tw;tex.height=th;
+   const tc=tex.getContext('2d'),pixels=tc.createImageData(tw,th),grain=rng(seed*901);
+   for(let py=0;py<th;py++)for(let px=0;px<tw;px++){
+    const p=(py*tw+px)*4;
+    const mineral=ridgeNoise(px/12+ridgeNoise(py/14,seed)*2,seed+31)*.6+
+      ridgeNoise(py/8+px/29,seed+83)*.4;
+    const fleck=grain(),bright=mineral>.08;
+    pixels.data[p]=bright?188:29;pixels.data[p+1]=bright?176:38;pixels.data[p+2]=bright?174:48;
+    pixels.data[p+3]=Math.round(Math.abs(mineral)*37+(fleck>.97?39:fleck*12));
+   }
+   tc.putImageData(pixels,0,0);c.drawImage(tex,x-w*.53,y-h,w*1.06,h*1.2);
+   for(let k=0;k<14;k++){
+    const sx=x+(r()-.5)*w*.91,sy=y-h*(.05+r()*.9),dx=(r()-.5)*w*.28,dy=h*(.06+r()*.24);
+    // Paired recess and narrow reflected edge give every crack thickness.
+    windingFiber(c,sx,sy,dx,dy,seed*101+k,color('#18232e',.12+r()*.30),.45+r()*1.1);
+    windingFiber(c,sx-1,sy,dx,dy,seed*101+k,color('#d1b6ae',.06+r()*.16),.35);
+    if(k%3===0)windingFiber(c,sx+dx*.57,sy+dy*.58,-dx*.34,dy*.42,seed*103+k,color('#1a2730',.19),.5);
+   }
+   // Lichen follows the sheltered base instead of random bright scratches.
+   for(let k=0;k<80;k++){
+    const sx=x+(r()-.5)*w,sy=y-h*r()*.27;
+    ellipse(c,sx,sy,.4+r()*2.3,.3+r(),color(k%4?'#818477':'#b5a78b',.06+r()*.15));
    }
    c.restore();
-   c.save();c.beginPath();smoothPath(c,pts.slice(1,5));c.strokeStyle='rgba(255,154,137,.22)';c.lineWidth=1.8;c.stroke();c.restore();
+   // Broken moonlit crest avoids a uniform luminous polygon outline.
+   for(let k=0;k<3;k++){
+    const a=pts[1+k],b=pts[2+k];
+    line(c,[lerp(a[0],b[0],.12),lerp(a[1],b[1],.12)],
+      [lerp(a[0],b[0],.72),lerp(a[1],b[1],.72)],color('#d4b3af',.18),.75);
+   }
  }
  function logSeat(c){
   // A fallen wooden sitting log and draped woven blanket, rather than an

@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "node server.mjs",
+    "check:reference": "node --check public/reference-vista.js && node --check test/reference-vista-quick.mjs",
     "check": "node --check server.mjs && node --check public/stargaze.js && node --check public/scenic-art.js && node --check public/scenic-model-loader.js && node --check public/cinematic-atmosphere.js && node --check public/painterly-clouds-3d.js && node --check public/rock-materials-3d.js && node --check public/foliage-billboards-3d.js && node --check public/living-environment-3d.js && node --check public/overlook-25d.js && node --check public/parallax-25d.js && node --check public/scenic-lighting-25d.js && node --check public/overlook-shadows-25d.js && node --check public/overlook-ground-25d.js && node --check public/meadow-edge-25d.js && node --check public/vista-details-25d.js && node --check public/atmospheric-depth-25d.js && node --check public/valley-sculpt-3d.js && node --check public/terrain-stream-3d.js && node --check public/overlook-details-3d.js && node --check public/cinematic-forest-3d.js && node --check public/hybrid-scenic-props.js && node --check public/diorama-3d.js && node --check public/foliage-gpu.js && node --check public/nature-motion.js && node --check public/stellar-grains.js && node --test test/*.test.mjs",
     "test": "node --test test/*.test.mjs"
   },
