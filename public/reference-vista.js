@@ -1778,6 +1778,16 @@
    g.addColorStop(.44,'rgba(185,204,225,'+(.029*warmth+.022*cool).toFixed(3)+')');
    g.addColorStop(1,'rgba(165,196,220,0)');
    c.fillStyle=g;c.fillRect(t.x,t.y+t.height*.14,t.width,t.height*.53);
+   // A low amber scattering field warms the backlit far valley at sunset;
+   // no pasted disc, fixed moon or opaque orange overlay.
+   if(warmth>.01){
+     const gy=t.y+t.height*.444,gr=t.width*.37;
+     const amber=c.createRadialGradient(cx,gy,0,cx,gy,gr);
+     amber.addColorStop(0,'rgba(255,200,125,'+(warmth*.27).toFixed(3)+')');
+     amber.addColorStop(.43,'rgba(247,159,122,'+(warmth*.089).toFixed(3)+')');
+     amber.addColorStop(1,'rgba(241,142,126,0)');
+     c.fillStyle=amber;c.fillRect(t.x,t.y+t.height*.23,t.width,t.height*.53);
+   }
    // Low-angle light crosses the valley as curved, feathered ribbons:
    // no triangles, hard rays, repeated stripes or neon bloom.
    const shaft=warmth*(1-clouds*.69)*(1-storm*.53);
@@ -1838,10 +1848,10 @@
  // seeded trees; it is generated only once and shared by both camera layouts.
  let forestAtlases=null;
  const forestPalette={
-   night:['#0a1928','#112632','#1b343c','#29444a','#45626b','#78928c'],
-   dawn:['#27362b','#415d34','#658348','#8ea451','#b2bb6b','#d3c58d'],
-   day:['#183b2c','#27583a','#477d43','#719c4b','#a6ba67','#d6d992'],
-   dusk:['#2b2635','#453441','#745052','#a16a59','#d09668','#f1c08d']
+   night:['#08151e','#10232e','#1a3037','#294346','#476360','#82928a'],
+   dawn:['#283329','#3b5532','#526e3c','#76964c','#a0b65b','#cbcd88'],
+   day:['#153326','#244c2e','#356739','#578444','#81a654','#b7c978'],
+   dusk:['#231d2b','#352937','#4c3740','#735048','#9c6353','#d3a073']
  };
  function forestLeaf(g,x,y,length,angle,tone,widthFactor=1){
    const ux=Math.cos(angle),uy=Math.sin(angle),
@@ -1865,6 +1875,37 @@
      if(side===1){g.translate(350,0);g.scale(-1,1);}
      // Root and crooked living wood are predominantly outside the shot.
      // Branches bend inward towards their own asymmetrical foliage masses.
+     // Continuous, asymmetric shadow crown underneath the needle-scale
+     // foliage. The voids and fractal outline preserve a true botanical
+     // silhouette rather than disconnected cotton-ball clumps.
+     const baseEdge=g.createLinearGradient(0,100,265,430);
+     baseEdge.addColorStop(0,P[1]);baseEdge.addColorStop(.45,P[0]);
+     baseEdge.addColorStop(1,P[2]);
+     g.save();g.globalAlpha=.82;
+     g.beginPath();g.moveTo(-64,-35);g.lineTo(242,-35);
+     for(let y=-26;y<=573;y+=9){
+       const v=clamp(y/573,0,1),
+         edge=244*Math.pow(1-v,1.14)+
+           29*Math.sin(y*.037+side*.73)+
+           11*Math.sin(y*.131+side*2.1)+
+           6*(r()-.5);
+       g.lineTo(edge,y);
+     }
+     g.lineTo(-65,601);g.closePath();g.fillStyle=baseEdge;g.fill();
+     // Thin curved windows between boughs let the bright sky or distant
+     // mountains show through the canopy rather than forming a flat wall.
+     g.globalCompositeOperation='destination-out';
+     const openings=[[178,171,21],[124,256,16],[151,347,11],
+       [79,424,17],[190,65,11]];
+     for(const [hx,hy,size] of openings){
+       g.beginPath();g.moveTo(hx-size,hy);
+       g.bezierCurveTo(hx-size*.65,hy-size*.72,
+         hx+size*.26,hy-size*.60,hx+size,hy-size*.22);
+       g.bezierCurveTo(hx+size*.67,hy+size*.21,
+         hx-size*.12,hy+size*.30,hx-size,hy);
+       g.fill();
+     }
+     g.restore();
      const wood=g.createLinearGradient(-30,180,135,590);
      wood.addColorStop(0,P[1]);wood.addColorStop(.5,P[0]);wood.addColorStop(1,P[2]);
      g.lineCap='round';g.lineJoin='round';
