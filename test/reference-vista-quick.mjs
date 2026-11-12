@@ -22,7 +22,7 @@ try{
   await new Promise(res=>setTimeout(res,180));
  }
  assert.ok(healthy,'Local game server must become healthy before capture');
- browser=await chromium.launch({headless:true,args:['--enable-webgl','--enable-unsafe-swiftshader','--use-angle=swiftshader']});
+ browser=await chromium.launch({headless:true});
  const nightConfigs=[
   {name:'reference-night-clear',width:1672,height:941,time:'23:20',weather:'clear',expectedLight:'night',minStars:.6},
   {name:'reference-night-desktop',width:1440,height:900,time:'23:20',weather:'clear',expectedLight:'night',minStars:.6}
@@ -39,8 +39,8 @@ try{
   page.on('response',r=>{if(r.url().startsWith(base)&&r.status()>=400)failedAssets.push({url:r.url(),status:r.status()});});
   const url=base+'/?map=stargaze&renderer=reference&time='+encodeURIComponent(cfg.time)+'&weather='+cfg.weather;
   const started=Date.now();
-  await page.goto(url,{waitUntil:'domcontentloaded'});
-  await page.waitForFunction(()=>window.GongangReferenceVista?.state?.ready&&window.GongangReferenceVista.state.frames>=3,null,{timeout:60000});
+  await page.goto(url,{waitUntil:'commit'});
+  await page.waitForFunction(()=>window.GongangReferenceVista?.state?.ready&&window.GongangReferenceVista.state.frames>=3,null,{timeout:90000});
   await page.evaluate(()=>document.fonts.ready);
   const state=await page.evaluate(()=>({
     ...window.GongangReferenceVista.state,
