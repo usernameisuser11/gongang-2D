@@ -795,6 +795,10 @@
   function showControls(){
     if(!buttonBar)return;
     buttonBar.hidden=state.scene!=='stargaze'||Boolean(state.photo);
+    if(buttonBar.hidden){
+      buttonBar.classList.remove('expanded');
+      buttonBar.querySelector('[data-sky-menu]')?.setAttribute('aria-expanded','false');
+    }
     const connected=online&&!state.solo&&socket?.readyState===WebSocket.OPEN;
     buttonBar.querySelectorAll('[data-sky-event]').forEach(b=>b.disabled=!connected);
     const toggle=buttonBar.querySelector('[data-sky-view]');
@@ -817,11 +821,24 @@
   function init(){
     const style=document.createElement('style');
     style.textContent='#skyDock{position:absolute;z-index:4;right:max(12px,env(safe-area-inset-right));bottom:max(84px,env(safe-area-inset-bottom));display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px;max-width:min(95vw,440px)}#skyDock[hidden],#app.photographing #skyDock{display:none!important}#skyDock button{border:1px solid rgba(237,232,221,.35);border-radius:24px;background:rgba(13,28,53,.57);backdrop-filter:blur(11px);padding:11px 14px;color:#f5f4e9;font-weight:650;font-size:12px;box-shadow:0 4px 17px rgba(9,15,34,.18)}#skyDock button:disabled{opacity:.42;cursor:not-allowed}@media(max-width:600px){#skyDock{bottom:max(133px,env(safe-area-inset-bottom));right:8px;max-width:calc(100vw - 16px);gap:5px}#skyDock button{padding:9px 10px;font-size:11px}}';
+    // On portrait phones, use a compact single-button scenic menu.
+    style.textContent+='#skyDock .skyActions{display:contents}#skyDock [data-sky-menu]{display:none}' +
+      '@media(max-width:600px) and (orientation:portrait){' +
+      '#skyDock{right:9px;bottom:max(136px,env(safe-area-inset-bottom));max-width:244px;align-items:flex-end;flex-direction:column}' +
+      '#skyDock [data-sky-menu]{display:block;background:rgba(15,31,49,.69);border:1px solid rgba(227,227,205,.24);font-size:11px;padding:10px 13px}' +
+      '#skyDock .skyActions{display:none}' +
+      '#skyDock.expanded .skyActions{display:flex;flex-direction:column;align-items:flex-end;gap:5px}' +
+      '#skyDock.expanded .skyActions button{min-width:92px;text-align:center}' +
+      '}';
     document.head.appendChild(style);
     buttonBar=document.createElement('div');
     buttonBar.id='skyDock';buttonBar.setAttribute('aria-label','별빛 전망대 감상 및 함께 하는 이벤트');
-    buttonBar.innerHTML='<button type="button" data-sky-view>나만의 시점</button><button type="button" data-sky-event="meteor">☄ 유성우</button><button type="button" data-sky-event="fireworks">✦ 불꽃놀이</button>';
+    buttonBar.innerHTML='<button type="button" data-sky-menu aria-expanded="false" aria-controls="skyActions">✦ 감상</button><div id="skyActions" class="skyActions"><button type="button" data-sky-view>나만의 시점</button><button type="button" data-sky-event="meteor">☄ 유성우</button><button type="button" data-sky-event="fireworks">✦ 불꽃놀이</button></div>';
     document.getElementById('app').appendChild(buttonBar);
+    buttonBar.querySelector('[data-sky-menu]').addEventListener('click',()=>{
+      const expanded=buttonBar.classList.toggle('expanded');
+      buttonBar.querySelector('[data-sky-menu]').setAttribute('aria-expanded',String(expanded));
+    });
     buttonBar.querySelector('[data-sky-view]').addEventListener('click',()=>{
       view=view==='wide'?'personal':'wide';
       showControls();
