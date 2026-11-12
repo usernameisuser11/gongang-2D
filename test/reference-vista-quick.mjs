@@ -26,7 +26,11 @@ try{
  const nightConfigs=[
   {name:'reference-night-clear',width:1672,height:941,time:'23:20',weather:'clear',season:'summer',expectedWinter:false,expectedLight:'night',minStars:.6},
   {name:'reference-night-desktop',width:1440,height:900,time:'23:20',weather:'clear',season:'summer',expectedWinter:false,expectedLight:'night',minStars:.6},
-  {name:'reference-winter-night',width:1440,height:900,time:'23:20',weather:'clear',season:'winter',expectedWinter:true,expectedLight:'night',minStars:.6}
+  {name:'reference-winter-night',width:1440,height:900,time:'23:20',weather:'clear',season:'winter',expectedWinter:true,expectedSeason:'winter',expectedLight:'night',minStars:.6},
+  {name:'reference-spring-dawn',width:1440,height:900,time:'06:55',weather:'clear',season:'spring',expectedWinter:false,expectedSeason:'spring'},
+  {name:'reference-summer-day',width:1440,height:900,time:'13:20',weather:'clear',season:'summer',expectedWinter:false,expectedSeason:'summer',expectedLight:'day',maxStars:.03},
+  {name:'reference-autumn-dusk',width:1440,height:900,time:'17:15',weather:'cloudy',season:'autumn',expectedWinter:false,expectedSeason:'autumn',expectedWeather:'cloudy'},
+  {name:'reference-winter-warm',width:1440,height:900,time:'13:20',weather:'clear',season:'winter',tempC:9,expectedWinter:false,expectedSeason:'winter',expectedLight:'day'}
  ];
  const configs=process.env.REFERENCE_QA_NIGHT_ONLY==='1'?nightConfigs:[...nightConfigs,
   {name:'reference-day-clear',width:1440,height:900,time:'13:20',weather:'clear',expectedLight:'day',maxStars:.03},
@@ -39,7 +43,8 @@ try{
   page.on('pageerror',e=>failures.push(String(e)));
   page.on('response',r=>{if(r.url().startsWith(base)&&r.status()>=400)failedAssets.push({url:r.url(),status:r.status()});});
   const url=base+'/?map=stargaze&renderer=reference&time='+encodeURIComponent(cfg.time)+
-    '&weather='+cfg.weather+(cfg.season?'&season='+cfg.season:'');
+    '&weather='+cfg.weather+(cfg.season?'&season='+cfg.season:'')+
+    (cfg.tempC!==undefined?'&tempC='+cfg.tempC:'');
   const started=Date.now();
   await page.goto(url,{waitUntil:'commit'});
   await page.waitForFunction(()=>window.GongangReferenceVista?.state?.ready&&window.GongangReferenceVista.state.frames>=3,null,{timeout:90000});
@@ -87,7 +92,13 @@ try{
   assert.equal(state.moonVisible,false,'Fixed moon must be removed');
   if(cfg.expectedWinter!==undefined)
     assert.equal(state.winterSnow,cfg.expectedWinter,
-      'Snowcaps should appear only in winter, not in summer');
+      'Snowcaps require both winter and cold real-world conditions');
+  if(cfg.expectedSeason)assert.equal(state.season,cfg.expectedSeason,
+    'Seasonal foliage layer must match requested season');
+  assert.ok(Array.isArray(state.seasonBlend)&&state.seasonBlend.length>=1);
+  if(cfg.tempC!==undefined)
+    assert.equal(state.temperatureC,cfg.tempC,
+      'Warm winter preview must drive live snowpack condition');
   assert.equal(state.weatherSource,'preview','Weather override must drive actual sky');
   const [hour,minute]=cfg.time.split(':').map(Number);
   assert.ok(Math.abs(state.hour-(hour+minute/60))<.001,'Requested capture time must drive actual sky');
