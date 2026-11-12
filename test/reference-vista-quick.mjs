@@ -26,6 +26,8 @@ try{
  const nightConfigs=[
   {name:'reference-night-clear',width:1672,height:941,time:'23:20',weather:'clear',season:'summer',expectedWinter:false,expectedLight:'night',minStars:.6},
   {name:'reference-night-desktop',width:1440,height:900,time:'23:20',weather:'clear',season:'summer',expectedWinter:false,expectedLight:'night',minStars:.6},
+  {name:'reference-mobile-night',width:390,height:844,time:'23:20',weather:'clear',season:'summer',expectedLight:'night',expectedMobileFraming:true},
+  {name:'reference-mobile-small',width:360,height:780,time:'23:20',weather:'clear',season:'summer',expectedLight:'night',expectedMobileFraming:true},
   {name:'reference-winter-night',width:1440,height:900,time:'23:20',weather:'clear',season:'winter',expectedWinter:true,expectedSeason:'winter',expectedLight:'night',minStars:.6},
   {name:'reference-overcast-night',width:1440,height:900,time:'23:20',weather:'rain',season:'autumn',expectedWinter:false,expectedWeather:'rain',expectedLight:'night',minStars:.30},
   {name:'reference-edge-canopy',width:1440,height:900,time:'23:20',weather:'clear',season:'summer',edgeTrees:'canopy',expectedEdgeTrees:'canopy',expectedLight:'night',minStars:.6},
@@ -40,8 +42,6 @@ try{
  const configs=process.env.REFERENCE_QA_NIGHT_ONLY==='1'?nightConfigs:[...nightConfigs,
   {name:'reference-day-clear',width:1440,height:900,time:'13:20',weather:'clear',expectedLight:'day',maxStars:.03},
   {name:'reference-dusk-cloudy',width:1440,height:900,time:'17:15',weather:'cloudy',expectedWeather:'cloudy'},
-  {name:'reference-mobile-night',width:390,height:844,time:'23:20',weather:'clear',season:'summer',expectedLight:'night',expectedMobileFraming:true},
-  {name:'reference-mobile-small',width:360,height:780,time:'23:20',weather:'clear',season:'summer',expectedLight:'night',expectedMobileFraming:true},
   {name:'reference-mobile-rain',width:390,height:844,time:'16:10',weather:'rain',expectedWeather:'rain',expectedMobileFraming:true}
  ];
  for(const cfg of configs){
