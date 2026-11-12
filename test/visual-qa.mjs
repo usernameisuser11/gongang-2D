@@ -19,6 +19,10 @@ const snapshots = [
   { name: 'desktop-25d-moon', width: 1440, height: 900, query: '?map=stargaze&time=18:10&weather=clear&moon=show&renderer=procedural', kind: '25d', expectedHour: 18.1667, expectedWeather: 'clear', expectedMoon: true },
   { name: 'mobile-25d-rain', width: 390, height: 844, query: '?map=stargaze&time=16:10&weather=rain&renderer=procedural', kind: '25d', expectedHour: 16.1667, expectedWeather: 'rain' },
   { name: 'mobile-25d-snow', width: 390, height: 844, query: '?map=stargaze&time=08:10&weather=snow&renderer=procedural', kind: '25d', expectedHour: 8.1667, expectedWeather: 'snow' },
+  { name: 'cinematic-original-night', width: 1440, height: 900, query: '?map=stargaze&renderer=reference&time=23:20&weather=clear', kind: 'cinematic', expectedArt: 'reference' },
+  { name: 'cinematic-v1-night', width: 1440, height: 900, query: '?map=stargaze&renderer=reference&art=cinematic&time=23:20&weather=clear', kind: 'cinematic', expectedArt: 'cinematic-v1' },
+  { name: 'cinematic-v1-mobile', width: 390, height: 844, query: '?map=stargaze&renderer=reference&art=cinematic&time=23:20&weather=clear', kind: 'cinematic', expectedArt: 'cinematic-v1' },
+  { name: 'cinematic-v1-dawn', width: 1440, height: 900, query: '?map=stargaze&renderer=reference&art=cinematic&time=06:55&weather=clear', kind: 'cinematic', expectedArt: 'cinematic-v1' },
   { name: 'desktop-painted-baseline', width: 1440, height: 900, query: '?map=stargaze&renderer=2d&hybrid=off', kind: 'painterly' },
   // Experimental art-first 2.5D: existing painterly layers and wind/mist
   // retain their parallax, while real Blender-model props render on top.
@@ -82,8 +86,18 @@ try {
       }
     });
     try {
-      await page.goto(ROOT + '/' + config.query, { waitUntil: 'domcontentloaded' });
-      if (config.kind === '25d') {
+      // The 1672×941 procedural vista paints large, detailed caches during
+      // startup. Wait for the navigation commit first, then for real frames.
+      await page.goto(ROOT + '/' + config.query, {
+        waitUntil:config.kind==='cinematic'?'commit':'domcontentloaded',
+        timeout:config.kind==='cinematic'?90000:30000
+      });
+      if (config.kind === 'cinematic') {
+        await page.waitForFunction(() => {
+          const s=window.GongangReferenceVista?.state;
+          return Boolean(s?.frames>=3 || s?.error);
+        }, null, {timeout:90000});
+      } else if (config.kind === '25d') {
         await page.waitForFunction(() => {
           const s = window.GongangOverlook25D?.state;
           return Boolean(s?.frameCount > 2 || s?.failed);
@@ -147,6 +161,7 @@ try {
           hybrid: window.GongangHybrid3D?.state || null,
           environment: s.environment || null,
           overlook25d: window.GongangOverlook25D?.state || null,
+          cinematic:window.GongangReferenceVista?.state || null,
           liveMode: s.liveMode,
           sculptedRidges:s.sculptedRidges, groveAnchored:s.groveAnchored, freeSeating:s.freeSeating, geologyPieces:s.geologyPieces,
           terrainTopology:s.terrainTopology, terrainTriangles:s.terrainTriangles, terrainStreamVertices:s.terrainStreamVertices
@@ -160,6 +175,13 @@ try {
         timeout: 60000
       });
       results.push({ name: config.name, state, errors });
+      if (config.kind === 'cinematic') {
+        assert.equal(state.cinematic?.ready,true,'Cinematic reference source failed');
+        assert.equal(state.cinematic.artMode,config.expectedArt,'Wrong visual mode');
+        if (config.expectedArt === 'cinematic-v1')
+          assert.ok(state.cinematic.atmospherePasses>=3,
+            'New valley fog must occupy multiple mountain depths');
+      }
       if (config.kind === '25d') {
         const o=state.overlook25d;
         assert.equal(o?.failed, false, config.name + ': ' + o?.error);

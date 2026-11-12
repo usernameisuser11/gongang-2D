@@ -2,6 +2,13 @@ name: Gongang reference vista quick capture
 on:
   push:
     branches: [threejs-model-assets]
+  pull_request:
+    branches: [threejs-model-assets]
+    paths:
+      - 'public/reference-vista.js'
+      - 'public/index.html'
+      - 'test/reference-vista-quick.mjs'
+      - '.github/workflows/reference-vista-quick.yml'
     paths:
       - 'public/reference-vista.js'
       - 'public/stargaze.js'
@@ -19,7 +26,7 @@ permissions:
   contents: read
 jobs:
   preview:
-    if: github.ref == 'refs/heads/threejs-model-assets'
+    if: github.ref == 'refs/heads/threejs-model-assets' || github.base_ref == 'threejs-model-assets'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

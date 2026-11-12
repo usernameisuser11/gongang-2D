@@ -1568,6 +1568,7 @@
    fetchError:null,moonVisible:false,sunrise:6.5,sunset:18.0,
    edgeTrees:params.get('edgeTrees')==='canopy'?'canopy':'open',
    mobileFraming:'desktop',
+   artMode:'reference',atmospherePasses:0,
    treeTexture:params.get('treeTexture')==='needles'?'needles':'painterly',
    winterSnow:false,snowyRocks:false,snowSeason:'nonwinter',season:'autumn',
    seasonBlend:[['autumn',1]],temperatureC:null,weeklyTemperatureC:null
@@ -1701,6 +1702,134 @@
    return skyCache.seasons[key];
  }
 
+
+ // CINEMATIC VISTA / a new depth-and-light composition pass, opt-in for QA.
+ // Every pigment and silhouette below is constructed from code. No photos.
+ const cinematicMode=params.get('art')==='cinematic';
+ const reducedCinematicMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+ let fogVeil=null,needleLight=null;
+ function cinematicHash(x,y,s){
+   let v=Math.imul(x+17*s,0x27d4eb2d)^Math.imul(y+31*s,0x165667b1);
+   v=Math.imul(v^(v>>>15),0x85ebca6b);
+   return ((v^(v>>>13))>>>0)/4294967295;
+ }
+ function cinematicNoise(x,y,seed){
+   const a=Math.floor(x),b=Math.floor(y);
+   let fx=x-a,fy=y-b;
+   fx=fx*fx*(3-2*fx);fy=fy*fy*(3-2*fy);
+   return lerp(lerp(cinematicHash(a,b,seed),cinematicHash(a+1,b,seed),fx),
+     lerp(cinematicHash(a,b+1,seed),cinematicHash(a+1,b+1,seed),fx),fy);
+ }
+ function createVeil(){
+   const w=480,h=132,v=document.createElement('canvas');
+   v.width=w;v.height=h;
+   const g=v.getContext('2d',{alpha:true}),pixels=g.createImageData(w,h);
+   for(let j=0;j<h;j++)for(let i=0;i<w;i++){
+     const u=i/(w-1),q=j/(h-1);
+     const v0=.53*cinematicNoise(u*5.8+2.1,q*3.8,23)+
+       .31*cinematicNoise(u*16,q*8.3,49)+
+       .16*cinematicNoise(u*40,q*21,73);
+     const mid=.50+.079*Math.sin(u*8.8+1.4)+.041*Math.sin(u*19.7);
+     const body=Math.exp(-Math.pow((q-mid)*3.5,2));
+     const softEdge=Math.pow(Math.sin(Math.PI*u),.75)*
+       Math.pow(Math.sin(Math.PI*q),1.2);
+     const clouds=clamp((v0-.31)/.39);
+     const opacity=softEdge*body*Math.pow(clouds,1.32);
+     const p=(j*w+i)*4;
+     pixels.data[p]=182+Math.round(17*v0);
+     pixels.data[p+1]=202+Math.round(15*v0);
+     pixels.data[p+2]=220+Math.round(12*v0);
+     pixels.data[p+3]=Math.round(clamp(opacity*.9)*222);
+   }
+   g.putImageData(pixels,0,0);
+   return v;
+ }
+ function depthFog(c,t,depth,relative,now,night,clouds,storm,wind){
+   if(!fogVeil)fogVeil=createVeil();
+   // Three depths move differently with existing shared camera and wind.
+   const breathing=reducedCinematicMotion?0:
+     Math.sin(now*.000027+depth*1.6)*.010;
+   const x=t.x-t.width*.09+t.width*breathing-
+     relative*depth*3.8*t.width/W;
+   const y=t.y+t.height*(.365+depth*.083);
+   const width=t.width*1.18,height=t.height*(.15+depth*.034);
+   const strength=clamp(.22+clouds*.18+night*.040+storm*.10,0,.53)*
+     (1-depth*.075);
+   c.save();c.globalCompositeOperation='screen';
+   c.globalAlpha=strength;
+   c.drawImage(fogVeil,x,y,width,height);
+   c.globalAlpha=strength*.49;
+   c.drawImage(fogVeil,x-t.width*.043,y+t.height*.025,
+     width*1.04,height*.76);
+   c.restore();
+   state.atmospherePasses++;
+ }
+ function cinematicAirLight(c,t,now,hour,solar,night,sun,clouds,storm){
+   const dawn=clamp(1-Math.abs(hour-solar.sunrise)/1.9,0,1);
+   const dusk=clamp(1-Math.abs(hour-solar.sunset)/2.1,0,1);
+   const warmth=Math.max(dawn,dusk)*(1-storm*.48);
+   const cool=night*(1-clouds*.53);
+   c.save();c.globalCompositeOperation='screen';
+   const cx=t.x+t.width*(.5+.013*Math.sin(now*.00004));
+   const y=t.y+t.height*.44,radius=t.width*.48;
+   const g=c.createRadialGradient(cx,y,0,cx,y,radius);
+   g.addColorStop(0,'rgba(252,213,173,'+(.092*warmth+.021*sun+.018*cool).toFixed(3)+')');
+   g.addColorStop(.44,'rgba(185,204,225,'+(.029*warmth+.022*cool).toFixed(3)+')');
+   g.addColorStop(1,'rgba(165,196,220,0)');
+   c.fillStyle=g;c.fillRect(t.x,t.y+t.height*.14,t.width,t.height*.53);
+   // Low-angle light crosses the valley as curved, feathered ribbons:
+   // no triangles, hard rays, repeated stripes or neon bloom.
+   const shaft=warmth*(1-clouds*.69)*(1-storm*.53);
+   if(shaft>.03){
+     const phase=clamp((hour-solar.sunrise)/
+       Math.max(1,solar.sunset-solar.sunrise),0,1);
+     const source=t.x+t.width*(.16+.68*phase),top=t.y+t.height*.23;
+     for(let k=0;k<7;k++){
+       const side=(k-3)/3,x=source+side*t.width*.048;
+       const bottom=t.y+t.height*(.54+(k%3)*.044);
+       const spread=t.width*(.07+.043*Math.abs(side));
+       const fill=c.createLinearGradient(x,top,x,bottom);
+       fill.addColorStop(0,'rgba(255,239,206,0)');
+       fill.addColorStop(.49,'rgba(255,220,187,'+(shaft*.021).toFixed(4)+')');
+       fill.addColorStop(1,'rgba(255,231,207,0)');
+       c.beginPath();c.moveTo(x,top);
+       c.bezierCurveTo(x+side*spread*.22,top+t.height*.09,
+         x+side*spread*.6,bottom-t.height*.11,x+side*spread,bottom);
+       c.bezierCurveTo(x+side*spread*.55+t.width*.017,
+         bottom-t.height*.06,x+t.width*.011,top+t.height*.06,x,top);
+       c.fillStyle=fill;c.fill();
+     }
+   }
+   c.restore();
+ }
+ function createNeedleLight(){
+   const canvas=document.createElement('canvas');
+   canvas.width=W;canvas.height=H;
+   const c=canvas.getContext('2d',{alpha:true}),r=rng(127821);
+   for(let side=0;side<2;side++){
+     for(let j=0;j<180;j++){
+       if(r()>.45)continue;
+       const x=(side?W:0)+(side?-1:1)*(10+r()*145),
+         y=145+r()*580,span=3+r()*14;
+       const angle=(side?-.4:.4)+(r()-.5)*1.6;
+       const endX=x+Math.cos(angle)*span,endY=y+Math.sin(angle)*span;
+       c.beginPath();c.moveTo(x,y);
+       c.quadraticCurveTo(x+(endX-x)*.56,y-span*.22,endX,endY);
+       c.strokeStyle=color(j%9===0?'#e7cead':
+         j%3===0?'#b0c8b7':'#7fa99d',.06+r()*.16);
+       c.lineWidth=.32+r()*.65;c.stroke();
+     }
+   }
+   return canvas;
+ }
+ function litFoliage(c,t,relative,night,sun){
+   if(!needleLight)needleLight=createNeedleLight();
+   c.save();c.globalCompositeOperation='screen';
+   c.globalAlpha=clamp(.36+.27*sun+.22*night);
+   c.drawImage(needleLight,t.x-relative*t.width*.003,t.y,t.width,t.height);
+   c.restore();
+ }
+
  // Portrait layout reuses this scene's hand-drawn trees as a transparent
  // close-up frame. No bitmap/photo, new scenery or changed avatar positions.
  let portraitCanopy=null;
@@ -1776,6 +1905,8 @@
    state.nightFactor=night;state.daylightFactor=sun;state.starVisibility=stars;
    state.nightSkyMinimum=night*.31;
    state.windKmh=weather.wind;state.cloudCover=clouds;
+   state.artMode=cinematicMode?'cinematic-v1':'reference';
+   state.atmospherePasses=0;
    state.rain=weather.rain;state.snow=weather.snow;
    // Moon deliberately hidden: no fixed decorative crescent at sunset.
    state.moonVisible=false;
@@ -1836,6 +1967,7 @@
      ctx.fillRect(t.x,t.y,t.width,t.height*.74);
    }
    ctx.globalAlpha=1;
+   if(cinematicMode)cinematicAirLight(ctx,t,now,hour,solar,night,sun,clouds,storm);
    // Daylight should illuminate the same mountains and grasses, not leave
    // the entire afternoon scene looking like a night-only stage set.
    const mountainDaylight=clamp(sun*(1-storm*.38),0,1);
@@ -1897,7 +2029,11 @@
        }
      }
      ctx.filter='none';
+     // These animated veils are composited BETWEEN actual terrain layers.
+     if(cinematicMode&&i<layers.length-1)
+       depthFog(ctx,t,i,relative,now,night,clouds,storm,weather.wind);
    }
+   if(cinematicMode)litFoliage(ctx,t,relative,night,sun);
    // Very gentle sun-filled valley atmosphere: brightens distant slopes
    // without moving their drawn outlines or adding obvious geometric beams.
    if(sun>.01){

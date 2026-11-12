@@ -41,3 +41,30 @@ jobs:
           name: gongang-landscape-visual-qa
           path: artifacts/landscape/
           if-no-files-found: warn
+
+  cinematic-quick-capture:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install screenshot browser
+        run: |
+          npm install --no-audit --no-fund
+          npm install --no-save --package-lock=false playwright@1.56.1 --no-audit --no-fund
+          npx playwright install chromium
+      - name: Capture cinematic scenes at 3 viewports
+        env:
+          REFERENCE_QA_CINEMATIC_ONLY: '1'
+        run: node test/reference-vista-quick.mjs
+      - name: Upload real mobile and desktop captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gongang-cinematic-prototype
+          path: artifacts/reference-vista/
+          if-no-files-found: warn
+          retention-days: 14
