@@ -1347,6 +1347,19 @@
          ctx.drawImage(skyCache.foregroundDay,x,t.y,t.width,t.height);
          ctx.globalAlpha=1;
        }
+       // Spring/summer/autumn foliage and winter-bare grass are
+       // drawn on the same clearing coordinates as the fixed scene.
+       for(const [name,weight] of seasonal){
+         if(weight<=.001)continue;
+         ctx.globalAlpha=weight;
+         ctx.drawImage(cachedSeasonLayer(name,4),x,t.y,t.width,t.height);
+       }
+       if(winterSnow){
+         if(!skyCache.snowGround)skyCache.snowGround=paintLayer([winterGround]);
+         ctx.globalAlpha=clamp(winterWeight);
+         ctx.drawImage(skyCache.snowGround,x,t.y,t.width,t.height);
+       }
+       ctx.globalAlpha=1;
      }else{
        const hue=i===1?-24:i===2?-14:-6;
        ctx.filter='brightness('+(1+mountainDaylight*(i===1?.20:.17)).toFixed(3)+
@@ -1364,6 +1377,17 @@
        }
        ctx.drawImage(i===1&&winterSnow?skyCache.winterMountain:layers[i],
          x,t.y,t.width,t.height);
+       if(i===2||i===3){
+         // Seasonal vegetation occupies the appropriate existing parallax
+         // depth. Smoothly blend both neighboring seasons for ~4 weeks.
+         for(const [name,weight] of seasonal){
+           if(weight<=.001)continue;
+           ctx.globalAlpha=weight;
+           ctx.drawImage(cachedSeasonLayer(name,i),
+             x,t.y,t.width,t.height);
+         }
+         ctx.globalAlpha=1;
+       }
      }
      ctx.filter='none';
    }
@@ -1392,14 +1416,19 @@
      window.StellarGrains.animate(ctx,now);
      ctx.restore();
    }
-   // Fireflies are scarce in daytime or heavy precipitation.
+   // Seasonal airborne petals and autumn leaves drift with live wind.
+   seasonalWind(ctx,now,t,seasonal,weather.wind,night);
+   // Fireflies are most active in warm summer nights, very scarce in winter.
+   const fireflySeason=seasonal.reduce((v,[name,weight])=>
+     v+weight*(name==='summer'?1:name==='spring'?.68:
+       name==='autumn'?.32:.04),0);
    ctx.save();ctx.globalCompositeOperation='screen';
    const phase=now*.00034;
    for(let i=0;i<22;i++){
      const x=t.x+(350+(i*59.71)%920)/W*t.width,
        y=t.y+(695+(i*13.9)%110)/H*t.height;
      const alpha=(.06+.11*(.5+.5*Math.sin(phase+i*1.7)))*
-       (.18+.82*night)*(1-storm*.83);
+       (.18+.82*night)*(1-storm*.83)*fireflySeason;
      ctx.fillStyle='rgba(255,221,139,'+alpha.toFixed(3)+')';
      ctx.beginPath();ctx.arc(x,y,Math.max(.35,1.15*scaleX),0,TAU);ctx.fill();
    }
