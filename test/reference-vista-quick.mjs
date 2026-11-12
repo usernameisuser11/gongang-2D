@@ -40,7 +40,9 @@ try{
  const configs=process.env.REFERENCE_QA_NIGHT_ONLY==='1'?nightConfigs:[...nightConfigs,
   {name:'reference-day-clear',width:1440,height:900,time:'13:20',weather:'clear',expectedLight:'day',maxStars:.03},
   {name:'reference-dusk-cloudy',width:1440,height:900,time:'17:15',weather:'cloudy',expectedWeather:'cloudy'},
-  {name:'reference-mobile-rain',width:390,height:844,time:'16:10',weather:'rain',expectedWeather:'rain'}
+  {name:'reference-mobile-night',width:390,height:844,time:'23:20',weather:'clear',season:'summer',expectedLight:'night',expectedMobileFraming:true},
+  {name:'reference-mobile-small',width:360,height:780,time:'23:20',weather:'clear',season:'summer',expectedLight:'night',expectedMobileFraming:true},
+  {name:'reference-mobile-rain',width:390,height:844,time:'16:10',weather:'rain',expectedWeather:'rain',expectedMobileFraming:true}
  ];
  for(const cfg of configs){
   const page=await browser.newPage({viewport:{width:cfg.width,height:cfg.height},deviceScaleFactor:1});
@@ -89,6 +91,12 @@ try{
     assert.ok(foreground?.peaks?.every(p=>p.y!==630||p.color<55),
       'Warm meadow glow must not produce a hard rectangular seam at y=630');
   }
+  if(cfg.expectedMobileFraming){
+    assert.equal(state.mobileFraming,'portrait-canopy-v1',
+      'Portrait decorative trees must frame the original world');
+    const camera=await page.evaluate(()=>window.GongangViewCamera.sample());
+    assert.ok(camera.zoom<.9,'Phone camera must start with the full sky visible');
+  }else assert.equal(state.mobileFraming,'desktop','Laptop visuals must remain unchanged');
   assert.equal(state.ready,true);
   assert.equal(state.error,null);
   assert.equal(state.layers,5);
