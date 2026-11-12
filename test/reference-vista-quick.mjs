@@ -30,6 +30,8 @@ try{
   {name:'reference-overcast-night',width:1440,height:900,time:'23:20',weather:'rain',season:'autumn',expectedWinter:false,expectedWeather:'rain',expectedLight:'night',minStars:.30},
   {name:'reference-edge-canopy',width:1440,height:900,time:'23:20',weather:'clear',season:'summer',edgeTrees:'canopy',expectedEdgeTrees:'canopy',expectedLight:'night',minStars:.6},
   {name:'reference-edge-open',width:1440,height:900,time:'23:20',weather:'clear',season:'summer',edgeTrees:'open',expectedEdgeTrees:'open',expectedLight:'night',minStars:.6},
+  {name:'reference-tree-painterly',width:1440,height:900,time:'23:20',weather:'clear',season:'summer',edgeTrees:'open',treeTexture:'painterly',expectedTreeTexture:'painterly',expectedLight:'night',minStars:.6},
+  {name:'reference-tree-needles',width:1440,height:900,time:'23:20',weather:'clear',season:'summer',edgeTrees:'open',treeTexture:'needles',expectedTreeTexture:'needles',expectedLight:'night',minStars:.6},
   {name:'reference-spring-dawn',width:1440,height:900,time:'06:55',weather:'clear',season:'spring',expectedWinter:false,expectedSeason:'spring'},
   {name:'reference-summer-day',width:1440,height:900,time:'13:20',weather:'clear',season:'summer',expectedWinter:false,expectedSeason:'summer',expectedLight:'day',maxStars:.03},
   {name:'reference-autumn-dusk',width:1440,height:900,time:'17:15',weather:'cloudy',season:'autumn',expectedWinter:false,expectedSeason:'autumn',expectedWeather:'cloudy'},
@@ -48,7 +50,8 @@ try{
   const url=base+'/?map=stargaze&renderer=reference&time='+encodeURIComponent(cfg.time)+
     '&weather='+cfg.weather+(cfg.season?'&season='+cfg.season:'')+
     (cfg.tempC!==undefined?'&tempC='+cfg.tempC:'')+
-    (cfg.edgeTrees?'&edgeTrees='+cfg.edgeTrees:'');
+    (cfg.edgeTrees?'&edgeTrees='+cfg.edgeTrees:'')+
+    (cfg.treeTexture?'&treeTexture='+cfg.treeTexture:'');
   const started=Date.now();
   await page.goto(url,{waitUntil:'commit'});
   await page.waitForFunction(()=>window.GongangReferenceVista?.state?.ready&&window.GongangReferenceVista.state.frames>=3,null,{timeout:90000});
@@ -96,6 +99,8 @@ try{
   assert.equal(state.moonVisible,false,'Fixed moon must be removed');
   if(cfg.expectedEdgeTrees)assert.equal(state.edgeTrees,cfg.expectedEdgeTrees,
     'Scene must render selected edge framing design');
+  if(cfg.expectedTreeTexture)assert.equal(state.treeTexture,cfg.expectedTreeTexture,
+    'Requested procedural tree material must be active');
   if(cfg.expectedWinter!==undefined){
     assert.equal(state.winterSnow,cfg.expectedWinter,
       'Snowcaps require both winter and cold real-world conditions');
