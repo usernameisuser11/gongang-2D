@@ -1569,6 +1569,7 @@
    edgeTrees:params.get('edgeTrees')==='canopy'?'canopy':'open',
    mobileFraming:'desktop',
    artMode:'reference',atmospherePasses:0,
+   forestArtMode:'baseline',canopyThemes:0,
    treeTexture:params.get('treeTexture')==='needles'?'needles':'painterly',
    winterSnow:false,snowyRocks:false,snowSeason:'nonwinter',season:'autumn',
    seasonBlend:[['autumn',1]],temperatureC:null,weeklyTemperatureC:null
@@ -1830,6 +1831,162 @@
    c.restore();
  }
 
+
+ // ORGANIC FOREST STAGE / procedural living foliage, not an imported picture.
+ // Inspired by layered forest light, NOT traced/copied reference artwork.
+ // A single small 700x690 atlas per lighting theme contains two individually
+ // seeded trees; it is generated only once and shared by both camera layouts.
+ let forestAtlases=null;
+ const forestPalette={
+   night:['#0a1928','#112632','#1b343c','#29444a','#45626b','#78928c'],
+   dawn:['#27362b','#415d34','#658348','#8ea451','#b2bb6b','#d3c58d'],
+   day:['#183b2c','#27583a','#477d43','#719c4b','#a6ba67','#d6d992'],
+   dusk:['#2b2635','#453441','#745052','#a16a59','#d09668','#f1c08d']
+ };
+ function forestLeaf(g,x,y,length,angle,tone,widthFactor=1){
+   const ux=Math.cos(angle),uy=Math.sin(angle),
+     px=-uy,py=ux,half=length*.235*widthFactor;
+   const tipX=x+ux*length,tipY=y+uy*length;
+   g.beginPath();g.moveTo(x,y);
+   g.bezierCurveTo(x+ux*length*.23+px*half,y+uy*length*.23+py*half,
+     tipX-ux*length*.30+px*half*.74,tipY-uy*length*.30+py*half*.74,
+     tipX,tipY);
+   g.bezierCurveTo(tipX-ux*length*.27-px*half*.91,
+     tipY-uy*length*.27-py*half*.91,
+     x+ux*length*.21-px*half*.72,y+uy*length*.21-py*half*.72,x,y);
+   g.fillStyle=tone;g.fill();
+ }
+ function buildForestAtlas(theme){
+   const tile=document.createElement('canvas');tile.width=700;tile.height=690;
+   const g=tile.getContext('2d',{alpha:true}),P=forestPalette[theme];
+   for(let side=0;side<2;side++){
+     const r=rng(44019+side*7079),ox=side*350;
+     g.save();g.translate(ox,0);
+     if(side===1){g.translate(350,0);g.scale(-1,1);}
+     // Root and crooked living wood are predominantly outside the shot.
+     // Branches bend inward towards their own asymmetrical foliage masses.
+     const wood=g.createLinearGradient(-30,180,135,590);
+     wood.addColorStop(0,P[1]);wood.addColorStop(.5,P[0]);wood.addColorStop(1,P[2]);
+     g.lineCap='round';g.lineJoin='round';
+     g.beginPath();g.moveTo(-50,715);
+     g.bezierCurveTo(27,535,-43,390,7,248);
+     g.bezierCurveTo(20,152,-32,90,-22,-42);
+     g.lineWidth=26;g.strokeStyle=wood;g.stroke();
+     const branches=[
+       [-16,416,43,345,112,290,188,211],
+       [-11,334,49,288,128,235,226,160],
+       [-11,264,71,213,151,161,274,114],
+       [-18,172,60,129,106,95,194,30],
+       [-25,477,25,419,99,392,177,334],
+       [-23,526,28,454,53,420,104,400]
+     ];
+     for(let k=0;k<branches.length;k++){
+       const p=branches[k],thick=8.5-k*.83;
+       g.beginPath();g.moveTo(p[0],p[1]);
+       g.bezierCurveTo(p[2],p[3],p[4],p[5],p[6],p[7]);
+       g.strokeStyle=P[k%2?1:0];g.lineWidth=Math.max(2.8,thick);g.stroke();
+       g.beginPath();g.moveTo(p[0]+1.6,p[1]-1.4);
+       g.bezierCurveTo(p[2]+1.5,p[3]-1.4,p[4]+1.2,p[5]-1.4,p[6],p[7]);
+       g.strokeStyle=P[3];g.globalAlpha=.15;g.lineWidth=Math.max(.7,thick*.19);
+       g.stroke();g.globalAlpha=1;
+     }
+     // Unbalanced canopy placement keeps open gaps: no scalloped oval stamp,
+     // no identical trees, no periodic triangular "pine" rhythm.
+     const crowns=[
+       [19,34,113,85],[108,28,100,73],[217,40,87,73],
+       [35,128,105,93],[150,133,105,88],[246,164,66,81],
+       [18,247,115,91],[107,246,113,91],[217,275,87,80],
+       [12,369,92,85],[103,368,91,79],[202,404,76,71],
+       [9,475,76,82],[72,509,69,62]
+     ];
+     for(let k=0;k<crowns.length;k++){
+       const [cx,cy,rx,ry]=crowns[k],
+         randomShift=(r()-.5)*16,baseShade=(k%5===0?0:1);
+       // Build leaf sprays from thin curved shoots. Interior leaflets are
+       // smaller and darker; outer foliage contains individual irregular tips.
+       for(let spray=0;spray<11;spray++){
+         const bx=cx+(r()+r()-1)*rx*.48,
+           by=cy+randomShift+(r()+r()-1)*ry*.42,
+           theta=r()*Math.PI*2,
+           length=16+r()*36,
+           ex=bx+Math.cos(theta)*length,
+           ey=by+Math.sin(theta)*length;
+         g.beginPath();g.moveTo(bx,by);
+         g.quadraticCurveTo(bx+(ex-bx)*.48-4,by+(ey-by)*.56-5,ex,ey);
+         g.strokeStyle=P[baseShade+1];g.globalAlpha=.32+r()*.26;
+         g.lineWidth=.5+r()*.8;g.stroke();g.globalAlpha=1;
+         const leaves=17+Math.floor(r()*11);
+         for(let j=0;j<leaves;j++){
+           const t=(j+r()*.7)/leaves,
+             px=bx+(ex-bx)*t+(r()-.5)*rx*.26,
+             py=by+(ey-by)*t+(r()-.5)*ry*.22,
+             outward=Math.atan2(py-cy,px-cx)+(r()-.5)*2.1,
+             leafLen=3.3+r()*8.2,
+             highlight=(px+py*.23)>cx+cy*.21,
+             index=Math.min(5,Math.max(0,
+               Math.floor((highlight?2:1)+r()*3.3+(t>.68?.5:0))));
+           g.globalAlpha=.40+r()*.55;
+           forestLeaf(g,px,py,leafLen,outward,P[index],.65+r()*.7);
+         }
+       }
+       // Irregular foliage fragments at the silhouette break obvious
+       // "bubble clumps"; no uniform ellipses or block-like stamp edges.
+       for(let j=0;j<34;j++){
+         const angle=r()*Math.PI*2,rad=(.67+r()*.49),
+           px=cx+Math.cos(angle)*rx*rad,
+           py=cy+Math.sin(angle)*ry*rad,
+           direction=angle+(r()-.5)*.9,
+           tone=P[2+Math.floor(r()*4)];
+         g.globalAlpha=.25+r()*.56;
+         forestLeaf(g,px,py,5+r()*12,direction,tone,.43+r()*.73);
+       }
+       g.globalAlpha=1;
+     }
+     // Warm translucent top leaf glints are light-dependent later, because
+     // each theme receives a different palette via the existing sky mixer.
+     g.restore();
+   }
+   return tile;
+ }
+ function livingForestFrame(c,t,mix,relative,night,sun,now){
+   if(!forestAtlases){
+     forestAtlases={
+       night:buildForestAtlas('night'),dawn:buildForestAtlas('dawn'),
+       day:buildForestAtlas('day'),dusk:buildForestAtlas('dusk')
+     };
+   }
+   const portrait=window.innerWidth<=650&&window.innerHeight>window.innerWidth*1.26;
+   const movement=reducedCinematicMotion?0:Math.sin(now*.00018)*.0029;
+   c.save();
+   c.beginPath();
+   c.rect(t.x,t.y,t.width,t.height);
+   c.clip();
+   for(const [theme,weight] of mix){
+     if(weight<.004)continue;
+     c.globalAlpha=weight*(.83+.1*night+.045*sun);
+     const atlas=forestAtlases[theme];
+     if(portrait){
+       // Art-directed framing around the full-height mobile view rather
+       // than cropping a giant desktop tree to a disembodied trunk.
+       const width=t.width*.355,height=t.height*.76,
+         move=relative*t.width*.015+movement*t.width;
+       c.drawImage(atlas,0,0,350,690,
+         t.x-t.width*.09-move,t.y-t.height*.025,width,height);
+       c.drawImage(atlas,350,0,350,690,
+         t.x+t.width*.75-move*.72,t.y+t.height*.026,width*.95,height*.90);
+     }else{
+       const drift=relative*t.width*.0055+movement*t.width;
+       c.drawImage(atlas,0,0,350,690,
+         t.x-t.width*.034-drift,t.y+t.height*.015,t.width*.259,t.height*.80);
+       c.drawImage(atlas,350,0,350,690,
+         t.x+t.width*.795-drift*.7,t.y+t.height*.02,t.width*.255,t.height*.81);
+     }
+   }
+   c.restore();
+   state.forestArtMode='coded-organic-broadleaf';
+   state.canopyThemes=4;
+ }
+
  // Portrait layout reuses this scene's hand-drawn trees as a transparent
  // close-up frame. No bitmap/photo, new scenery or changed avatar positions.
  let portraitCanopy=null;
@@ -1837,7 +1994,7 @@
    const viewW=window.innerWidth,viewH=window.innerHeight;
    const portrait=viewW<=650&&viewH>viewW*1.26;
    state.mobileFraming=portrait?'portrait-canopy-v1':'desktop';
-   if(!portrait)return;
+   if(!portrait||cinematicMode)return;
    if(!portraitCanopy){
      const surface=document.createElement('canvas');
      surface.width=W;surface.height=H;
@@ -1907,6 +2064,8 @@
    state.windKmh=weather.wind;state.cloudCover=clouds;
    state.artMode=cinematicMode?'cinematic-v1':'reference';
    state.atmospherePasses=0;
+   state.forestArtMode=cinematicMode?'pending':'baseline';
+   state.canopyThemes=0;
    state.rain=weather.rain;state.snow=weather.snow;
    // Moon deliberately hidden: no fixed decorative crescent at sunset.
    state.moonVisible=false;
@@ -2034,6 +2193,7 @@
        depthFog(ctx,t,i,relative,now,night,clouds,storm,weather.wind);
    }
    if(cinematicMode)litFoliage(ctx,t,relative,night,sun);
+   if(cinematicMode)livingForestFrame(ctx,t,mix,relative,night,sun,now);
    // Very gentle sun-filled valley atmosphere: brightens distant slopes
    // without moving their drawn outlines or adding obvious geometric beams.
    if(sun>.01){
