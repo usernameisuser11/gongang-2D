@@ -670,7 +670,7 @@
     // Coordinate-matched redraw: not the reference bitmap, not the old
     // generative terrain. Keep the multiplayer/camera/photo canvas intact.
     const referenceVista=window.GongangReferenceVista;
-    if(sceneQuery.get('renderer')==='reference' && referenceVista?.ready){
+    if((!requestedRenderer || requestedRenderer==='reference') && referenceVista?.ready){
       const relative=clamp((state.x-1600)/1600,-1,1);
       if(referenceVista.draw(c,personal?t:viewT,now,{personal,scroll:relative})){
         metrics.rendered++;
