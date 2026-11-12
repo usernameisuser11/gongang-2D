@@ -701,26 +701,24 @@
      [-115,711,-44,650,4,647,48,618],
      [-92,682,-45,620,9,605,93,589]
    ]:[
-     [-132,696,-93,583,-54,460,14,348+upper],
-     [-102,568,-34,499,37,444,178,423+low],
-     [-89,443,-35,381,64,345,197,325+upper],
-     [-74,332,-27,281,55,243,139,225+upper],
-     [-67,570,-24,536,36,505,103,486+low],
-     [-75,263,-16,230,24,195,82,171+upper]
+     [-100,562,-64,489,-32,411,12,345+upper],
+     [-87,427,-47,376,-7,332,76,302+upper],
+     [-89,333,-56,273,-11,235,61,196+upper],
+     [-99,537,-58,490,-8,470,76,454+low],
+     [-95,257,-54,210,-14,188,48,166+upper]
    ];
    for(let k=0;k<B.length;k++){
-     const p=B[k],width=style==='open'?8-k*1.7:14-k*1.6;
+     const p=B[k],width=style==='open'?6.5-k*.9:6.0-k*.6;
      limb(p,Math.max(3,width),.095);
    }
    // Terminal bough coordinates are art directed, then displaced by
    // seeded natural jitter. Empty negative spaces deliberately remain.
    const clumps=style==='open'?
      [[47,618,27],[92,588,32],[18,637,37],[120,614,18]]:
-     [[5,358,42],[45,345,35],[94,333,37],[168,319,24],
-      [36,448,45],[86,431,40],[147,411,30],[188,421,19],
-      [21,232,38],[69,230,34],[121,221,29],
-      [34,511,37],[86,478,36],[140,467,19],
-      [5,174,29],[62,171,22],[-13,282,49]];
+     [[8,345,32],[45,321,27],[81,299,23],
+      [12,456,35],[49,438,25],[92,447,19],
+      [8,224,35],[46,211,26],[78,190,19],
+      [-9,274,38],[14,161,22]];
    // Foliage is an assembly of thin drooping twiglets, not solid
    // ovals or a repeating Christmas-tree row.
    for(let k=0;k<clumps.length;k++){
@@ -925,7 +923,7 @@
    rock(c,529,689,19,13,205);
    // Frame the photographed vista with asymmetrical trees growing
    // outside the viewport. ?edgeTrees=open keeps the sky unobstructed.
-   const edgeTrees=params.get('edgeTrees')==='open'?'open':'canopy';
+   const edgeTrees=params.get('edgeTrees')==='canopy'?'canopy':'open';
    wildCanopy(c,0,edgeTrees);
    wildCanopy(c,1,edgeTrees);
    // Sparse warm grazing light on the side branches; the illuminated
@@ -1313,7 +1311,7 @@
    hour:0,nightFactor:1,starVisibility:0,cloudCover:.24,
    windKmh:6,rain:0,snow:0,weather:'clear',weatherSource:'fallback',
    fetchError:null,moonVisible:false,sunrise:6.5,sunset:18.0,
-   edgeTrees:params.get('edgeTrees')==='open'?'open':'canopy',
+   edgeTrees:params.get('edgeTrees')==='canopy'?'canopy':'open',
    winterSnow:false,snowyRocks:false,snowSeason:'nonwinter',season:'autumn',
    seasonBlend:[['autumn',1]],temperatureC:null,weeklyTemperatureC:null
  };
