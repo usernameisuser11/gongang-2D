@@ -34,6 +34,16 @@ jobs:
           # GitHub's runner already has browser OS dependencies. Avoid
           # apt downloads; apt mirrors have intermittent DNS failures.
           npx playwright install chromium
+      - name: Install Korean screenshot font
+        run: |
+          mkdir -p ~/.local/share/fonts
+          font=~/.local/share/fonts/NotoSansKR.ttf
+          curl --fail --location --retry 3 --max-time 60 \
+            'https://raw.githubusercontent.com/google/fonts/b38c5c93af322c45f633e17ac440ec1e6c94d489/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf' \
+            --output "$font"
+          test "$(git hash-object "$font")" = 'b386890ba945e1f39448a6b59f20c5d194f58808'
+          fc-cache -f
+          fc-match -f '%{family}\n' ':lang=ko'
       - name: Check reference renderer syntax
         run: npm run check:reference
       - name: Capture coordinate-redrawn vista
