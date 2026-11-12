@@ -676,78 +676,103 @@
  // The edge-framing conifers use individual, asymmetric bough architecture.
  // They are NOT upscaled copies of the repeating midground fir sprites.
  // Keep original trunk/root coordinates, but break Christmas-tree tiers.
+ // Hand-sculpted spruce silhouettes for the four *foreground* framing trees.
+ // The main crown is an irregular, overlapping canopy; branches do not
+ // form horizontal rungs or an exposed telephone-pole trunk.
  function framingPine(c,x,y,h,seed,shade,opacity=1){
-   const r=rng(seed),lean=(r()-.5)*h*.085;
-   const axis=t=>lean*(t*t*.92+t*.08)+Math.sin(t*6.7+seed*.19)*h*.012*t;
-   c.save();c.translate(x,y);c.globalAlpha*=opacity;c.lineCap='round';c.lineJoin='round';
-   // Soft staggered timber line and narrow rim of sky light.
-   c.beginPath();c.moveTo(0,0);
-   c.bezierCurveTo(lean*.12,-h*.27,lean*.67,-h*.75,axis(1),-h);
-   c.strokeStyle=color('#101a23',.94);c.lineWidth=h*.022;c.stroke();
-   c.beginPath();c.moveTo(-h*.006,-h*.045);
-   c.bezierCurveTo(lean*.08-h*.006,-h*.34,lean*.64-h*.004,-h*.73,axis(1),-h);
-   c.strokeStyle=color('#85959a',.13);c.lineWidth=Math.max(1,h*.0035);c.stroke();
-   for(let j=0;j<36;j++){
-     const t=.095+j/42+(r()-.5)*.024;
-     if(t>.969||r()<(.045+t*.07))continue;
-     const a=axis(t),py=-h*t,
-       side=r()<.5?-1:1,
-       width=h*(.22+.055*r())*Math.pow(1-t,.87),
-       length=width*(.62+r()*.61),
-       end=a+side*length,
-       sag=h*(.014+r()*.049)*(1-t*.67),
-       endY=py+sag;
-     // Branches sometimes fork, swerve or skip levels; no mirrored pairs.
-     c.beginPath();c.moveTo(a,py);
-     c.bezierCurveTo(a+side*length*.20,py-h*.016,
-       a+side*length*.81,py+sag*.48,end,endY);
-     c.strokeStyle=color('#28363b',.78);
-     c.lineWidth=Math.max(.7,h*.006*(1-t));c.stroke();
-     // Uneven tapered foliage spray, each with distinct open spaces.
-     const clusters=5+Math.floor(r()*7);
-     for(let k=0;k<clusters;k++){
-       if(r()<.12)continue;
-       const q=(k+.13+r()*.62)/clusters,
-         bx=lerp(a,end,q),by=py+sag*q*q,
-         blade=h*(.025+r()*.043)*(1-t*.68)*(1-q*.29),
-         lateral=length*(.035+r()*.11)*(1-t*.4);
-       const top=by-blade*(.54+r()*.26),bottom=by+blade*(.36+r()*.61);
-       c.beginPath();c.moveTo(bx-side*lateral*.85,by+blade*.12);
-       c.bezierCurveTo(bx-side*lateral*.44,top,
-         bx+side*lateral*.49,top, bx+side*lateral*.76,by-blade*.29);
-       c.bezierCurveTo(bx+side*lateral*.87,by+blade*.14,
-         bx+side*lateral*.34,bottom,bx-side*lateral*.85,by+blade*.12);
-       c.closePath();
-       const tone=(j+k)%7;
-       c.fillStyle=color(tone===0?'#5e7776':tone<3?'#344d4b':
-         tone===5?'#1c3033':'#263d3e',.33+r()*.30);
-       c.fill();
-       // The tiny needle fans split into fine silhouette tips.
-       for(let n=0;n<3;n++){
-         const offset=(r()-.5)*lateral*.96,
-           tipX=bx+offset,tipY=by-blade*(.30+r()*.28);
-         c.beginPath();c.moveTo(tipX,by+blade*.32);
-         c.quadraticCurveTo(tipX+side*blade*.12,tipY+blade*.17,
-           tipX+side*blade*(.10+r()*.16),tipY);
-         c.strokeStyle=color(n===0?'#839592':'#38504e',.16+r()*.22);
-         c.lineWidth=.4+r()*.55;c.stroke();
-       }
-     }
-     if(r()<.29){
-       const forkX=lerp(a,end,.52+r()*.29),forkY=py+sag*.63;
-       const forkLen=h*(.022+r()*.047)*(1-t);
-       line(c,[forkX,forkY],[forkX+side*forkLen,forkY-forkLen*.59],
-         color('#617674',.15+r()*.13),.45+r()*.48);
-     }
+  const r=rng(seed),lean=(r()-.5)*h*.085,dir=r()<.5?-1:1;
+  const axis=t=>lean*(t*t*.91+t*.09)+Math.sin(t*6.3+seed*.19)*h*.012*t;
+  const spread=t=>h*.25*Math.pow(Math.max(0,1-t),.84)*
+    (1+.13*ridgeNoise(t*19,seed*7)+.07*ridgeNoise(t*47,seed*13));
+  c.save();c.translate(x,y);c.globalAlpha*=opacity;
+  c.lineCap='round';c.lineJoin='round';
+  // Organic broad silhouette underneath distinct twigs: this fixes
+  // the accidental leafless pole visible in prior screenshots.
+  c.beginPath();
+  for(let k=0;k<=78;k++){
+   const t=1-k/78,w=spread(t),
+     ragged=.78+.15*ridgeNoise(t*41,seed+10)+
+       .12*ridgeNoise(t*97,seed+31),
+     px=axis(t)-w*ragged,py=-h*t;
+   if(k===0)c.moveTo(px,py);else c.lineTo(px,py);
+  }
+  c.lineTo(axis(0),0);
+  for(let k=78;k>=0;k--){
+   const t=1-k/78,w=spread(t),
+     ragged=.87+.12*ridgeNoise(t*43,seed+83)+
+       .14*ridgeNoise(t*103,seed+139),
+     px=axis(t)+w*ragged,py=-h*t;
+   c.lineTo(px,py);
+  }
+  c.closePath();
+  const dark=c.createLinearGradient(0,-h,0,0);
+  dark.addColorStop(0,'rgba(22,45,50,.65)');
+  dark.addColorStop(.42,'rgba(21,48,48,.77)');
+  dark.addColorStop(1,'rgba(18,38,43,.87)');
+  c.fillStyle=dark;c.fill();
+  // Back and front boughs interleave. Fan-shaped needle sprays use
+  // jagged Bézier paths with blank spaces between different branches.
+  for(let b=0;b<66;b++){
+   const t=.09+(b+r()*.72)/68*.88;
+   if(t>.97||r()<(.035+t*.07))continue;
+   const side=(b%2?-1:1)*(r()<.14?-1:1),
+     px=axis(t),py=-h*t,
+     length=spread(t)*(.60+r()*.52),
+     tip=px+side*length,
+     sag=h*(.008+r()*.040)*(1-t*.65);
+   // Stronger light on windward branches, deep green between them.
+   c.beginPath();c.moveTo(px,py);
+   c.bezierCurveTo(px+side*length*.18,py-h*.012,
+     px+side*length*.72,py+sag*.16,tip,py+sag);
+   c.strokeStyle=color('#23373b',.55+r()*.32);
+   c.lineWidth=Math.max(.7,h*.0043*(1-t));c.stroke();
+   const needles=h*(.013+r()*.023)*(1-t*.72);
+   c.beginPath();c.moveTo(px,py);
+   for(let k=1;k<=17;k++){
+    const q=k/17,dist=length*q,
+      wave=Math.sin(q*Math.PI),jitter=(r()-.5)*needles*.85;
+    c.lineTo(px+side*dist,
+      py+sag*q*q-needles*(.3+.72*wave)+jitter*.35);
    }
-   // Finely broken upper crown: many thin, short, asymmetric twigs.
-   for(let k=0;k<16;k++){
-     const t=.80+r()*.20,px=axis(t)+(r()-.5)*h*.045,
-       py=-h*t;
-     line(c,[axis(t),py+2],[px,py-h*(.012+r()*.022)],
-       color(k%3===0?'#849592':'#334849',.20+r()*.29),.4+r()*.65);
+   for(let k=17;k>=0;k--){
+    const q=k/17,dist=length*q,
+      wave=Math.sin(q*Math.PI),jitter=(r()-.5)*needles*.70;
+    c.lineTo(px+side*dist,
+      py+sag*q*q+needles*(.18+.85*wave)+jitter*.42);
    }
-   c.restore();
+   c.closePath();
+   const shade=b%7===0?'#59726d':b%6===0?'#344c49':
+     b%5===0?'#263f42':'#223a3a';
+   c.fillStyle=color(shade,.62+r()*.31);c.fill();
+   // Fine needles separate out of the silhouette and catch cool airlight.
+   for(let k=0;k<11;k++){
+     const q=(k+.25+r()*.55)/11,
+       bx=px+side*length*q,
+       by=py+sag*q*q,fan=needles*(.52+r()*.65);
+     c.beginPath();c.moveTo(bx,by+fan*.35);
+     c.quadraticCurveTo(bx+side*fan*.13,by-fan*.50,
+       bx+side*fan*(.2+r()*.44),by-fan*(.75+r()*.45));
+     c.strokeStyle=color(k%4===0?'#869993':
+       k%3===0?'#49645e':'#304e4a',.22+r()*.25);
+     c.lineWidth=.55+r()*.6;c.stroke();
+   }
+  }
+  // Trunk glints appear only in sparse slots between overlapping boughs.
+  c.beginPath();c.moveTo(axis(.06),-h*.06);
+  c.bezierCurveTo(axis(.25),-h*.25,
+    axis(.68),-h*.68,axis(.97),-h*.97);
+  c.strokeStyle=color('#89918c',.095);c.lineWidth=Math.max(.8,h*.004);c.stroke();
+  // Irregular wind-torn crown tips.
+  for(let j=0;j<34;j++){
+   const t=.80+r()*.20,px=axis(t)+(r()-.5)*spread(t)*1.3,
+     py=-h*t,len=h*(.008+r()*.025);
+   c.beginPath();c.moveTo(px,py);
+   c.quadraticCurveTo(px+dir*len*.55,py-len*.48,
+     px+dir*len*.78,py-len);
+   c.strokeStyle=color(j%4===0?'#82948d':'#354b49',.23+r()*.28);
+   c.lineWidth=.45+r()*.65;c.stroke();
+  }
+  c.restore();
  }
  function foreground(c,lanternLit=true){
    // Left and right framing bluffs. Front and rear edges are separate
