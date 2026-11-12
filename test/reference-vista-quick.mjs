@@ -112,6 +112,9 @@ try{
   if(cfg.expectedCinematic){
     assert.equal(state.artMode,'cinematic-v1','Cinematic mode must be explicitly selected');
     assert.ok(state.atmospherePasses>=3,'Fog should composite at three depths');
+    assert.equal(state.forestArtMode,'coded-organic-broadleaf',
+      'Cinematic forest must be procedurally drawn');
+    assert.equal(state.canopyThemes,4,'All four clock palettes must have canopies');
   }else assert.equal(state.artMode,'reference','Current stable art must remain default');
   assert.equal(state.ready,true);
   assert.equal(state.error,null);
