@@ -125,6 +125,19 @@
   if(kind==='night'){
    c.fillStyle=radial(c,930,110,510,[[0,'rgba(79,83,169,.12)'],[1,'rgba(30,61,134,0)']]);
    c.fillRect(0,0,W,600);
+   // Violet airglow and a last trace of rose scattering sit ABOVE the
+   // ridge and beneath the star field. Edges fade to zero transparency.
+   const air=c.createLinearGradient(0,250,0,482);
+   air.addColorStop(0,'rgba(124,102,167,0)');
+   air.addColorStop(.32,'rgba(151,107,166,.075)');
+   air.addColorStop(.69,'rgba(225,147,174,.16)');
+   air.addColorStop(1,'rgba(147,118,171,0)');
+   c.fillStyle=air;c.fillRect(0,250,W,232);
+   c.fillStyle=radial(c,852,389,640,[
+     [0,'rgba(213,139,180,.085)'],
+     [.53,'rgba(156,115,170,.035)'],
+     [1,'rgba(126,99,151,0)']]);
+   c.fillRect(210,0,1280,770);
   }
  }
  function skyStars(c){
@@ -276,6 +289,61 @@
   {pts:[[0,557],[146,531],[281,518],[426,537],[550,537],[694,566],[829,548],[943,570],[1104,536],[1285,531],[1427,535],[1672,505]],a:'#344b50',b:'#1b3135',seed:16},
   {pts:[[0,601],[150,577],[276,561],[411,583],[562,592],[685,611],[826,593],[955,608],[1104,577],[1256,578],[1408,554],[1672,551]],a:'#2b4448',b:'#152b2d',seed:17}
  ];
+ // The highest mountain shoulders have snow/ice in wind-sheltered
+ // crevices. The geometry is built from the EXISTING authored ridge
+ // coordinates; nothing is cut out from a reference screenshot.
+ function alpineCrests(c,m,index){
+  if(index>1)return;
+  const crests=index===0?
+    [{x:347,radius:166,thick:43},{x:1353,radius:213,thick:47}]:
+    [{x:342,radius:106,thick:17},{x:1343,radius:123,thick:17}];
+  const r=rng(8321+index*311);
+  for(const peak of crests){
+   const left=Math.max(0,peak.x-peak.radius),
+     right=Math.min(W,peak.x+peak.radius),samples=70;
+   const top=[],bottom=[];
+   for(let j=0;j<=samples;j++){
+    const x=lerp(left,right,j/samples),
+      slope=Math.abs(x-peak.x)/peak.radius,
+      y=ridgeHeight(m.pts,x,m.seed);
+    const crestAltitude=clamp((397-y)/63,.07,1),
+      shoulder=Math.pow(Math.max(0,1-slope*slope),1.45);
+    const fractures=ridgeNoise(x/38,m.seed+188)*.22+
+      ridgeNoise(x/12,m.seed+711)*.075;
+    const h=Math.max(0,peak.thick*crestAltitude*shoulder*
+      (.84+fractures)-Math.pow(slope,3)*3);
+    top.push([x,y]);
+    bottom.push([x,y+h]);
+   }
+   c.save();c.beginPath();c.moveTo(...top[0]);
+   for(const p of top.slice(1))c.lineTo(...p);
+   for(const p of bottom.slice().reverse())c.lineTo(...p);
+   c.closePath();
+   const glacier=c.createLinearGradient(0,318,0,409);
+   glacier.addColorStop(0,index===0?'rgba(231,220,226,.87)':'rgba(187,189,206,.38)');
+   glacier.addColorStop(.55,index===0?'rgba(172,174,192,.74)':'rgba(133,143,161,.30)');
+   glacier.addColorStop(1,'rgba(110,122,151,.02)');
+   c.fillStyle=glacier;c.fill();c.clip();
+   // Broken ice shelves and exposed grey limestone seams. A few short
+   // diagonal gulleys read as an authentic snowy rock face, not a cone.
+   for(let k=0;k<135;k++){
+    const x=peak.x+(r()+r()-1)*peak.radius*.92,
+      y=ridgeHeight(m.pts,x,m.seed)+r()*peak.thick*.78;
+    const shade=k%5===0?'#ede3e5':k%3===0?'#4b5369':'#8590a6';
+    windingFiber(c,x,y,(r()-.42)*(11+r()*35),2+r()*17,
+      5331+k+index*107,color(shade,(.035+r()*.18)*(index===0?1:.43)),
+      .35+r()*1.65);
+   }
+   for(let k=0;k<24;k++){
+    const x=peak.x+(r()-.5)*peak.radius*1.42,
+      y=ridgeHeight(m.pts,x,m.seed)+1+r()*7;
+    if(Math.abs(x-peak.x)>peak.radius*.82)continue;
+    windingFiber(c,x,y,3+r()*21,(r()-.5)*4,
+      7011+k+index*37,color('#f3d9d7',.14+r()*.19),.4+r()*1.1);
+   }
+   c.restore();
+  }
+ }
  function mountainLayer(c,index){
   const m=mountains[index];
   ridge(c,m.pts,m.a,m.b,m.seed);
@@ -372,6 +440,8 @@
    materialGrain(c,.16*strength);
    c.restore();
   }
+  // Snow is a thin upper rock material, never a floating white polygon.
+  alpineCrests(c,m,index);
   if(index>=3)forestGrove(c,index);
  }
  // Branch whorls, drooping needle fans and reflected sky light are
