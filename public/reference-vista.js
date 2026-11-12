@@ -931,18 +931,43 @@
  const monthInSeoul=ms=>Number(new Intl.DateTimeFormat('en-US',{
    timeZone:'Asia/Seoul',month:'numeric'
  }).format(new Date(ms)));
- const winterAt=ms=>{
-   if(seasonOverride==='winter')return true;
-   if(seasonOverride==='summer'||seasonOverride==='nonwinter')return false;
-   const month=monthInSeoul(ms);
-   return month===12||month===1||month===2;
+ // Seasonal changes are continuous near each calendar boundary. Weather
+ // determines whether winter actually looks snowy and changes the air
+ // every 15 minutes; an unusually warm December is not forced to be white.
+ const SEASONS=['spring','summer','autumn','winter'];
+ const seasonBlend=(ms=Date.now())=>{
+   if(SEASONS.includes(seasonOverride))return [[seasonOverride,1]];
+   if(seasonOverride==='nonwinter')return [['summer',1]];
+   const dateParts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',
+     year:'numeric',month:'numeric',day:'numeric'}).formatToParts(new Date(ms));
+   const part=k=>Number(dateParts.find(p=>p.type===k).value);
+   const year=part('year'),month=part('month'),day=part('day');
+   const nowDay=Date.UTC(year,month-1,day),half=14*86400000;
+   const boundaries=[
+     {y:year-1,m:12,previous:'autumn',next:'winter'},
+     {y:year,m:3,previous:'winter',next:'spring'},
+     {y:year,m:6,previous:'spring',next:'summer'},
+     {y:year,m:9,previous:'summer',next:'autumn'},
+     {y:year,m:12,previous:'autumn',next:'winter'},
+     {y:year+1,m:3,previous:'winter',next:'spring'}
+   ];
+   for(const b of boundaries){
+     const pivot=Date.UTC(b.y,b.m-1,1),delta=nowDay-pivot;
+     if(Math.abs(delta)<=half){
+       const t=clamp((delta+half)/(2*half)),v=t*t*(3-2*t);
+       return [[b.previous,1-v],[b.next,v]];
+     }
+   }
+   const current=month>=12||month<=2?'winter':
+     month<=5?'spring':month<=8?'summer':'autumn';
+   return [[current,1]];
  };
  const timePreview=params.get('time');
  const timeOverride=/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(timePreview||'')?
    Number(timePreview.slice(0,2))+Number(timePreview.slice(3))/60:null;
  const weatherPreview=params.get('weather');
  let painted=false,failed=false,error='',lastWeatherFetch=-Infinity;
- let weather={cloud:.24,wind:6,rain:0,snow:0};
+ let weather={cloud:.24,wind:6,rain:0,snow:0,temp:null,weeklyTemp:null,snowRecent:0};
  const state={
    ready:false,frames:0,mode:'coordinate-repaint-no-bitmap',
    coordinates:'1672x941',layers:0,error:null,light:'night',
@@ -950,7 +975,8 @@
    hour:0,nightFactor:1,starVisibility:0,cloudCover:.24,
    windKmh:6,rain:0,snow:0,weather:'clear',weatherSource:'fallback',
    fetchError:null,moonVisible:false,sunrise:6.5,sunset:18.0,
-   winterSnow:false,snowSeason:'nonwinter'
+   winterSnow:false,snowSeason:'nonwinter',season:'autumn',
+   seasonBlend:[['autumn',1]],temperatureC:null,weeklyTemperatureC:null
  };
  const soften=(a,b,v)=>{const t=clamp((v-a)/(b-a));return t*t*(3-2*t)};
  function seoulTime(ms=Date.now()){
@@ -984,7 +1010,11 @@
      cloud:clamp(Number(w.cloud)||0),
      wind:clamp(Number(w.wind)||0,0,90),
      rain:clamp(Number(w.rain)||0),
-     snow:clamp(Number(w.snow)||0)
+     snow:clamp(Number(w.snow)||0),
+     temp:Number.isFinite(Number(w.temp))&&w.temp!==null?Number(w.temp):null,
+     weeklyTemp:Number.isFinite(Number(w.weeklyTemp))&&w.weeklyTemp!==null?
+       Number(w.weeklyTemp):null,
+     snowRecent:clamp(Number(w.snowRecent)||0,0,50)
    };
    state.weatherSource=source;
    state.weather=weather.snow>.03?'snow':weather.rain>.03?'rain':
@@ -993,7 +1023,10 @@
  if(['clear','cloudy','rain','snow'].includes(weatherPreview)){
    setWeather({cloud:weatherPreview==='clear'?.12:.83,wind:17,
      rain:weatherPreview==='rain'?.8:0,
-     snow:weatherPreview==='snow'?.9:0},'preview');
+     snow:weatherPreview==='snow'?.9:0,
+     temp:seasonOverride==='winter'?-3:
+       seasonOverride==='summer'?25:seasonOverride==='spring'?14:
+       seasonOverride==='autumn'?12:null},'preview');
  }
  async function fetchWeather(){
    if(params.get('renderer')!=='reference')return;
@@ -1005,17 +1038,27 @@
      // The two rendering modes are mutually exclusive, so only this
      // current weather consumer runs in the coordinate-reference scene.
      const url='https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.978'
-       +'&current=cloud_cover,wind_speed_10m,precipitation,rain,snowfall'
+       +'&current=cloud_cover,wind_speed_10m,precipitation,rain,snowfall,temperature_2m'
+       +'&daily=temperature_2m_mean,snowfall_sum&past_days=7'
        +'&timezone=Asia%2FSeoul';
      const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),4500);
      let response;try{response=await fetch(url,{signal:ctl.signal})}
      finally{clearTimeout(timer)}
      if(!response.ok)throw Error('Weather HTTP '+response.status);
-     const current=(await response.json()).current;
+     const payload=await response.json(),current=payload.current;
      if(!current||!Number.isFinite(current.cloud_cover))throw Error('Invalid weather payload');
+     const avgTemps=(payload.daily?.temperature_2m_mean||[])
+       .slice(0,7).filter(Number.isFinite);
+     const snowTotals=(payload.daily?.snowfall_sum||[]).slice(0,7)
+       .filter(Number.isFinite);
+     const weeklyTemp=avgTemps.length?
+       avgTemps.reduce((a,b)=>a+b,0)/avgTemps.length:null;
+     const recentSnow=snowTotals.reduce((a,b)=>a+b,0);
      setWeather({cloud:current.cloud_cover/100,wind:current.wind_speed_10m,
        rain:clamp((current.rain||current.precipitation||0)/2),
-       snow:clamp((current.snowfall||0)/1.2)},'Open-Meteo · Seoul');
+       snow:clamp((current.snowfall||0)/1.2),
+       temp:current.temperature_2m,weeklyTemp,snowRecent:recentSnow},
+       'Open-Meteo · Seoul');
      state.fetchError=null;
    }catch(e){state.fetchError=String(e?.message||e);}
  }
