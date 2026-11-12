@@ -86,7 +86,12 @@ try {
       }
     });
     try {
-      await page.goto(ROOT + '/' + config.query, { waitUntil: 'domcontentloaded' });
+      // The 1672×941 procedural vista paints large, detailed caches during
+      // startup. Wait for the navigation commit first, then for real frames.
+      await page.goto(ROOT + '/' + config.query, {
+        waitUntil:config.kind==='cinematic'?'commit':'domcontentloaded',
+        timeout:config.kind==='cinematic'?90000:30000
+      });
       if (config.kind === 'cinematic') {
         await page.waitForFunction(() => {
           const s=window.GongangReferenceVista?.state;
