@@ -498,7 +498,7 @@
  }
  // Branch whorls, drooping needle fans and reflected sky light are
  // attached to the existing trunks. Large framing trees keep their roots.
- function fir(c,x,y,height,seed,col,weight=1){
+ function needleFir(c,x,y,height,seed,col,weight=1){
    const r=rng(seed),wid=height*(.17+r()*.18),lean=(r()-.5)*height*.07;
    const rgb=parseInt(col.slice(1),16),rr=(rgb>>16)&255,gg=(rgb>>8)&255,bb=rgb&255;
    const lit=(v,a)=>'rgba('+Math.round(rr+v*.65)+','+Math.round(gg+v*.90)+','+Math.round(bb+v)+','+a+')';
@@ -551,6 +551,116 @@
    }
    line(c,[lean,-height],[lean*.88,-height*.90],lit(9,.88),Math.max(.5,height*.004));
    c.restore();
+ }
+
+ // Painterly conifers for the layered Ori / Planet-of-Lana-like atmosphere.
+ // Entirely hand-drawn, deterministic Canvas paths; absolutely no images.
+ // One forest tree has an irregular low-contrast mass, wind-shaped boughs,
+ // dry-brush needle edges and a few rim-lit needles. This avoids hundreds
+ // of repeated zigzags and the exact same triangular silhouette everywhere.
+ function painterlyFir(c,x,y,height,seed,col,weight=1){
+   const r=rng(seed),variant=seed%9,lean=(r()-.5)*height*.14;
+   const broad=variant===2||variant===7,stunted=variant===3;
+   const reach=height*(.16+r()*.15)*(broad?1.28:stunted?.78:1);
+   const crownTop=height*(stunted?.86:1);
+   const yAt=t=>-crownTop*(1-t);
+   const axis=t=>lean*(1-t)*(.6+.4*(1-t));
+   const width=t=>reach*Math.pow(Math.max(0,t),.77)*(1-.08*t);
+   const L=[
+     [0, '#1a3033'],[.22,col],[.63,col],[1,'#142b31']
+   ];
+   c.save();c.translate(x,y);c.globalAlpha*=weight;
+   c.lineJoin='round';c.lineCap='round';
+   // Dark silhouette with 3D volume only where crowns are thick.
+   c.beginPath();
+   c.moveTo(axis(0),yAt(0));
+   const steps=31;
+   for(let i=1;i<=steps;i++){
+     const t=i/steps;
+     const jag=(.81+.18*r() +.09*ridgeNoise(t*23,seed+51)),
+       off=width(t)*jag;
+     c.lineTo(axis(t)-off,yAt(t)+height*(r()-.5)*.010);
+   }
+   c.lineTo(axis(1),height*.012);
+   for(let i=steps;i>=0;i--){
+     const t=i/steps,jag=.79+.20*r()+.13*ridgeNoise(t*24,seed+89);
+     c.lineTo(axis(t)+width(t)*jag,yAt(t)+height*(r()-.5)*.01);
+   }
+   c.closePath();
+   const g=c.createLinearGradient(-reach,-height,reach,height*.05);
+   g.addColorStop(0,'rgba(24,45,49,.53)');
+   g.addColorStop(.36,color(col,.72));
+   g.addColorStop(.69,color(col,.68));
+   g.addColorStop(1,'rgba(13,34,40,.87)');
+   c.fillStyle=g;c.fill();
+   // Slightly offset irregular inner masses: deep foliage and empty patches.
+   // Main trunk is buried behind the plant rather than showing as a pole.
+   const n=height<38?9:height<75?15:23;
+   for(let i=0;i<n;i++){
+     const t=.075+(.85*(i+r()*.81))/n;
+     const center=axis(t),cy=yAt(t),w=width(t);
+     const side=(i%3===0?-1:1)*(r()<.18?-1:1);
+     const length=w*(.68+r()*.50),sag=height*(.012+r()*.042);
+     const bx=center+side*length,by=cy+sag*(.2+r());
+     const feather=height*(.011+r()*.022)*(1-.50*t);
+     // Each bough is its own closed, tapered brushstroke, overlapping
+     // three-dimensional masses instead of identical horizontal triangles.
+     c.beginPath();c.moveTo(center-side*length*.08,cy-feather*.19);
+     c.bezierCurveTo(center+side*length*.22,cy-feather*(.83+r()*.5),
+       center+side*length*.67,by-feather*.5,bx,by-feather*.12);
+     c.bezierCurveTo(bx-side*length*.13,by+feather*.48,
+       center+side*length*.39,cy+feather*(.72+r()*.45),
+       center-side*length*.08,cy+feather*.20);
+     c.closePath();
+     const leafTone=i%8===0?'#7c9288':
+       i%5===0?'#4b655e':i%4===0?'#253b41':'#314f4e';
+     c.fillStyle=color(leafTone,.13+r()*.24);c.fill();
+     // Broken filament strokes appear only on selected boughs and get
+     // finer towards the tip: more like painterly feathered needles.
+     if(height>=37&&i%2===0){
+       for(let k=0;k<5;k++){
+         const q=(k+.2+r()*.6)/5,
+           sx=center+side*length*q,sy=cy+(by-cy)*q,
+           dist=(.43+r()*.60)*feather;
+         c.beginPath();c.moveTo(sx,sy);
+         c.quadraticCurveTo(sx+side*dist*.32,sy-dist*.65,
+           sx+side*dist*.76,sy-dist*(.68+r()*.40));
+         c.strokeStyle=color(k%3===0?'#b1b3a6':'#6c8d80',
+           .045+r()*.13);
+         c.lineWidth=.35+r()*.43;c.stroke();
+       }
+     }
+     // Occasional splintered silhouette needles, never an unbroken sawtooth.
+     if(i%3===0){
+       for(let k=0;k<3;k++){
+         const q=.55+r()*.48,sx=center+side*length*q,sy=cy+sag*q;
+         const lx=side*(2+r()*height*.028),ly=-(1+r()*height*.020);
+         c.beginPath();c.moveTo(sx,sy);
+         c.quadraticCurveTo(sx+lx*.45,sy+ly*.35,sx+lx,sy+ly);
+         c.strokeStyle=color('#7f948c',.055+r()*.13);
+         c.lineWidth=.35+r()*.37;c.stroke();
+       }
+     }
+   }
+   // Sporadic vertical trunks catch a tiny amount of reflected sky;
+   // never a fully-exposed mast or a symmetrical Christmas-tree trunk.
+   c.beginPath();c.moveTo(0,2);c.quadraticCurveTo(lean*.13,-height*.35,
+     lean*.60,-height*.75);
+   c.strokeStyle='rgba(20,37,40,.24)';
+   c.lineWidth=Math.max(.55,height*.010);c.stroke();
+   if(height>60){
+     c.beginPath();c.moveTo(-height*.004,-height*.12);
+     c.quadraticCurveTo(lean*.10-height*.004,-height*.39,
+       lean*.49-height*.004,-height*.72);
+     c.strokeStyle='rgba(154,175,161,.055)';
+     c.lineWidth=Math.max(.4,height*.0019);c.stroke();
+   }
+   c.restore();
+ }
+ function fir(c,x,y,height,seed,col,weight=1){
+   if(params.get('treeTexture')==='needles')
+     return needleFir(c,x,y,height,seed,col,weight);
+   return painterlyFir(c,x,y,height,seed,col,weight);
  }
  function forestMist(c,index){
    const m=mountains[index],tile=document.createElement('canvas');
@@ -1386,6 +1496,7 @@
    windKmh:6,rain:0,snow:0,weather:'clear',weatherSource:'fallback',
    fetchError:null,moonVisible:false,sunrise:6.5,sunset:18.0,
    edgeTrees:params.get('edgeTrees')==='canopy'?'canopy':'open',
+   treeTexture:params.get('treeTexture')==='needles'?'needles':'painterly',
    winterSnow:false,snowyRocks:false,snowSeason:'nonwinter',season:'autumn',
    seasonBlend:[['autumn',1]],temperatureC:null,weeklyTemperatureC:null
  };
