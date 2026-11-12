@@ -1122,6 +1122,10 @@
  const timeOverride=/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(timePreview||'')?
    Number(timePreview.slice(0,2))+Number(timePreview.slice(3))/60:null;
  const weatherPreview=params.get('weather');
+ const rawTempOverride=params.get('tempC');
+ const parsedTempOverride=rawTempOverride===null?null:Number(rawTempOverride);
+ const tempOverride=Number.isFinite(parsedTempOverride)&&parsedTempOverride>=-35&&
+   parsedTempOverride<=45?parsedTempOverride:null;
  let painted=false,failed=false,error='',lastWeatherFetch=-Infinity;
  let weather={cloud:.24,wind:6,rain:0,snow:0,temp:null,weeklyTemp:null,snowRecent:0};
  const state={
@@ -1180,7 +1184,7 @@
    setWeather({cloud:weatherPreview==='clear'?.12:.83,wind:17,
      rain:weatherPreview==='rain'?.8:0,
      snow:weatherPreview==='snow'?.9:0,
-     temp:seasonOverride==='winter'?-3:
+     temp:tempOverride!==null?tempOverride:seasonOverride==='winter'?-3:
        seasonOverride==='summer'?25:seasonOverride==='spring'?14:
        seasonOverride==='autumn'?12:null},'preview');
  }
