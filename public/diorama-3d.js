@@ -159,30 +159,60 @@ function mountainCrest(x,seed,base,z){
   if(seed===37)y+=peak(-7,7,13,1.7);
   return y;
 }
+// BARRAGE's spacious atmospheric ridges, but constructed as genuine sloped
+// terrain with x/z variation, weathered faces and distance-dependent lighting.
+function mountainSurface(x,z,origin,base,seed){
+ const back=origin-27,front=origin+15;
+ const t=Math.max(0,Math.min(1,(front-z)/(front-back)));
+ const peak=mountainCrest(x,seed,base,origin);
+ const low=-8.1+noise(x*.19,seed+13)*.27;
+ const slope=Math.pow(t,1.50);
+ const erosion=noise(x*.17+z*.11,seed+41)*1.16+
+   noise(x*.39-z*.23,seed+61)*.53;
+ const gullies=Math.max(0,noise(x*.052+z*.16,seed+17))*.85;
+ return lerp(low,peak,slope)+(erosion-gullies)*Math.sin(Math.PI*t)*1.43;
+}
 function mountain(z,base,seed,top,bottom){
- const steps=240,rows=8,pos=[],col=[],uvs=[],indices=[],ct=new THREE.Color(top),cb=new THREE.Color(bottom);
+ const steps=248,rows=32,positions=[],uvs=[],cols=[],indices=[];
+ const high=new THREE.Color(top),low=new THREE.Color(bottom);
+ const snow=new THREE.Color('#dbe0e6'),cold=new THREE.Color('#7d93ac');
  for(let j=0;j<=rows;j++){
-  const v=j/rows;
+  const depth=j/rows,zHere=lerp(z+15,z-27,depth);
   for(let i=0;i<=steps;i++){
-   const x=-110+i/steps*220;
-   const y=lerp(mountainCrest(x,seed,base,z),-25,v);
-   pos.push(x,y,z+v*1.5);uvs.push(i/steps,1-v);
-   const tone=.83+noise(x*.30+v*7,seed+3)*.12;
-   const cc=ct.clone().lerp(cb,v*.9).multiplyScalar(tone);
+   const x=-115+i/steps*230;
+   const y=mountainSurface(x,zHere,z,base,seed);
+   positions.push(x,y,zHere);
+   uvs.push(i/steps*2,depth*1.9);
+   const micro=noise(x*.38+zHere*.17,seed+34)*.075;
+   const exposure=.78+depth*.23+micro;
+   const c=low.clone().lerp(high,Math.pow(depth,.66)*.85)
+     .multiplyScalar(exposure);
+   const wet=Math.max(0,1-depth)*.13;
+   c.lerp(cold,wet);
    if(seed===12){
-     const cap=Math.min(1,Math.max(0,(y-1.0)/3.4));
-     const snow=cap*Math.pow(1-v,1.6)*(.72+noise(x*.42+v*3,31)*.19);
-     cc.lerp(new THREE.Color('#f0eced'),Math.max(0,Math.min(.82,snow)));
+     const cap=Math.max(0,Math.min(1,(y-.7)/4.2));
+     const fracture=.72+.22*noise(x*.38+zHere*.10,seed+80);
+     c.lerp(snow,cap*fracture*Math.pow(depth,.66)*.78);
    }
-   col.push(cc.r,cc.g,cc.b);
-   if(j<rows&&i<steps){const a=j*(steps+1)+i,b=a+steps+1;indices.push(a,b,a+1,b,b+1,a+1);}
+   cols.push(c.r,c.g,c.b);
+   if(j<rows && i<steps){
+     const a=j*(steps+1)+i,b=a+steps+1;
+     indices.push(a,b,a+1,b,b+1,a+1);
+   }
   }
  }
- const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
- g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
- g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));g.setIndex(indices);
+ const meshGeo=new THREE.BufferGeometry();
+ meshGeo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+ meshGeo.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
+ meshGeo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
+ meshGeo.setIndex(indices);meshGeo.computeVertexNormals();
  if(!rockPattern)rockPattern=mountainTexture();
- scene.add(new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:rockPattern,vertexColors:true,side:THREE.DoubleSide,fog:false})));
+ const material=new THREE.MeshLambertMaterial({
+   map:rockPattern,vertexColors:true,side:THREE.DoubleSide,fog:true,
+   emissive:'#0d1922',emissiveIntensity:.16
+ });
+ scene.add(new THREE.Mesh(meshGeo,material));
+ state.terrainTriangles=(state.terrainTriangles||0)+indices.length/3;
 }
 function water(){
  waterClock={value:0};
@@ -246,7 +276,7 @@ function land(side){
  scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})));
 }
 function foreground(){
- const g=new THREE.PlaneGeometry(125,84,70,40);
+ const g=new THREE.PlaneGeometry(125,180,70,70);
  g.rotateX(-Math.PI/2);
  const p=g.getAttribute('position'),cols=[];
  const dark=new THREE.Color('#193331'),light=new THREE.Color('#46604b');
@@ -265,29 +295,60 @@ function foreground(){
  p.needsUpdate=true;g.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
  g.computeVertexNormals();
  const mat=new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide});
- scene.add(new THREE.Mesh(g,mat)).position.set(0,0,49);
+ scene.add(new THREE.Mesh(g,mat)).position.set(0,0,105);
 }
-function cloudTexture(){
+// Alto-style horizontal atmospheric layers; wind flows but terrain stays fixed.
+function cloudTexture(seed){
  return texture((c,w,h)=>{
-  for(let i=0;i<46;i++){
-   const x=w*(.08+rng()*.84),y=h*(.28+rng()*.44),r=18+rng()*64;
-   const g=c.createRadialGradient(x,y,1,x,y,r);
-   g.addColorStop(0,'rgba(186,196,222,.12)');g.addColorStop(.5,'rgba(135,164,206,.055)');
-   g.addColorStop(1,'rgba(165,181,229,0)');c.fillStyle=g;
-   c.beginPath();c.ellipse(x,y,r,r*.30,0,0,TAU);c.fill();
+  let n=seed;const random=()=>((n=(Math.imul(n,1664525)+1013904223)>>>0)/4294967296);
+  const bg=c.createLinearGradient(0,0,0,h);
+  bg.addColorStop(0,'rgba(125,157,200,0)');
+  bg.addColorStop(.52,'rgba(125,157,200,.026)');
+  bg.addColorStop(1,'rgba(125,157,200,0)');
+  c.fillStyle=bg;c.fillRect(0,0,w,h);
+  c.globalCompositeOperation='screen';
+  for(let i=0;i<126;i++){
+    const x=random()*w,y=h*(.15+random()*.70),radius=12+random()*47;
+    c.save();c.translate(x,y);c.scale(1,.15+random()*.31);
+    const haze=c.createRadialGradient(0,0,0,0,0,radius);
+    haze.addColorStop(0,'rgba(156,175,209,.058)');
+    haze.addColorStop(.55,'rgba(125,154,195,.026)');
+    haze.addColorStop(1,'rgba(125,154,195,0)');
+    c.fillStyle=haze;c.fillRect(-radius,-radius,radius*2,radius*2);c.restore();
   }
- },512,180);
+  c.globalCompositeOperation='source-over';
+ },768,192);
 }
 function cloudField(){
- const t=cloudTexture();
- for(let i=0;i<5;i++){
-  const m=new THREE.Mesh(new THREE.PlaneGeometry(24+rng()*29,7+rng()*7),
-   new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,fog:false,opacity:.40+rng()*.20}));
-  const x=-100+rng()*200;
-  m.position.set(x,-5+rng()*11,-104+rng()*19);
-  m.userData={x,speed:.10+rng()*.4,phase:rng()*TAU};
+ for(let i=0;i<7;i++){
+  const t=cloudTexture(3041+i*37);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(35+rng()*28,5+rng()*7),
+   new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,
+    fog:false,opacity:.35+rng()*.16,side:THREE.DoubleSide}));
+  const x=-72+rng()*144;
+  m.position.set(x,-6+rng()*11,-120+i*7.2);
+  m.userData={x,speed:.08+rng()*.28,phase:rng()*TAU};
   scene.add(m);clouds.push(m);
- }state.clouds=clouds.length;
+ }
+ state.clouds=clouds.length;
+}
+function aerialPerspective(){
+ const positions=[[-109,-4,11,.17],[-88,-4.8,9,.14],[-67,-5.5,8,.11]];
+ for(const [z,y,height,opacity] of positions){
+  const tex=texture((c,w,h)=>{
+   const g=c.createLinearGradient(0,0,0,h);
+   g.addColorStop(0,'rgba(125,161,192,0)');
+   g.addColorStop(.38,'rgba(137,157,177,.12)');
+   g.addColorStop(.70,'rgba(171,168,178,.22)');
+   g.addColorStop(1,'rgba(115,155,164,0)');
+   c.fillStyle=g;c.fillRect(0,0,w,h);
+  },256,64);
+  const veil=new THREE.Mesh(new THREE.PlaneGeometry(260,height),
+   new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,
+    depthTest:true,opacity,side:THREE.DoubleSide,fog:false}));
+  veil.position.set(0,y,z);scene.add(veil);
+ }
+ state.aerialLayers=positions.length;
 }
 function forest(){
  const tex=texture((c,w,h)=>{
@@ -332,9 +393,11 @@ function forest(){
  const count=330,mesh=new THREE.InstancedMesh(g,mat,count),obj=new THREE.Object3D();
  const colA=new THREE.Color('#9abbb0'),colB=new THREE.Color('#56848a');
  for(let i=0;i<count;i++){
-  const x=-102+rng()*204,crest=mountainCrest(x,45,-4.1,-56),h=.95+rng()*3.3;
-  const aboveWater=crest>-3.4;
-  obj.position.set(x,aboveWater?crest-.25:-100,-55+rng()*7);
+  const x=-102+rng()*204,z=-75+rng()*11;
+  const crest=mountainSurface(x,z,-56,-4.1,45);
+  const h=.95+rng()*3.1;
+  const aboveWater=crest>-3.3;
+  obj.position.set(x,aboveWater?crest-.25:-100,z);
   obj.rotation.set(0,(rng()-.5)*.4,0);
   obj.scale.set(aboveWater?h*(.33+rng()*.13):0,aboveWater?h:0,1);
   obj.updateMatrix();mesh.setMatrixAt(i,obj.matrix);
@@ -565,16 +628,16 @@ function init(){
   renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.24;
   scene=new THREE.Scene();scene.background=new THREE.Color('#121d3d');
   scene.fog=new THREE.FogExp2('#315b72',.006);
-  camera=new THREE.OrthographicCamera(-20,20,12,-12,.1,500);
-  camera.position.set(0,7,39);camera.lookAt(0,1,-23);
-  scene.add(new THREE.HemisphereLight('#ddd9ef','#26403d',2.3));
-  const key=new THREE.DirectionalLight('#c5d4ff',1.6);key.position.set(-8,26,9);scene.add(key);
+  camera=new THREE.PerspectiveCamera(44,1,.1,600);
+  camera.position.set(0,10,55);camera.lookAt(0,2,-30);
+  scene.add(new THREE.HemisphereLight('#e1e1ed','#25413d',1.25));
+  const key=new THREE.DirectionalLight('#d4d9f9',2.25);key.position.set(-32,40,23);scene.add(key);
   sky();
   mountain(-116,-2.4,12,'#7c8cb1','#394968');
   mountain(-94,-.9,37,'#617f9f','#264863');
   mountain(-73,-1.7,81,'#376d7c','#14394a');
   mountain(-56,-4.1,45,'#326772','#0b2938');
-  water();land(-1);land(1);foreground();cloudField();plants();forest();buildFramingTrees();
+  water();land(-1);land(1);foreground();cloudField();aerialPerspective();plants();forest();buildFramingTrees();
   state.ready=true;
  }catch(e){state.failed=true;state.error=String(e?.message||e);console.warn('Diorama fallback',e);}
 }
@@ -585,16 +648,15 @@ function draw(ctx,t,now,{personal=false}={}){
   const w=Math.min(1220,Math.max(240,Math.round(t.width*factor)));
   const h=Math.min(850,Math.max(240,Math.round(t.height*factor)));
   if(w!==state.width||h!==state.height){renderer.setSize(w,h,false);state.width=w;state.height=h;}
-  const aspect=w/h;camera.left=-worldH*aspect/2;camera.right=worldH*aspect/2;
-  camera.top=worldH/2;camera.bottom=-worldH/2;camera.updateProjectionMatrix();
+  const aspect=w/h;camera.aspect=aspect;camera.updateProjectionMatrix();
   // The canvas crop may be wider than the physical phone screen.
   // Use viewport orientation to frame the moon and near-bank composition.
   const portrait=innerWidth<700 && innerHeight>innerWidth*1.22;
   const eyeX=portrait?-5:0;
   // A portrait composition looks toward the moon without rotating the view.
   if(personal!==state.personal || state.lastPortrait!==portrait){
-    camera.position.set(eyeX,personal?12:7,39);
-    camera.lookAt(eyeX,personal?8:1,-23);
+    camera.position.set(eyeX,personal?17:10,55);
+    camera.lookAt(eyeX,personal?12:2,-30);
     if(moonSprite){
       moonSprite.position.set(portrait?-5:-2,portrait?-3.0:-1,-149);
       moonGlow.position.set(portrait?-5:-2,portrait?-3.0:-1,-150);
