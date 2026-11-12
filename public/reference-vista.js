@@ -835,7 +835,9 @@
    rock(c,1293,754,177,82,134);
    rock(c,521,736,137,61,135);
    rock(c,1043,764,118,49,136);
-   rock(c,818,860,145,70,137);
+   // A shallow mossy stepping stone beneath the visitor replaces the
+   // tall round plinth that made the avatar look displayed on a pedestal.
+   rock(c,818,827,184,33,137);
    // Detail stones and ground texture are contained to the lower third.
    const r=rng(8735);
    for(let k=0;k<710;k++){
@@ -990,25 +992,97 @@
       [lerp(a[0],b[0],.72),lerp(a[1],b[1],.72)],color('#d4b3af',.18),.75);
    }
  }
+ // Low, handcrafted lookout bench; a compact natural resting place
+ // behind visitors rather than the previous black capsule + purple slab.
+ // The centre remains open for real multiplayer silhouettes and photos.
  function logSeat(c){
-  // A fallen wooden sitting log and draped woven blanket, rather than an
-  // arbitrary bench rectangle. Photo reference seat at (710..991,724..793).
-  c.fillStyle='rgba(10,13,27,.25)';ellipse(c,838,790,172,23,'rgba(8,12,24,.27)');
-  const wood=lgrad(c,730,722,745,788,[[0,'#94664e'],[.25,'#70483b'],[.62,'#453231'],[1,'#251e28']]);
-  c.beginPath();c.moveTo(725,735);
-  c.bezierCurveTo(766,726,805,728,837,723);
-  c.bezierCurveTo(888,714,930,723,979,732);
-  c.bezierCurveTo(989,742,983,762,975,774);
-  c.bezierCurveTo(909,779,842,780,784,776);
-  c.bezierCurveTo(753,774,722,767,717,757);
-  c.bezierCurveTo(713,749,715,741,725,735);c.closePath();
-  c.fillStyle=wood;c.fill();c.strokeStyle='rgba(239,153,119,.43)';c.lineWidth=2;c.stroke();
-  for(let k=0;k<20;k++){const x=734+k*12;line(c,[x,732+(k%3)*2],[x+2,768+(k%4)*3],color(k%2?'#9c6854':'#281f29',.15+k%3*.038),1.1);}
-  // Folded crimson wool blanket, with a woven border and tassel shapes.
-  poly(c,[[778,725],[881,722],[877,766],[850,777],[839,768],[795,782]],'#5b3548');
-  poly(c,[[782,726],[873,724],[869,741],[791,742]],'#97616e');
-  for(let k=0;k<10;k++){const x=791+k*9;
-   line(c,[x,730],[x-2,763+(k%4)*2],color('#d6a48a',.12+(k%3)*.08),1);
+  const x0=737,x1=945,r=rng(61273);
+  // Uneven soil with softly diffused contact shade. No giant oval plate.
+  c.save();c.beginPath();
+  c.moveTo(706,793);
+  c.bezierCurveTo(759,781,801,784,841,787);
+  c.bezierCurveTo(882,784,931,785,978,792);
+  c.bezierCurveTo(945,807,892,807,847,808);
+  c.bezierCurveTo(789,805,750,808,706,793);
+  c.closePath();
+  c.fillStyle=lgrad(c,810,782,831,815,[
+    [0,'rgba(18,21,26,.18)'],[.6,'rgba(16,21,25,.095)'],
+    [1,'rgba(20,29,30,0)']]);c.fill();c.restore();
+  // Two non-identical forked wooden supports are partially rooted in
+  // meadow. Their visible upper ends hold the horizontal log.
+  for(const [px,py,tilt,scale,seed] of [[782,788,-7,.94,631],[903,788,8,1.04,981]]){
+    const rr=rng(seed);
+    c.save();c.translate(px,py);c.scale(scale,1);
+    c.beginPath();c.moveTo(-9,0);c.lineTo(-10+tilt*.15,-23);
+    c.quadraticCurveTo(-8+tilt*.37,-34,0+tilt*.22,-35);
+    c.quadraticCurveTo(10+tilt*.3,-33,11+tilt*.15,-23);
+    c.lineTo(9,0);
+    c.quadraticCurveTo(2,4,-9,0);c.closePath();
+    c.fillStyle=lgrad(c,-5,-36,13,1,[
+      [0,'#8e7563'],[.19,'#725746'],[.60,'#3e3733'],[1,'#25292c']]);
+    c.fill();
+    for(let k=0;k<9;k++){
+      const yy=-28+rr()*27,xx=(rr()-.5)*15;
+      windingFiber(c,xx,yy,(rr()-.5)*2.5,2+rr()*11,
+        seed+k,color(rr()<.55?'#c09a7b':'#283032',.10+rr()*.18),.45+rr()*.6);
+    }
+    c.restore();
+  }
+  // A tapered trunk-shaped seat follows an asymmetrical slightly
+  // rising top edge, with visible wood end grain and natural bark.
+  c.beginPath();c.moveTo(x0,747);
+  c.bezierCurveTo(771,739,797,742,830,740);
+  c.bezierCurveTo(862,738,914,744,x1,749);
+  c.bezierCurveTo(949,758,943,767,934,770);
+  c.bezierCurveTo(877,771,809,772,759,769);
+  c.bezierCurveTo(747,766,733,756,x0,747);c.closePath();
+  c.fillStyle=lgrad(c,834,738,841,774,[
+    [0,'#b08b6c'],[.16,'#917159'],[.41,'#745744'],
+    [.78,'#4e3e37'],[1,'#302d2b']]);
+  c.fill();
+  // Sky/lantern highlights trace the upper round surface.
+  c.beginPath();c.moveTo(741,746);
+  c.bezierCurveTo(781,740,812,743,840,741);
+  c.bezierCurveTo(885,741,918,745,943,749);
+  c.strokeStyle='rgba(225,178,140,.28)';c.lineWidth=2.0;c.stroke();
+  // The front bark has interrupted grain along its length, not vertical
+  // equal-distance stripes that made the previous log a barcode.
+  for(let k=0;k<83;k++){
+    const x=748+r()*187,yy=746+r()*24,
+      span=(5+r()*31)*(r()<.30?-1:1);
+    c.beginPath();c.moveTo(x,yy);
+    c.bezierCurveTo(x+span*.35,yy+(r()-.5)*2,
+      x+span*.72,yy+1+r()*2,x+span,yy+(r()-.5)*2);
+    c.strokeStyle=color(k%7===0?'#e3b38f':k%4===0?'#312a29':'#a78770',
+      .06+r()*.18);
+    c.lineWidth=.38+r()*1.03;c.stroke();
+  }
+  // A few genuine branch knots embedded in the wood.
+  for(const [xx,yy,rad] of [[789,756,4.1],[874,757,3.4],[916,751,2.2]]){
+    ellipse(c,xx,yy,rad*1.40,rad*.57,'rgba(47,40,38,.20)',-.16);
+    ellipse(c,xx,yy,rad*.76,rad*.34,'rgba(173,135,99,.21)',-.11);
+    c.beginPath();c.arc(xx,yy,rad*.44,-.5,2.2);
+    c.strokeStyle='rgba(55,42,36,.22)';c.lineWidth=.65;c.stroke();
+  }
+  // Ragged exposed end grain on the left; different perspective from
+  // a hard-edged cartoon cylinder.
+  c.beginPath();c.moveTo(741,746);
+  c.bezierCurveTo(731,749,735,758,745,765);
+  c.bezierCurveTo(756,766,758,756,741,746);
+  c.fillStyle='rgba(140,97,68,.72)';c.fill();
+  c.beginPath();c.arc(744,756,6,-2.3,1.6);
+  c.strokeStyle='rgba(58,41,32,.33)';c.lineWidth=.8;c.stroke();
+  // Moss and grasses integrate both feet into real meadow. The roots
+  // are subtle and do not draw over the central player's feet.
+  for(let k=0;k<100;k++){
+    const px=737+r()*215,yy=775+r()*22;
+    if(px>805&&px<878&&yy>779)continue;
+    const h=2+r()*10,lean=(r()-.5)*8;
+    c.beginPath();c.moveTo(px,yy);
+    c.quadraticCurveTo(px+lean*.3,yy-h*.7,px+lean,yy-h);
+    c.strokeStyle=color(k%5===0?'#d0b085':k%3===0?'#8f9476':'#56766c',
+      .08+r()*.20);
+    c.lineWidth=.35+r()*.78;c.stroke();
   }
  }
  function lantern(c,x,y,lit=true){
@@ -1202,7 +1276,7 @@
      [71,823,274,137,131],[364,860,244,103,132],
      [1360,841,291,116,133],[1293,754,177,82,134],
      [521,736,137,61,135],[1043,764,118,49,136],
-     [818,860,145,70,137],[527,715,40,27,203],
+     [818,827,184,33,137],[527,715,40,27,203],
      [526,702,30,18,204],[529,689,19,13,205]
    ];
    for(const [x,y,w,h,seed] of rocks)winterRockCap(c,x,y,w,h,seed);
