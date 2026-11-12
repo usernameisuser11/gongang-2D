@@ -167,12 +167,17 @@
     const gas=fbm(u*.020+(noise(u*.006,v*.009,19)-.5)*2.6,
       d*.032+(noise(u*.011,v*.012,39)-.5)*1.7,819);
     const curls=noise(u*.070+gas*2.4,d*.083+gas,2117);
-    const lane=d+8+9*Math.sin(u*.012)+
-      (noise(u*.018,d*.025,3117)-.5)*18;
-    const dust=Math.exp(-((lane/(5+gas*8))**2))*(.66+.30*noise(u*.032,d*.04,917));
-    const branch=Math.exp(-(((d-20-9*Math.sin(u*.015+.7))/(3+gas*5))**2))*
-      smooth(.39,.68,noise(u*.011,d*.031,871));
-    return {u,d,body,gas,curls,dust:clamp(dust+branch*.54),
+    // Dust cannot be one uninterrupted black diagonal. Molecular clouds
+    // form drifting, discontinuous pockets with scattered translucent rifts.
+    const drift=(noise(u*.006,d*.019,3117)-.5)*51+
+      (noise(u*.024,d*.028,3121)-.5)*19;
+    const lane=d+13+drift+12*Math.sin(u*.009+1.1);
+    const fragments=.17+.83*smooth(.33,.71,
+      noise(u*.021,d*.023,917)*.66+noise(u*.006,2.3,901)*.34);
+    const dust=Math.exp(-((lane/(10+gas*15))**2))*fragments*.70;
+    const branch=Math.exp(-(((d-30-16*Math.sin(u*.011+.7))/(9+gas*12))**2))*
+      smooth(.45,.71,noise(u*.017,d*.033,871))*.40;
+    return {u,d,body,gas,curls,dust:clamp(dust+branch*.32),
       light:body*(.14+gas*.66),fade:1-smooth(293,420,y)};
   };
   const galaxyTransmission=(x,y)=>{
@@ -191,14 +196,21 @@
     const knot=smooth(.43,.76,gas*.80+curls*.20);
     const pearl=fbm(u*.011+gas*.7,d*.019,1921);
     const grains=noise(u*.34,d*.41,7371);
-    const spine=Math.exp(-(((d-12)/27)**2));
-    const energy=fade*(.042*Math.exp(-((d/117)**2))*(.5+pearl)+
-      body*(.075+pearl*.19+gas*.12+knot*.32)*(1-dust*.86)+
-      spine*knot*.10*(1-dust))*(.91+grains*.18);
-    const rose=clamp((gaussian(u,556,83)+gaussian(u,694,52)+
-      gaussian(u,922,63)+gaussian(u,1088,43))*(.48+gas*.70));
-    const cyan=clamp((gaussian(u,793,41)+gaussian(u,846,29)+
-      gaussian(u,1037,46))*(.40+gas*.85))*(1-rose*.6);
+    const spine=Math.exp(-(((d-12)/41)**2));
+    const sideCloud=Math.exp(-(((d-54-19*Math.sin(u*.013))/(29+gas*21))**2))*
+      smooth(.40,.70,gas);
+    const energy=fade*(.047*Math.exp(-((d/130)**2))*(.5+pearl)+
+      body*(.068+pearl*.18+gas*.12+knot*.28)*(1-dust*.61)+
+      spine*knot*.058*(1-dust*.68)+sideCloud*.053)*
+      (.80+grains*.33);
+    const warmPockets=gaussian(u,503,113)*.72+
+      gaussian(u,730,91)*.53+gaussian(u,973,126)*.67;
+    const coolPockets=gaussian(u,803,112)*.77+
+      gaussian(u,1145,88)*.57;
+    const rose=clamp(warmPockets*(.35+gas*.79)*
+      (.49+.65*noise(u*.025,d*.026,1491)));
+    const cyan=clamp(coolPockets*(.35+gas*.81)*
+      (.52+.60*noise(u*.020,d*.031,2119)))*(1-rose*.38);
     const ivory=knot*.27+pearl*.10;
     pixels.data[idx]=lerp(lerp(130,238,rose),105,cyan)+ivory*36;
     pixels.data[idx+1]=lerp(lerp(157,159,rose),223,cyan)+ivory*47;
@@ -364,7 +376,7 @@
    c.restore();
   }
  }
- function mountainLayer(c,index){
+ function mountainLayer(c,index,snowEnabled=false){
   const m=mountains[index];
   ridge(c,m.pts,m.a,m.b,m.seed);
   // The stone surface has large eroded buttresses, smaller folded planes
@@ -461,7 +473,7 @@
    c.restore();
   }
   // Snow is a thin upper rock material, never a floating white polygon.
-  alpineCrests(c,m,index);
+  if(snowEnabled)alpineCrests(c,m,index);
   if(index>=3)forestGrove(c,index);
  }
  // Branch whorls, drooping needle fans and reflected sky light are
@@ -915,6 +927,16 @@
    const ctx=canvas.getContext('2d',{alpha:true});for(const fn of fns)fn(ctx);return canvas;}
  const layers=[],skyCache={},cloudCache={};
  const params=new URLSearchParams(location.search);
+ const seasonOverride=params.get('season');
+ const monthInSeoul=ms=>Number(new Intl.DateTimeFormat('en-US',{
+   timeZone:'Asia/Seoul',month:'numeric'
+ }).format(new Date(ms)));
+ const winterAt=ms=>{
+   if(seasonOverride==='winter')return true;
+   if(seasonOverride==='summer'||seasonOverride==='nonwinter')return false;
+   const month=monthInSeoul(ms);
+   return month===12||month===1||month===2;
+ };
  const timePreview=params.get('time');
  const timeOverride=/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(timePreview||'')?
    Number(timePreview.slice(0,2))+Number(timePreview.slice(3))/60:null;
@@ -927,7 +949,8 @@
    galaxy:'quasar-v129-24200-soft-grains-great-rift',
    hour:0,nightFactor:1,starVisibility:0,cloudCover:.24,
    windKmh:6,rain:0,snow:0,weather:'clear',weatherSource:'fallback',
-   fetchError:null,moonVisible:false,sunrise:6.5,sunset:18.0
+   fetchError:null,moonVisible:false,sunrise:6.5,sunset:18.0,
+   winterSnow:false,snowSeason:'nonwinter'
  };
  const soften=(a,b,v)=>{const t=clamp((v-a)/(b-a));return t*t*(3-2*t)};
  function seoulTime(ms=Date.now()){
@@ -1042,6 +1065,10 @@
    const sun=mix.reduce((v,[name,weight])=>v+
      (name==='day'?weight:name==='dawn'?weight*.30:name==='dusk'?weight*.12:0),0);
    const clouds=weather.cloud,storm=Math.max(weather.rain,weather.snow);
+   // Snowy ridges are seasonal, never baked into warm-weather scenery.
+   const winterSnow=winterAt(realNow);
+   state.winterSnow=winterSnow;
+   state.snowSeason=winterSnow?'winter':'nonwinter';
    const stars=clamp(night*(1-clouds*.87)*(1-storm*.76));
    state.hour=hour;state.sunrise=solar.sunrise;state.sunset=solar.sunset;
    state.light=mix.reduce((a,b)=>a[1]>b[1]?a:b)[0];
@@ -1094,7 +1121,18 @@
        ctx.filter='brightness('+(1+mountainDaylight*(i===1?.20:.17)).toFixed(3)+
          ') hue-rotate('+(hue*mountainDaylight).toFixed(2)+'deg)' +
          ' saturate('+(1+mountainDaylight*.04).toFixed(3)+')';
-       ctx.drawImage(layers[i],x,t.y,t.width,t.height);
+       // Winter variant is painted once on demand. Switching seasons
+       // changes only mountain snow; trees, visitors and photos retain
+       // their original world coordinates.
+       if(i===1&&winterSnow&&!skyCache.winterMountain){
+         skyCache.winterMountain=paintLayer([
+           (c)=>mountainLayer(c,0,true),
+           (c)=>mountainLayer(c,1,true),
+           (c)=>mountainLayer(c,2,true)
+         ]);
+       }
+       ctx.drawImage(i===1&&winterSnow?skyCache.winterMountain:layers[i],
+         x,t.y,t.width,t.height);
      }
      ctx.filter='none';
    }
