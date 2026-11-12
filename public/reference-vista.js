@@ -744,16 +744,12 @@
      c.fillStyle=color('#8e987b',.16+r()*.22);c.fill();
     }
    }
-   // Irregular pink and pale alpine wildflowers, carefully kept off center.
-   for(let i=0;i<285;i++){
-     const x=r()*W,y=694+r()*245;
-     if(x>630&&x<1130&&y<822&&r()>.34)continue;
-     const len=4+r()*19,sz=.7+r()*2.8;
-     line(c,[x,y],[x+r()*4-2,y-len],color('#8b856b',.27),.65);
-     const bloom=y-len;
-     if(r()<.54){for(let k=0;k<5;k++){const a=k*TAU/5;
-      ellipse(c,x+Math.cos(a)*sz,bloom+Math.sin(a)*sz,sz*.64,sz*.82,color(i%3?'#ed9bcc':'#c5a7e9',.21+r()*.5));}
-     }else ellipse(c,x,bloom,sz*.75,sz*.9,color('#e4d6d7',.22+r()*.55));
+   // The ground base is season-neutral. Pink blossoms now belong to
+   // spring only, so December no longer has permanent summer flowers.
+   for(let i=0;i<120;i++){
+     const x=r()*W,y=741+r()*195,h=3+r()*11;
+     line(c,[x,y],[x+(r()-.5)*5,y-h],
+       color(i%4===0?'#989789':'#6b7d70',.08+r()*.16),.4+r()*.6);
    }
    // Fine moonlit meadow texture: irregular seedheads and warm grazing
    // highlights tie the lantern, blanket and surrounding stones together.
@@ -1260,6 +1256,13 @@
      fetchWeather();
    }catch(e){failed=true;state.error=error=String(e);console.warn('Reference vista paint failed',e);}
  }
+ function cachedSeasonLayer(season,depth){
+   if(!skyCache.seasons)skyCache.seasons={};
+   const key=season+':'+depth;
+   if(!skyCache.seasons[key])
+     skyCache.seasons[key]=paintLayer([(c)=>seasonalLayer(c,season,depth)]);
+   return skyCache.seasons[key];
+ }
  function draw(ctx,t,now,opts={}){
    ensure();if(failed||!state.ready)return false;
    const realNow=Date.now(),hour=timeOverride===null?seoulTime(realNow):timeOverride,
@@ -1268,10 +1271,20 @@
    const sun=mix.reduce((v,[name,weight])=>v+
      (name==='day'?weight:name==='dawn'?weight*.30:name==='dusk'?weight*.12:0),0);
    const clouds=weather.cloud,storm=Math.max(weather.rain,weather.snow);
-   // Snowy ridges are seasonal, never baked into warm-weather scenery.
-   const winterSnow=winterAt(realNow);
+   const seasonal=seasonBlend(realNow);
+   const dominant=seasonal.reduce((a,b)=>a[1]>=b[1]?a:b)[0];
+   const winterWeight=seasonal.reduce((v,[name,w])=>
+     v+(name==='winter'?w:0),0);
+   const thermal=weather.weeklyTemp===null?weather.temp:weather.weeklyTemp;
+   const coldEnough=weather.temp===null||weather.temp<=3.5;
+   const winterSnow=winterWeight>.55&&coldEnough&&
+     (weather.snow>.03||weather.snowRecent>.5||thermal===null||thermal<1.5);
    state.winterSnow=winterSnow;
-   state.snowSeason=winterSnow?'winter':'nonwinter';
+   state.snowSeason=winterSnow?'snowy-winter':dominant;
+   state.season=dominant;
+   state.seasonBlend=seasonal.map(([season,weight])=>[season,Number(weight.toFixed(3))]);
+   state.temperatureC=weather.temp;
+   state.weeklyTemperatureC=weather.weeklyTemp;
    const stars=clamp(night*(1-clouds*.87)*(1-storm*.76));
    state.hour=hour;state.sunrise=solar.sunrise;state.sunset=solar.sunset;
    state.light=mix.reduce((a,b)=>a[1]>b[1]?a:b)[0];
@@ -1287,6 +1300,21 @@
    ctx.globalAlpha=1;
    for(const [theme,amount] of mix){
      ctx.globalAlpha=amount;ctx.drawImage(skyCache[theme],t.x,t.y,t.width,t.height);
+   }
+   // Seasonal air colors accompany the diurnal sky without changing the
+   // fixed Milky Way coordinates. Weather still controls visibility.
+   const air={spring:[204,152,177],summer:[109,161,181],
+     autumn:[200,145,126],winter:[142,165,189]};
+   for(const [season,weight] of seasonal){
+     if(weight<.01)continue;
+     const rgb=air[season],g=ctx.createLinearGradient(
+       t.x,t.y+t.height*.20,t.x,t.y+t.height*.51);
+     g.addColorStop(0,'rgba('+rgb.join(',')+',0)');
+     g.addColorStop(.65,'rgba('+rgb.join(',')+','+
+       (night>.9?.075:.13)+')');
+     g.addColorStop(1,'rgba('+rgb.join(',')+',0)');
+     ctx.globalAlpha=weight*(1-storm*.40);
+     ctx.fillStyle=g;ctx.fillRect(t.x,t.y+t.height*.20,t.width,t.height*.32);
    }
    ctx.globalAlpha=stars;
    ctx.drawImage(skyCache.stars,t.x,t.y,t.width,t.height);
