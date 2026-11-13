@@ -2171,6 +2171,57 @@
    ctx.restore();
  }
 
+
+ // Responsive micro-branches attached to the existing procedural side
+ // canopy. The larger trees and the shared world never move: only their
+ // outer leaf tips respond to slow gusts. Deliberately sparse and matte.
+ const mobileBranchlets=(()=>{
+   const out=[],r=rng(2026111307);
+   for(let side=0;side<2;side++)
+     for(let i=0;i<29;i++)
+       out.push({
+         side,x:.022+r()*.142,y:.105+r()*.49,
+         len:2.5+r()*4.8,phase:r()*TAU,
+         rate:.78+r()*.40,twist:(r()-.5)*.85,
+         alpha:.14+r()*.16
+       });
+   return out;
+ })();
+ function livingBranchTips(ctx,now,wind,night,sun){
+   const w=window.innerWidth,h=window.innerHeight;
+   const portrait=w<=650&&h>w*1.26;
+   state.mobileTipCount=portrait?mobileBranchlets.length:0;
+   if(!portrait)return;
+   const gust=clamp(wind/26,.13,1.6),
+     sway=reducedCinematicMotion?0:Math.sin(now*.00019)*1.5,
+     size=clamp(w/390,.80,1.35);
+   ctx.save();ctx.beginPath();ctx.rect(0,0,w,h);ctx.clip();
+   ctx.lineCap='round';
+   for(const leaf of mobileBranchlets){
+     const direction=leaf.side===0?1:-1,
+       x=leaf.side===0?w*leaf.x:w*(1-leaf.x),
+       y=h*leaf.y,base=leaf.len*size,
+       wave=reducedCinematicMotion?0:
+         (Math.sin(now*.00051*leaf.rate+leaf.phase)*2.35+sway)*gust*size;
+     const tipX=x+direction*(base*.72)+wave,
+       tipY=y-base*(.65+.2*Math.sin(leaf.phase));
+     ctx.globalAlpha=leaf.alpha*(.60+.17*sun+.12*night);
+     ctx.beginPath();ctx.moveTo(x,y);
+     ctx.quadraticCurveTo(x+wave*.18,y-base*.78,tipX,tipY);
+     ctx.strokeStyle=night>.5?'#72908b':'#99ad8c';
+     ctx.lineWidth=.42*size;ctx.stroke();
+     const along=direction*(base*.88),lift=base*.58;
+     ctx.beginPath();ctx.moveTo(tipX,tipY);
+     ctx.quadraticCurveTo(tipX+along*.56,tipY-lift*.88,
+       tipX+along,tipY-lift*.26);
+     ctx.quadraticCurveTo(tipX+along*.53,tipY+lift*.29,tipX,tipY);
+     ctx.closePath();
+     ctx.fillStyle=night>.5?'#a0b4ab':'#b0b98d';
+     ctx.fill();
+   }
+   ctx.restore();
+ }
+
  function draw(ctx,t,now,opts={}){
    ensure();if(failed||!state.ready)return false;
    const realNow=Date.now(),hour=timeOverride===null?seoulTime(realNow):timeOverride,
@@ -2432,6 +2483,7 @@
    seasonalWind(ctx,now,t,seasonal,weather.wind,night);
    // Mobile-only art-directed framing; the panorama and multiplayer coordinates are intact.
    paintPortraitCanopy(ctx,relative,night,sun);
+   livingBranchTips(ctx,now,weather.wind,night,sun);
    // Fireflies are most active in warm summer nights, very scarce in winter.
    const fireflySeason=seasonal.reduce((v,[name,weight])=>
      v+weight*(name==='summer'?1:name==='spring'?.68:
