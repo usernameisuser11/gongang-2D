@@ -1640,6 +1640,7 @@
    fetchError:null,moonVisible:false,sunrise:6.5,sunset:18.0,
    edgeTrees:params.get('edgeTrees')==='canopy'?'canopy':'open',
    mobileFraming:'desktop',mobileScenicFrame:null,
+   portraitFarLift:0,portraitMidLift:0,
    artMode:'reference',atmospherePasses:0,
    forestArtMode:'baseline',canopyThemes:0,
    treeTexture:params.get('treeTexture')==='needles'?'needles':'painterly',
@@ -2235,6 +2236,8 @@
        skyWidth:Math.round(skyT.width),groundBottom:Math.round(t.y+t.height)
      };
    }else state.mobileScenicFrame=null;
+   state.portraitFarLift=portrait?Math.min(vh*.090,76):0;
+   state.portraitMidLift=portrait?Math.min(vh*.038,32):0;
    const scaleX=t.width/W,scaleY=t.height/H;
    ctx.save();ctx.beginPath();
    if(portrait)ctx.rect(0,0,vw,vh);
@@ -2305,6 +2308,11 @@
      const parallax=[0,2.2,5.3,9.2,14.0][i]*relative,
        drift=i===3?Math.sin(now*.00008)*.6:0;
      const x=t.x-(parallax+drift)*scaleX;
+     // Raise only distant silhouettes on portrait displays. This makes the
+     // middle distance legible without moving the clearing, bench, avatars,
+     // or the actual camera / shared-world collision coordinates.
+     const layerY=t.y-(portrait?
+       i===1?Math.min(vh*.090,76):i===2?Math.min(vh*.038,32):0:0);
      if(i===layers.length-1){
        ctx.filter='brightness('+(1+mountainDaylight*.34).toFixed(3)+
          ') saturate('+(1+mountainDaylight*.13).toFixed(3)+')';
@@ -2348,7 +2356,7 @@
          ]);
        }
        ctx.drawImage(i===1&&winterSnow?skyCache.winterMountain:layers[i],
-         x,t.y,t.width,t.height);
+         x,layerY,t.width,t.height);
        if(i===2||i===3){
          // Seasonal vegetation occupies the appropriate existing parallax
          // depth. Smoothly blend both neighboring seasons for ~4 weeks.
@@ -2357,7 +2365,7 @@
            // The moon does not illuminate green foliage like midday sunlight.
            ctx.globalAlpha=weight*(cinematicMode?(.92-night*.58):1);
            ctx.drawImage(cachedSeasonLayer(name,i),
-             x,t.y,t.width,t.height);
+             x,layerY,t.width,t.height);
          }
          ctx.globalAlpha=1;
        }
