@@ -1639,7 +1639,8 @@
    windKmh:6,rain:0,snow:0,weather:'clear',weatherSource:'fallback',
    fetchError:null,moonVisible:false,sunrise:6.5,sunset:18.0,
    edgeTrees:params.get('edgeTrees')==='canopy'?'canopy':'open',
-   mobileFraming:'desktop',
+   mobileFraming:'desktop',mobileScenicFrame:null,
+   portraitFarLift:0,portraitMidLift:0,
    artMode:'reference',atmospherePasses:0,
    forestArtMode:'baseline',canopyThemes:0,
    treeTexture:params.get('treeTexture')==='needles'?'needles':'painterly',
@@ -2103,18 +2104,18 @@
    c.clip();
    for(const [theme,weight] of mix){
      if(weight<.004)continue;
-     c.globalAlpha=weight*(.83+.1*night+.045*sun);
+     c.globalAlpha=weight*(portrait?.72:.83+.1*night+.045*sun);
      const atlas=forestAtlases[theme];
      if(portrait){
        // Mobile has a deliberately separate cinematic crop, in viewport
        // coordinates. It MUST NOT inherit the off-screen laptop world X.
        const w=window.innerWidth,h=window.innerHeight;
-       const width=w*.405,height=h*.79,
-         move=relative*w*.023+movement*w;
+       const width=w*.305,height=h*.70,
+         move=relative*w*.018+movement*w;
        c.drawImage(atlas,0,0,350,690,
-         -w*.080-move,-h*.036,width,height);
+         -w*.055-move,h*.037,width,height);
        c.drawImage(atlas,350,0,350,690,
-         w-width+w*.068-move*.78,-h*.005,width*.97,height*.91);
+         w-width+w*.047-move*.78,h*.064,width*.98,height*.93);
      }else{
        const drift=relative*t.width*.0055+movement*t.width;
        c.drawImage(atlas,0,0,350,690,
@@ -2134,7 +2135,7 @@
  function paintPortraitCanopy(ctx,relative,night,sun){
    const viewW=window.innerWidth,viewH=window.innerHeight;
    const portrait=viewW<=650&&viewH>viewW*1.26;
-   state.mobileFraming=portrait?'portrait-canopy-v1':'desktop';
+   state.mobileFraming=portrait?'portrait-scenic-camera-v2':'desktop';
    if(!portrait||cinematicMode)return;
    if(!portraitCanopy){
      const surface=document.createElement('canvas');
@@ -2147,8 +2148,8 @@
    // Only paint the outside margins. The center valley and player world
    // remain unmodified. Small parallax shifts preserve the near-tree depth.
    const shift=clamp(relative,-1,1)*Math.min(11,viewW*.029);
-   const top=viewH*.045,treeH=viewH*.79,treeW=viewW*.36;
-   const strength=.73+.12*night+.09*sun;
+   const top=viewH*.07,treeH=viewH*.68,treeW=viewW*.295;
+   const strength=.65+.11*night+.07*sun;
    ctx.save();ctx.beginPath();ctx.rect(0,0,viewW,viewH);ctx.clip();
    ctx.globalAlpha=strength;
    ctx.drawImage(portraitCanopy,0,90,192,720,
@@ -2211,12 +2212,41 @@
    // Moon deliberately hidden: no fixed decorative crescent at sunset.
    state.moonVisible=false;
    if(Date.now()-lastWeatherFetch>15*60*1000)fetchWeather();
-   const relative=clamp((opts.scroll||0),-1,1),
-     scaleX=t.width/W,scaleY=t.height/H;
-   ctx.save();ctx.beginPath();ctx.rect(t.x,t.y,t.width,t.height);ctx.clip();
+   const relative=clamp((opts.scroll||0),-1,1);
+   const vw=window.innerWidth,vh=window.innerHeight;
+   const portrait=vw<=650&&vh>vw*1.26&&!opts.personal;
+   let skyT=t;
+   if(portrait){
+     // Separate perspective distances for the sky and ground. Each layer
+     // keeps its original 1672:941 aspect ratio; nothing is stretched or
+     // tiled, and the multiplayer camera / avatar coordinates stay intact.
+     const groundScale=Math.max(vw/W*2.75,vh/H*.64);
+     const groundW=W*groundScale,groundH=H*groundScale;
+     const skyScale=Math.max(vw/W,vh/H);
+     const pan=relative*Math.min(vw*.10,(groundW-vw)*.15);
+     const skyPan=relative*vw*.012;
+     t={x:(vw-groundW)*.5-pan,y:vh-groundH,
+       width:groundW,height:groundH};
+     skyT={x:(vw-W*skyScale)*.5-skyPan,y:0,
+       width:W*skyScale,height:H*skyScale};
+     state.mobileScenicFrame={
+       mode:'portrait-uniform-v2',viewport:[vw,vh],
+       worldAspect:Number((groundW/groundH).toFixed(5)),
+       scenicWidth:Math.round(groundW),scenicHeight:Math.round(groundH),
+       skyWidth:Math.round(skyT.width),groundBottom:Math.round(t.y+t.height)
+     };
+   }else state.mobileScenicFrame=null;
+   state.portraitFarLift=portrait?Math.min(vh*.090,76):0;
+   state.portraitMidLift=portrait?Math.min(vh*.038,32):0;
+   const scaleX=t.width/W,scaleY=t.height/H;
+   ctx.save();ctx.beginPath();
+   if(portrait)ctx.rect(0,0,vw,vh);
+   else ctx.rect(t.x,t.y,t.width,t.height);
+   ctx.clip();
    ctx.globalAlpha=1;
    for(const [theme,amount] of mix){
-     ctx.globalAlpha=amount;ctx.drawImage(skyCache[theme],t.x,t.y,t.width,t.height);
+     ctx.globalAlpha=amount;
+     ctx.drawImage(skyCache[theme],skyT.x,skyT.y,skyT.width,skyT.height);
    }
    // Seasonal air colors accompany the diurnal sky without changing the
    // fixed Milky Way coordinates. Weather still controls visibility.
@@ -2225,22 +2255,24 @@
    for(const [season,weight] of seasonal){
      if(weight<.01)continue;
      const rgb=air[season],g=ctx.createLinearGradient(
-       t.x,t.y+t.height*.20,t.x,t.y+t.height*.51);
+       skyT.x,skyT.y+skyT.height*.20,
+       skyT.x,skyT.y+skyT.height*.51);
      g.addColorStop(0,'rgba('+rgb.join(',')+',0)');
      g.addColorStop(.65,'rgba('+rgb.join(',')+','+
        (night>.9?.075:.13)+')');
      g.addColorStop(1,'rgba('+rgb.join(',')+',0)');
      ctx.globalAlpha=weight*(1-storm*.40);
-     ctx.fillStyle=g;ctx.fillRect(t.x,t.y+t.height*.20,t.width,t.height*.32);
+     ctx.fillStyle=g;
+     ctx.fillRect(skyT.x,skyT.y+skyT.height*.20,skyT.width,skyT.height*.32);
    }
    // The drifting daytime sun only affects diffuse atmospheric light,
    // not the approved landscape or sky particle positions.
    if(sun>.01){
      const progress=clamp((hour-solar.sunrise)/
        Math.max(1,solar.sunset-solar.sunrise));
-     const sunX=t.x+t.width*(.15+.70*progress),
-       sunY=t.y+t.height*(.19-.125*Math.sin(progress*Math.PI)),
-       radius=t.width*.36;
+     const sunX=skyT.x+skyT.width*(.15+.70*progress),
+       sunY=skyT.y+skyT.height*(.19-.125*Math.sin(progress*Math.PI)),
+       radius=skyT.width*.36;
      ctx.save();ctx.globalAlpha=sun*(1-clouds*.40)*(1-storm*.64);
      ctx.globalCompositeOperation='screen';
      const halo=ctx.createRadialGradient(sunX,sunY,0,sunX,sunY,radius);
@@ -2248,26 +2280,27 @@
      halo.addColorStop(.16,'rgba(251,244,207,.13)');
      halo.addColorStop(.50,'rgba(237,242,226,.047)');
      halo.addColorStop(1,'rgba(235,240,228,0)');
-     ctx.fillStyle=halo;ctx.fillRect(t.x,t.y,t.width,t.height*.78);
+     ctx.fillStyle=halo;
+     ctx.fillRect(skyT.x,skyT.y,skyT.width,skyT.height*.78);
      ctx.restore();
    }
    ctx.globalAlpha=stars;
-   ctx.drawImage(skyCache.stars,t.x,t.y,t.width,t.height);
+   ctx.drawImage(skyCache.stars,skyT.x,skyT.y,skyT.width,skyT.height);
    for(const [theme,amount] of mix){
      ctx.globalAlpha=amount*clamp(.20+clouds*.96+storm*.40);
      const highCloudDrift=(now*.0014*clamp(weather.wind/16,.25,2.5))%
-       Math.max(1,t.width*.008);
-     ctx.drawImage(cloudCache[theme],t.x-highCloudDrift,
-       t.y,t.width+highCloudDrift,t.height);
+       Math.max(1,skyT.width*.008);
+     ctx.drawImage(cloudCache[theme],skyT.x-highCloudDrift,
+       skyT.y,skyT.width+highCloudDrift,skyT.height);
    }
    if(storm>.08){
      // Muted, overcast air changes the sky illumination, not mountain geometry.
      ctx.globalAlpha=storm*.21;
      ctx.fillStyle=weather.snow>weather.rain?'#d8e0eb':'#64778c';
-     ctx.fillRect(t.x,t.y,t.width,t.height*.74);
+     ctx.fillRect(skyT.x,skyT.y,skyT.width,skyT.height*.74);
    }
    ctx.globalAlpha=1;
-   if(cinematicMode)cinematicAirLight(ctx,t,now,hour,solar,night,sun,clouds,storm);
+   if(cinematicMode)cinematicAirLight(ctx,portrait?skyT:t,now,hour,solar,night,sun,clouds,storm);
    // Daylight should illuminate the same mountains and grasses, not leave
    // the entire afternoon scene looking like a night-only stage set.
    const mountainDaylight=clamp(sun*(1-storm*.38),0,1);
@@ -2275,6 +2308,11 @@
      const parallax=[0,2.2,5.3,9.2,14.0][i]*relative,
        drift=i===3?Math.sin(now*.00008)*.6:0;
      const x=t.x-(parallax+drift)*scaleX;
+     // Raise only distant silhouettes on portrait displays. This makes the
+     // middle distance legible without moving the clearing, bench, avatars,
+     // or the actual camera / shared-world collision coordinates.
+     const layerY=t.y-(portrait?
+       i===1?Math.min(vh*.090,76):i===2?Math.min(vh*.038,32):0:0);
      if(i===layers.length-1){
        ctx.filter='brightness('+(1+mountainDaylight*.34).toFixed(3)+
          ') saturate('+(1+mountainDaylight*.13).toFixed(3)+')';
@@ -2318,7 +2356,7 @@
          ]);
        }
        ctx.drawImage(i===1&&winterSnow?skyCache.winterMountain:layers[i],
-         x,t.y,t.width,t.height);
+         x,layerY,t.width,t.height);
        if(i===2||i===3){
          // Seasonal vegetation occupies the appropriate existing parallax
          // depth. Smoothly blend both neighboring seasons for ~4 weeks.
@@ -2327,7 +2365,7 @@
            // The moon does not illuminate green foliage like midday sunlight.
            ctx.globalAlpha=weight*(cinematicMode?(.92-night*.58):1);
            ctx.drawImage(cachedSeasonLayer(name,i),
-             x,t.y,t.width,t.height);
+             x,layerY,t.width,t.height);
          }
          ctx.globalAlpha=1;
        }
@@ -2383,8 +2421,10 @@
    ctx.globalAlpha=1;
    if(stars>.02&&window.StellarGrains?.animate){
      ctx.save();ctx.globalAlpha=stars;
-     ctx.beginPath();ctx.rect(t.x,t.y,t.width,t.height*.348);ctx.clip();
-     ctx.translate(t.x,t.y);ctx.scale(scaleX,scaleY);
+     ctx.beginPath();
+     ctx.rect(skyT.x,skyT.y,skyT.width,skyT.height*(portrait?.53:.348));ctx.clip();
+     ctx.translate(skyT.x,skyT.y);
+     ctx.scale(skyT.width/W,skyT.height/H);
      window.StellarGrains.animate(ctx,now);
      ctx.restore();
    }
@@ -2407,7 +2447,7 @@
      ctx.beginPath();ctx.arc(x,y,Math.max(.35,1.15*scaleX),0,TAU);ctx.fill();
    }
    ctx.restore();
-   weatherParticles(ctx,now,t);
+   weatherParticles(ctx,now,skyT);
    ctx.restore();
    state.frames++;return true;
  }
