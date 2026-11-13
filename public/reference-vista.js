@@ -2324,7 +2324,8 @@
          // depth. Smoothly blend both neighboring seasons for ~4 weeks.
          for(const [name,weight] of seasonal){
            if(weight<=.001)continue;
-           ctx.globalAlpha=weight;
+           // The moon does not illuminate green foliage like midday sunlight.
+           ctx.globalAlpha=weight*(cinematicMode?(.92-night*.58):1);
            ctx.drawImage(cachedSeasonLayer(name,i),
              x,t.y,t.width,t.height);
          }
@@ -2332,6 +2333,30 @@
        }
      }
      ctx.filter='none';
+     // Light scatters inside the valley *between* distinct forest planes.
+     // Sunlit amber at dawn/dusk, a quieter blue bounce on clear nights.
+     if(cinematicMode&&(i===2||i===3)){
+       const dawn=clamp(1-Math.abs(hour-solar.sunrise)/2,0,1),
+         dusk=clamp(1-Math.abs(hour-solar.sunset)/2.3,0,1),
+         warm=Math.max(dawn,dusk)*(1-clouds*.64)*(1-storm*.68),
+         cool=night*(1-clouds*.38)*(1-storm*.45);
+       if(warm>.02||cool>.12){
+         const cx=t.x+t.width*.50,
+           cy=t.y+t.height*(i===2?.516:.592),
+           rx=t.width*(i===2?.31:.35),
+           ry=t.height*(i===2?.18:.23);
+         ctx.save();ctx.globalCompositeOperation='screen';
+         ctx.translate(cx,cy);ctx.scale(1,ry/rx);
+         const glow=ctx.createRadialGradient(0,0,0,0,0,rx),
+           a=warm*(i===2?.19:.10),b=cool*(i===2?.068:.038);
+         glow.addColorStop(0,'rgba(255,205,155,'+(a+b*.27).toFixed(4)+')');
+         glow.addColorStop(.37,'rgba(232,182,184,'+(a*.32+b*.13).toFixed(4)+')');
+         glow.addColorStop(.74,'rgba(148,186,216,'+(b*.30).toFixed(4)+')');
+         glow.addColorStop(1,'rgba(148,186,216,0)');
+         ctx.fillStyle=glow;ctx.fillRect(-rx,-rx,rx*2,rx*2);
+         ctx.restore();
+       }
+     }
      // These animated veils are composited BETWEEN actual terrain layers.
      if(cinematicMode&&i<layers.length-1)
        depthFog(ctx,t,i,relative,now,night,clouds,storm,weather.wind);
