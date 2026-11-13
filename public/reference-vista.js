@@ -1311,8 +1311,8 @@
    c.fillStyle=day?
      lgrad(c,left,top,right,y+h*.14,[[0,'#80938b'],[.20,'#687e73'],
        [.42,'#516b63'],[.67,'#344c4a'],[1,'#243a3e']]):
-     lgrad(c,left,top,right,y+h*.14,[[0,'#a2aaa2'],[.20,'#7f9390'],
-       [.42,'#5c7272'],[.67,'#344c54'],[1,'#1d313b']]);
+     lgrad(c,left,top,right,y+h*.14,[[0,'#7d918e'],[.20,'#5f7877'],
+       [.42,'#435e62'],[.67,'#2b434d'],[1,'#172c39']]);
    c.fill();
    c.save();rockOutline(c,x,y,w,h,seed);c.clip();
    // Wide, broken mineral strata curl around the visible upper shoulder.
