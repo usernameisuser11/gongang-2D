@@ -1917,6 +1917,76 @@
 
  // ORGANIC FOREST STAGE / procedural living foliage, not an imported picture.
  // Inspired by layered forest light, NOT traced/copied reference artwork.
+ // Far rock flanks for the portrait cinematic composition. Their
+ // eroded outlines are composed once in a compact transparent canvas,
+ // then laid BEHIND the existing midground forest, with no new image assets.
+ // In a narrow phone crop the original broad valley loses its side peaks;
+ // these distant shoulders restore their silhouette without moving players.
+ const mobileRockSheets={width:0,height:0,night:null,day:null};
+ function buildMobileRockSheet(w,h,day){
+   const sheet=document.createElement('canvas');
+   sheet.width=Math.ceil(w);sheet.height=Math.ceil(h*.65);
+   const g=sheet.getContext('2d',{alpha:true});
+   for(let side=0;side<2;side++){
+     const random=rng(51823+side*9177),flip=side===0?1:-1,
+       origin=side===0?0:w,crest=[];
+     const yAt=u=>h*(.353+.178*Math.pow(u,.84)+side*.018)+
+       h*(.010*Math.sin(u*17.2+side*2.7)+
+         .0065*Math.sin(u*41.1+side*1.9))*(1-u*.65);
+     for(let j=0;j<=52;j++){
+       const u=j/52,xx=origin+flip*w*.61*u,
+         yy=yAt(u)+(random()-.5)*h*.0034;
+       crest.push([xx,yy]);
+     }
+     g.save();g.beginPath();g.moveTo(...crest[0]);
+     for(let j=1;j<crest.length;j++)g.lineTo(...crest[j]);
+     g.lineTo(origin+flip*w*.68,h*.68);
+     g.lineTo(origin,h*.68);g.closePath();
+     const rock=g.createLinearGradient(0,h*.33,0,h*.67);
+     if(day){
+       rock.addColorStop(0,'rgba(112,112,117,.64)');
+       rock.addColorStop(.40,'rgba(86,93,95,.57)');
+       rock.addColorStop(1,'rgba(53,83,78,0)');
+     }else{
+       rock.addColorStop(0,'rgba(75,81,100,.70)');
+       rock.addColorStop(.40,'rgba(49,60,78,.58)');
+       rock.addColorStop(1,'rgba(33,57,68,0)');
+     }
+     g.fillStyle=rock;g.fill();g.clip();
+     // Hand-drawn fractures run WITH the terrain, not tiled as triangles.
+     for(let k=0;k<108;k++){
+       const u=random()*.93,ox=origin+flip*w*.61*u,
+         oy=yAt(u)+h*(.010+random()*.19),
+         dx=flip*(7+random()*38)*(1-u*.68),
+         dy=(4+random()*23)*(random()>.57?1:-1);
+       g.beginPath();g.moveTo(ox,oy);
+       g.quadraticCurveTo(ox+dx*.3,oy+dy*.12,
+         ox+dx,oy+dy);
+       g.strokeStyle=day?
+         (k%5===0?'rgba(218,201,174,.085)':'rgba(24,44,45,.075)'):
+         (k%5===0?'rgba(174,186,202,.10)':'rgba(12,24,40,.12)');
+       g.lineWidth=.45+random()*1.15;g.stroke();
+     }
+     g.restore();
+   }
+   return sheet;
+ }
+ function paintMobileRockShoulders(c,w,h,sun,storm){
+   if(mobileRockSheets.width!==w||mobileRockSheets.height!==h){
+     mobileRockSheets.width=w;mobileRockSheets.height=h;
+     mobileRockSheets.night=buildMobileRockSheet(w,h,false);
+     mobileRockSheets.day=buildMobileRockSheet(w,h,true);
+   }
+   c.save();c.globalAlpha=clamp(1-storm*.27,.63,1);
+   c.drawImage(mobileRockSheets.night,0,0);
+   if(sun>.01){
+     c.globalAlpha=clamp(sun*(1-storm*.23));
+     c.drawImage(mobileRockSheets.day,0,0);
+   }
+   c.restore();
+   state.mobileRockShoulders=2;
+ }
+
  // A single small 700x690 atlas per lighting theme contains two individually
  // seeded trees; it is generated only once and shared by both camera layouts.
  let forestAtlases=null;
@@ -2352,6 +2422,7 @@
    }
    ctx.globalAlpha=1;
    if(cinematicMode)cinematicAirLight(ctx,portrait?skyT:t,now,hour,solar,night,sun,clouds,storm);
+   state.mobileRockShoulders=0;
    // Daylight should illuminate the same mountains and grasses, not leave
    // the entire afternoon scene looking like a night-only stage set.
    const mountainDaylight=clamp(sun*(1-storm*.38),0,1);
@@ -2422,6 +2493,10 @@
        }
      }
      ctx.filter='none';
+     // Restore the lost V-shaped rocky horizon on portrait phones while
+     // retaining the original painted mountain and forest layers.
+     if(cinematicMode&&portrait&&i===1)
+       paintMobileRockShoulders(ctx,vw,vh,sun,storm);
      // Light scatters inside the valley *between* distinct forest planes.
      // Sunlit amber at dawn/dusk, a quieter blue bounce on clear nights.
      if(cinematicMode&&(i===2||i===3)){
