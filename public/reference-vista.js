@@ -1707,7 +1707,7 @@
  function paintPortraitCanopy(ctx,relative,night,sun){
    const viewW=window.innerWidth,viewH=window.innerHeight;
    const portrait=viewW<=650&&viewH>viewW*1.26;
-   state.mobileFraming=portrait?'portrait-canopy-v1':'desktop';
+   state.mobileFraming=portrait?'portrait-cinematic-v2':'desktop';
    if(!portrait)return;
    if(!portraitCanopy){
      const surface=document.createElement('canvas');
@@ -1720,15 +1720,17 @@
    // Only paint the outside margins. The center valley and player world
    // remain unmodified. Small parallax shifts preserve the near-tree depth.
    const shift=clamp(relative,-1,1)*Math.min(11,viewW*.029);
-   const top=viewH*.045,treeH=viewH*.79,treeW=viewW*.36;
+   // The earlier 36%-wide side trees concealed the whole mobile valley.
+   const top=viewH*.085,treeH=viewH*.73;
+   const leftW=viewW*.275,rightW=viewW*.245;
    const strength=.73+.12*night+.09*sun;
    ctx.save();ctx.beginPath();ctx.rect(0,0,viewW,viewH);ctx.clip();
    ctx.globalAlpha=strength;
    ctx.drawImage(portraitCanopy,0,90,192,720,
-     -viewW*.048-shift*.7,top,treeW,treeH);
+     -viewW*.09-shift*.7,top,leftW,treeH);
    ctx.globalAlpha=strength*.87;
    ctx.drawImage(portraitCanopy,W-192,90,192,720,
-     viewW-treeW+viewW*.058-shift,top+viewH*.045,treeW,treeH*.91);
+     viewW-rightW+viewW*.09-shift,top+viewH*.060,rightW,treeH*.91);
    // Low-contrast sky bounce: no neon rings or flat triangular silhouettes.
    ctx.globalCompositeOperation='screen';
    ctx.globalAlpha=(.12+.13*sun)*(1-.48*night);
@@ -1780,12 +1782,30 @@
    // Moon deliberately hidden: no fixed decorative crescent at sunset.
    state.moonVisible=false;
    if(Date.now()-lastWeatherFetch>15*60*1000)fetchWeather();
-   const relative=clamp((opts.scroll||0),-1,1),
-     scaleX=t.width/W,scaleY=t.height/H;
+   const relative=clamp((opts.scroll||0),-1,1);
+   const portrait=window.innerWidth<=650&&window.innerHeight>window.innerWidth*1.26;
+   // Reframe sky and far ridges only. Preserve the original world transform
+   // for grass, visitors, seats, photos and all shared coordinates.
+   const depthView=(factor)=>{
+     if(!portrait||opts.personal)return t;
+     const width=t.width*factor;
+     const x=clamp(t.x+(t.width-width)*.5,window.innerWidth-width,0);
+     return {x,y:t.y,width,height:t.height};
+   };
+   const skyView=depthView(.71);
+   const mountainViews=[null,depthView(.74),depthView(.83),depthView(.91),t];
+   const scaleX=skyView.width/W,scaleY=skyView.height/H;
+   state.mobileDepth=portrait&&!opts.personal?{
+     skyWidth:Math.round(skyView.width),
+     farWidth:Math.round(mountainViews[1].width),
+     midWidth:Math.round(mountainViews[2].width),
+     nearWidth:Math.round(mountainViews[3].width),
+     foregroundWidth:Math.round(t.width)
+   }:null;
    ctx.save();ctx.beginPath();ctx.rect(t.x,t.y,t.width,t.height);ctx.clip();
    ctx.globalAlpha=1;
    for(const [theme,amount] of mix){
-     ctx.globalAlpha=amount;ctx.drawImage(skyCache[theme],t.x,t.y,t.width,t.height);
+     ctx.globalAlpha=amount;ctx.drawImage(skyCache[theme],skyView.x,skyView.y,skyView.width,skyView.height);
    }
    // Seasonal air colors accompany the diurnal sky without changing the
    // fixed Milky Way coordinates. Weather still controls visibility.
@@ -1807,9 +1827,9 @@
    if(sun>.01){
      const progress=clamp((hour-solar.sunrise)/
        Math.max(1,solar.sunset-solar.sunrise));
-     const sunX=t.x+t.width*(.15+.70*progress),
-       sunY=t.y+t.height*(.19-.125*Math.sin(progress*Math.PI)),
-       radius=t.width*.36;
+     const sunX=skyView.x+skyView.width*(.15+.70*progress),
+       sunY=skyView.y+skyView.height*(.19-.125*Math.sin(progress*Math.PI)),
+       radius=skyView.width*.36;
      ctx.save();ctx.globalAlpha=sun*(1-clouds*.40)*(1-storm*.64);
      ctx.globalCompositeOperation='screen';
      const halo=ctx.createRadialGradient(sunX,sunY,0,sunX,sunY,radius);
@@ -1821,13 +1841,13 @@
      ctx.restore();
    }
    ctx.globalAlpha=stars;
-   ctx.drawImage(skyCache.stars,t.x,t.y,t.width,t.height);
+   ctx.drawImage(skyCache.stars,skyView.x,skyView.y,skyView.width,skyView.height);
    for(const [theme,amount] of mix){
      ctx.globalAlpha=amount*clamp(.20+clouds*.96+storm*.40);
      const highCloudDrift=(now*.0014*clamp(weather.wind/16,.25,2.5))%
-       Math.max(1,t.width*.008);
-     ctx.drawImage(cloudCache[theme],t.x-highCloudDrift,
-       t.y,t.width+highCloudDrift,t.height);
+       Math.max(1,skyView.width*.008);
+     ctx.drawImage(cloudCache[theme],skyView.x-highCloudDrift,
+       skyView.y,skyView.width+highCloudDrift,skyView.height);
    }
    if(storm>.08){
      // Muted, overcast air changes the sky illumination, not mountain geometry.
@@ -1842,16 +1862,17 @@
    for(let i=1;i<layers.length;i++){
      const parallax=[0,2.2,5.3,9.2,14.0][i]*relative,
        drift=i===3?Math.sin(now*.00008)*.6:0;
-     const x=t.x-(parallax+drift)*scaleX;
+     const plane=mountainViews[i];
+     const x=plane.x-(parallax+drift)*plane.width/W;
      if(i===layers.length-1){
        ctx.filter='brightness('+(1+mountainDaylight*.34).toFixed(3)+
          ') saturate('+(1+mountainDaylight*.13).toFixed(3)+')';
-       ctx.drawImage(layers[i],x,t.y,t.width,t.height);
+       ctx.drawImage(layers[i],x,plane.y,plane.width,plane.height);
        // The same grounded lantern is unlit during bright daylight.
        // A prepainted alternate keeps every flower/stone in place.
        if(sun>.02){
          ctx.globalAlpha=clamp(sun);
-         ctx.drawImage(skyCache.foregroundDay,x,t.y,t.width,t.height);
+         ctx.drawImage(skyCache.foregroundDay,x,plane.y,plane.width,plane.height);
          ctx.globalAlpha=1;
        }
        // Spring/summer/autumn foliage and winter-bare grass are
@@ -1859,12 +1880,12 @@
        for(const [name,weight] of seasonal){
          if(weight<=.001)continue;
          ctx.globalAlpha=weight;
-         ctx.drawImage(cachedSeasonLayer(name,4),x,t.y,t.width,t.height);
+         ctx.drawImage(cachedSeasonLayer(name,4),x,plane.y,plane.width,plane.height);
        }
        if(winterSnow){
          if(!skyCache.snowGround)skyCache.snowGround=paintLayer([winterGround]);
          ctx.globalAlpha=clamp(winterWeight);
-         ctx.drawImage(skyCache.snowGround,x,t.y,t.width,t.height);
+         ctx.drawImage(skyCache.snowGround,x,plane.y,plane.width,plane.height);
        }
        ctx.globalAlpha=1;
      }else{
@@ -1883,7 +1904,7 @@
          ]);
        }
        ctx.drawImage(i===1&&winterSnow?skyCache.winterMountain:layers[i],
-         x,t.y,t.width,t.height);
+         x,plane.y,plane.width,plane.height);
        if(i===2||i===3){
          // Seasonal vegetation occupies the appropriate existing parallax
          // depth. Smoothly blend both neighboring seasons for ~4 weeks.
@@ -1891,7 +1912,7 @@
            if(weight<=.001)continue;
            ctx.globalAlpha=weight;
            ctx.drawImage(cachedSeasonLayer(name,i),
-             x,t.y,t.width,t.height);
+             x,plane.y,plane.width,plane.height);
          }
          ctx.globalAlpha=1;
        }
@@ -1919,7 +1940,7 @@
    if(stars>.02&&window.StellarGrains?.animate){
      ctx.save();ctx.globalAlpha=stars;
      ctx.beginPath();ctx.rect(t.x,t.y,t.width,t.height*.348);ctx.clip();
-     ctx.translate(t.x,t.y);ctx.scale(scaleX,scaleY);
+     ctx.translate(skyView.x,skyView.y);ctx.scale(scaleX,scaleY);
      window.StellarGrains.animate(ctx,now);
      ctx.restore();
    }
