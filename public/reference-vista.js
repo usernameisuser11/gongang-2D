@@ -657,6 +657,69 @@
    }
    c.restore();
  }
+
+ // Branch-grown broadleaf groves replace uniform midground fir triangles in
+ // the cinematic view only. Fully procedural paths, cached at build time.
+ function cinematicGroveTree(c,x,y,h,seed,depth,weight=.85,season=null){
+   const r=rng(seed+depth*1703),lean=(r()-.5)*h*.28;
+   const colors=season==='spring'?
+     ['#2c4939','#50784d','#82a268','#b4c08a','#d3c6a1']:
+     season==='summer'?
+     ['#233f34','#355f3d','#548048','#81a45b','#bed08b']:
+     season==='autumn'?
+     ['#362b32','#5c3e3b','#8d5943','#b88052','#deb180']:
+     depth>=5?
+     ['#13292d','#1b3536','#2b4946','#49665f','#6f8276']:
+     ['#263b3d','#34494a','#486166','#688184','#96a4a0'];
+   const crownY=-h*(.66+r()*.08),crownX=lean*.63;
+   const spread=h*(.28+r()*.085),rx=spread*(1.15+r()*.24);
+   const ry=h*(.235+r()*.075);
+   c.save();c.translate(x,y);c.globalAlpha*=weight;c.lineCap='round';
+   c.beginPath();c.moveTo(0,1);
+   c.bezierCurveTo(-lean*.2,-h*.28,lean*.9,-h*.51,lean,-h*.89);
+   c.strokeStyle=colors[0];c.lineWidth=Math.max(.55,h*.023);c.stroke();
+   const branches=6+Math.floor(r()*3);
+   for(let j=0;j<branches;j++){
+     const t=.35+(j+r()*.42)/branches*.49,
+       px=lean*t*.8,py=-h*t,side=j%2?1:-1,
+       ex=px+side*h*(.18+r()*.17),
+       ey=py-h*(.05+r()*.15);
+     c.beginPath();c.moveTo(px,py);
+     c.bezierCurveTo(px+(ex-px)*.24,py-h*.03,
+       ex-(ex-px)*.31,ey+h*.036,ex,ey);
+     c.strokeStyle=colors[0];c.lineWidth=Math.max(.35,h*.009*(1-t));c.stroke();
+   }
+   const patches=seed%5===0?5:8;
+   for(let p=0;p<patches;p++){
+     const angle=p/patches*TAU+(r()-.5)*.9,
+       bx=crownX+Math.cos(angle)*rx*.48+(r()-.5)*rx*.18,
+       by=crownY+Math.sin(angle)*ry*.48+(r()-.5)*ry*.19,
+       wr=rx*(.49+r()*.23),hr=ry*(.44+r()*.25),
+       phase=r()*TAU;
+     c.beginPath();
+     for(let k=0;k<=23;k++){
+       const a=k/23*TAU,
+         irregular=.80+.14*Math.sin(5*a+phase)+.09*Math.sin(9*a+phase*.61)+.045*r(),
+         lx=bx+Math.cos(a)*wr*irregular,
+         ly=by+Math.sin(a)*hr*irregular;
+       if(k===0)c.moveTo(lx,ly);else c.lineTo(lx,ly);
+     }
+     c.closePath();c.fillStyle=colors[(p+seed)%3];
+     c.globalAlpha=weight*(.46+r()*.20);c.fill();
+   }
+   const n=h<39?26:h<65?45:70;
+   for(let j=0;j<n;j++){
+     const a=r()*TAU,dist=Math.sqrt(r())*.94,
+       px=crownX+Math.cos(a)*rx*dist,
+       py=crownY+Math.sin(a)*ry*dist,
+       len=h*(.019+r()*.043);
+     c.globalAlpha=weight*(.24+r()*.41);
+     forestLeaf(c,px,py,len,a+(r()-.5)*1.4,
+       colors[1+Math.floor(r()*4)],.54+r()*.65);
+   }
+   c.restore();
+ }
+
  function fir(c,x,y,height,seed,col,weight=1){
    if(params.get('treeTexture')==='needles')
      return needleFir(c,x,y,height,seed,col,weight);
@@ -695,11 +758,18 @@
   }
   // Back-to-front ordering keeps overlapping crowns readable at all depths.
   trees.sort((a,b)=>a.y-b.y);
-  for(const t of trees)fir(c,t.x,t.y,t.h,t.seed,t.col,near?.92:.83);
+  for(const t of trees){
+    if(cinematicMode&&t.seed%13!==0)
+      cinematicGroveTree(c,t.x,t.y,t.h,t.seed,index,near?.88:.78);
+    else fir(c,t.x,t.y,t.h,t.seed,t.col,near?.92:.83);
+  }
   for(let k=0;k<14;k++){
    const x=65+r()*(W-130),y=ridgeHeight(m.pts,x,m.seed)+11+r()*23;
    if(index===3&&x>650&&x<1000)continue;
-   fir(c,x,y,38+r()*72,m.seed*26017+k,tones[index],.74+r()*.16);
+   const h=38+r()*72,seed=m.seed*26017+k;
+   if(cinematicMode&&k%4!==0)
+     cinematicGroveTree(c,x,y,h,seed,index,.75+r()*.16);
+   else fir(c,x,y,h,seed,tones[index],.74+r()*.16);
   }
   forestMist(c,index);
  }
@@ -1350,8 +1420,10 @@
          const root=ridgeHeight(m.pts,x,m.seed)+15+r()*(near?62:44);
          const height=(near?28:19)+(near?79:55)*Math.pow(r(),.73);
          const opacity=near?.72:.57;
-         seasonalBranchTree(c,x,root,height,40000+index*911+k*37,
-           season,opacity);
+         const seed=40000+index*911+k*37;
+         if(cinematicMode&&season!=='winter'&&k%9!==0)
+           cinematicGroveTree(c,x,root,height,seed,index,opacity,season);
+         else seasonalBranchTree(c,x,root,height,seed,season,opacity);
        }
      }
      return;
