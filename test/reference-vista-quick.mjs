@@ -108,6 +108,8 @@ try{
     await compact.click();
     assert.equal(await page.locator('#skyDock').evaluate(el=>el.classList.contains('expanded')),false);
 
+    assert.ok(state.mobileTipCount>=50,
+      'Mobile trees must animate independent leaf tips without a separate photo asset');
     assert.equal(state.mobileFraming,'portrait-scenic-camera-v2',
       'Mobile should use the new portrait composition');
     assert.equal(state.mobileScenicFrame?.mode,'portrait-uniform-v2');
