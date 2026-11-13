@@ -106,8 +106,15 @@ try{
     await compact.click();
     assert.equal(await page.locator('#skyDock').evaluate(el=>el.classList.contains('expanded')),false);
 
-    assert.equal(state.mobileFraming,'portrait-canopy-v1',
-      'Portrait decorative trees must frame the original world');
+    assert.equal(state.mobileFraming,'portrait-scenic-camera-v2',
+      'Mobile should use the new portrait composition');
+    assert.equal(state.mobileScenicFrame?.mode,'portrait-uniform-v2');
+    assert.ok(Math.abs(state.mobileScenicFrame.worldAspect-1672/941)<.0001,
+      'Mountain/forest/foreground layers must keep the source aspect ratio');
+    assert.equal(state.mobileScenicFrame.groundBottom,cfg.height,
+      'Mobile meadow must fill the screen without a black bottom band');
+    assert.ok(state.mobileScenicFrame.scenicWidth>cfg.width*2.6,
+      'Landscape camera must reveal more valley than the old tight crop');
     const camera=await page.evaluate(()=>window.GongangViewCamera.sample());
     assert.ok(camera.zoom<.9,'Phone camera must start with the full sky visible');
   }else assert.equal(state.mobileFraming,'desktop','Laptop visuals must remain unchanged');
