@@ -11,7 +11,10 @@ const MAPS = ['river', 'stargaze'];
 // Server-side guard: old tabs and custom clients must never put avatars on roofs.
 const WALK_LIMITS = {river:{minX:115,maxX:3080,minZ:1540,maxZ:1750},stargaze:{minX:115,maxX:3080,minZ:1500,maxZ:1740}};
 const rooms = Object.fromEntries(MAPS.map(m => [m, new Map()]));
-const port = Number(process.env.PORT || 3000);
+// Local preview runners pass --port; Railway supplies PORT through the env.
+const portFlag = process.argv.indexOf('--port');
+const previewPort = portFlag >= 0 ? process.argv[portFlag + 1] : undefined;
+const port = Number(process.env.PORT || previewPort || 3000);
 const dbURL = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
 const dbKey = String(process.env.SUPABASE_ANON_KEY || '');
 const html = await readFile(join(ROOT, 'public', 'index.html'));
