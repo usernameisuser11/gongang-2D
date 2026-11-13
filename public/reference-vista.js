@@ -657,6 +657,69 @@
    }
    c.restore();
  }
+
+ // Branch-grown broadleaf groves replace uniform midground fir triangles in
+ // the cinematic view only. Fully procedural paths, cached at build time.
+ function cinematicGroveTree(c,x,y,h,seed,depth,weight=.85,season=null){
+   const r=rng(seed+depth*1703),lean=(r()-.5)*h*.28;
+   const colors=season==='spring'?
+     ['#2c4939','#50784d','#82a268','#b4c08a','#d3c6a1']:
+     season==='summer'?
+     ['#233f34','#355f3d','#548048','#81a45b','#bed08b']:
+     season==='autumn'?
+     ['#362b32','#5c3e3b','#8d5943','#b88052','#deb180']:
+     depth>=5?
+     ['#13292d','#1b3536','#2b4946','#49665f','#6f8276']:
+     ['#263b3d','#34494a','#486166','#688184','#96a4a0'];
+   const crownY=-h*(.66+r()*.08),crownX=lean*.63;
+   const spread=h*(.28+r()*.085),rx=spread*(1.15+r()*.24);
+   const ry=h*(.235+r()*.075);
+   c.save();c.translate(x,y);c.globalAlpha*=weight;c.lineCap='round';
+   c.beginPath();c.moveTo(0,1);
+   c.bezierCurveTo(-lean*.2,-h*.28,lean*.9,-h*.51,lean,-h*.89);
+   c.strokeStyle=colors[0];c.lineWidth=Math.max(.55,h*.023);c.stroke();
+   const branches=6+Math.floor(r()*3);
+   for(let j=0;j<branches;j++){
+     const t=.35+(j+r()*.42)/branches*.49,
+       px=lean*t*.8,py=-h*t,side=j%2?1:-1,
+       ex=px+side*h*(.18+r()*.17),
+       ey=py-h*(.05+r()*.15);
+     c.beginPath();c.moveTo(px,py);
+     c.bezierCurveTo(px+(ex-px)*.24,py-h*.03,
+       ex-(ex-px)*.31,ey+h*.036,ex,ey);
+     c.strokeStyle=colors[0];c.lineWidth=Math.max(.35,h*.009*(1-t));c.stroke();
+   }
+   const patches=seed%5===0?5:8;
+   for(let p=0;p<patches;p++){
+     const angle=p/patches*TAU+(r()-.5)*.9,
+       bx=crownX+Math.cos(angle)*rx*.48+(r()-.5)*rx*.18,
+       by=crownY+Math.sin(angle)*ry*.48+(r()-.5)*ry*.19,
+       wr=rx*(.49+r()*.23),hr=ry*(.44+r()*.25),
+       phase=r()*TAU;
+     c.beginPath();
+     for(let k=0;k<=23;k++){
+       const a=k/23*TAU,
+         irregular=.80+.14*Math.sin(5*a+phase)+.09*Math.sin(9*a+phase*.61)+.045*r(),
+         lx=bx+Math.cos(a)*wr*irregular,
+         ly=by+Math.sin(a)*hr*irregular;
+       if(k===0)c.moveTo(lx,ly);else c.lineTo(lx,ly);
+     }
+     c.closePath();c.fillStyle=colors[(p+seed)%3];
+     c.globalAlpha=weight*(.46+r()*.20);c.fill();
+   }
+   const n=h<39?26:h<65?45:70;
+   for(let j=0;j<n;j++){
+     const a=r()*TAU,dist=Math.sqrt(r())*.94,
+       px=crownX+Math.cos(a)*rx*dist,
+       py=crownY+Math.sin(a)*ry*dist,
+       len=h*(.019+r()*.043);
+     c.globalAlpha=weight*(.24+r()*.41);
+     forestLeaf(c,px,py,len,a+(r()-.5)*1.4,
+       colors[1+Math.floor(r()*4)],.54+r()*.65);
+   }
+   c.restore();
+ }
+
  function fir(c,x,y,height,seed,col,weight=1){
    if(params.get('treeTexture')==='needles')
      return needleFir(c,x,y,height,seed,col,weight);
@@ -695,11 +758,18 @@
   }
   // Back-to-front ordering keeps overlapping crowns readable at all depths.
   trees.sort((a,b)=>a.y-b.y);
-  for(const t of trees)fir(c,t.x,t.y,t.h,t.seed,t.col,near?.92:.83);
+  for(const t of trees){
+    if(cinematicMode&&t.seed%13!==0)
+      cinematicGroveTree(c,t.x,t.y,t.h,t.seed,index,near?.88:.78);
+    else fir(c,t.x,t.y,t.h,t.seed,t.col,near?.92:.83);
+  }
   for(let k=0;k<14;k++){
    const x=65+r()*(W-130),y=ridgeHeight(m.pts,x,m.seed)+11+r()*23;
    if(index===3&&x>650&&x<1000)continue;
-   fir(c,x,y,38+r()*72,m.seed*26017+k,tones[index],.74+r()*.16);
+   const h=38+r()*72,seed=m.seed*26017+k;
+   if(cinematicMode&&k%4!==0)
+     cinematicGroveTree(c,x,y,h,seed,index,.75+r()*.16);
+   else fir(c,x,y,h,seed,tones[index],.74+r()*.16);
   }
   forestMist(c,index);
  }
@@ -1350,8 +1420,10 @@
          const root=ridgeHeight(m.pts,x,m.seed)+15+r()*(near?62:44);
          const height=(near?28:19)+(near?79:55)*Math.pow(r(),.73);
          const opacity=near?.72:.57;
-         seasonalBranchTree(c,x,root,height,40000+index*911+k*37,
-           season,opacity);
+         const seed=40000+index*911+k*37;
+         if(cinematicMode&&season!=='winter'&&k%9!==0)
+           cinematicGroveTree(c,x,root,height,seed,index,opacity,season);
+         else seasonalBranchTree(c,x,root,height,seed,season,opacity);
        }
      }
      return;
@@ -1567,8 +1639,10 @@
    windKmh:6,rain:0,snow:0,weather:'clear',weatherSource:'fallback',
    fetchError:null,moonVisible:false,sunrise:6.5,sunset:18.0,
    edgeTrees:params.get('edgeTrees')==='canopy'?'canopy':'open',
-   mobileFraming:'desktop',
+   mobileFraming:'desktop',mobileScenicFrame:null,
+   portraitFarLift:0,portraitMidLift:0,
    artMode:'reference',atmospherePasses:0,
+   forestArtMode:'baseline',canopyThemes:0,
    treeTexture:params.get('treeTexture')==='needles'?'needles':'painterly',
    winterSnow:false,snowyRocks:false,snowSeason:'nonwinter',season:'autumn',
    seasonBlend:[['autumn',1]],temperatureC:null,weeklyTemperatureC:null
@@ -1777,6 +1851,16 @@
    g.addColorStop(.44,'rgba(185,204,225,'+(.029*warmth+.022*cool).toFixed(3)+')');
    g.addColorStop(1,'rgba(165,196,220,0)');
    c.fillStyle=g;c.fillRect(t.x,t.y+t.height*.14,t.width,t.height*.53);
+   // A low amber scattering field warms the backlit far valley at sunset;
+   // no pasted disc, fixed moon or opaque orange overlay.
+   if(warmth>.01){
+     const gy=t.y+t.height*.444,gr=t.width*.37;
+     const amber=c.createRadialGradient(cx,gy,0,cx,gy,gr);
+     amber.addColorStop(0,'rgba(255,200,125,'+(warmth*.27).toFixed(3)+')');
+     amber.addColorStop(.43,'rgba(247,159,122,'+(warmth*.089).toFixed(3)+')');
+     amber.addColorStop(1,'rgba(241,142,126,0)');
+     c.fillStyle=amber;c.fillRect(t.x,t.y+t.height*.23,t.width,t.height*.53);
+   }
    // Low-angle light crosses the valley as curved, feathered ribbons:
    // no triangles, hard rays, repeated stripes or neon bloom.
    const shaft=warmth*(1-clouds*.69)*(1-storm*.53);
@@ -1830,14 +1914,314 @@
    c.restore();
  }
 
+
+ // ORGANIC FOREST STAGE / procedural living foliage, not an imported picture.
+ // Inspired by layered forest light, NOT traced/copied reference artwork.
+ // Far rock flanks for the portrait cinematic composition. Their
+ // eroded outlines are composed once in a compact transparent canvas,
+ // then laid BEHIND the existing midground forest, with no new image assets.
+ // In a narrow phone crop the original broad valley loses its side peaks;
+ // these distant shoulders restore their silhouette without moving players.
+ const mobileRockSheets={width:0,height:0,night:null,day:null};
+ function buildMobileRockSheet(w,h,day){
+   const sheet=document.createElement('canvas');
+   sheet.width=Math.ceil(w);sheet.height=Math.ceil(h*.70);
+   const g=sheet.getContext('2d',{alpha:true});
+   for(let side=0;side<2;side++){
+     const random=rng(51823+side*9177),flip=side===0?1:-1,
+       origin=side===0?0:w,crest=[];
+     const yAt=u=>h*(.353+.178*Math.pow(u,.84)+side*.018)+
+       h*(.010*Math.sin(u*17.2+side*2.7)+
+         .0065*Math.sin(u*41.1+side*1.9))*(1-u*.65);
+     for(let j=0;j<=52;j++){
+       const u=j/52,xx=origin+flip*w*.61*u,
+         yy=yAt(u)+(random()-.5)*h*.0034;
+       crest.push([xx,yy]);
+     }
+     g.save();g.beginPath();g.moveTo(...crest[0]);
+     for(let j=1;j<crest.length;j++)g.lineTo(...crest[j]);
+     g.lineTo(origin+flip*w*.68,h*.68);
+     g.lineTo(origin,h*.68);g.closePath();
+     const rock=g.createLinearGradient(0,h*.33,0,h*.67);
+     if(day){
+       rock.addColorStop(0,'rgba(112,112,117,.48)');
+       rock.addColorStop(.40,'rgba(86,93,95,.38)');
+       rock.addColorStop(1,'rgba(53,83,78,0)');
+     }else{
+       rock.addColorStop(0,'rgba(75,81,100,.52)');
+       rock.addColorStop(.40,'rgba(49,60,78,.39)');
+       rock.addColorStop(1,'rgba(33,57,68,0)');
+     }
+     g.fillStyle=rock;g.fill();g.clip();
+     // Hand-drawn fractures run WITH the terrain, not tiled as triangles.
+     for(let k=0;k<42;k++){
+       const u=random()*.93,ox=origin+flip*w*.61*u,
+         oy=yAt(u)+h*(.010+random()*.19),
+         dx=flip*(4+random()*25)*(1-u*.68),
+         dy=(2+random()*11)*(random()>.57?1:-1);
+       g.beginPath();g.moveTo(ox,oy);
+       g.quadraticCurveTo(ox+dx*.3,oy+dy*.12,
+         ox+dx,oy+dy);
+       g.strokeStyle=day?
+         (k%5===0?'rgba(218,201,174,.052)':'rgba(24,44,45,.040)'):
+         (k%5===0?'rgba(174,186,202,.055)':'rgba(12,24,40,.065)');
+       g.lineWidth=.4+random()*.75;g.stroke();
+     }
+     // Broad, transparent mineral washes follow erosion channels; their
+     // varying curvature avoids a repeated polygon or wireframe pattern.
+     for(let wash=0;wash<16;wash++){
+       const u=.04+random()*.78,
+         x=origin+flip*w*.61*u,
+         y=yAt(u)+h*(.025+random()*.15),
+         span=flip*(16+random()*43)*(1-u*.63);
+       g.beginPath();g.moveTo(x,y);
+       g.bezierCurveTo(x+span*.29,y-5-random()*7,
+         x+span*.78,y+3+random()*12,
+         x+span,y+1+random()*9);
+       g.strokeStyle=day?'rgba(207,202,180,.027)':
+         'rgba(181,197,212,.033)';
+       g.lineWidth=1.5+random()*3.8;g.stroke();
+     }
+     g.restore();
+   }
+   return sheet;
+ }
+ function paintMobileRockShoulders(c,w,h,sun,storm){
+   if(mobileRockSheets.width!==w||mobileRockSheets.height!==h){
+     mobileRockSheets.width=w;mobileRockSheets.height=h;
+     mobileRockSheets.night=buildMobileRockSheet(w,h,false);
+     mobileRockSheets.day=buildMobileRockSheet(w,h,true);
+   }
+   c.save();c.globalAlpha=clamp(1-storm*.27,.63,1);
+   c.drawImage(mobileRockSheets.night,0,0);
+   if(sun>.01){
+     c.globalAlpha=clamp(sun*(1-storm*.23));
+     c.drawImage(mobileRockSheets.day,0,0);
+   }
+   c.restore();
+   state.mobileRockShoulders=2;
+ }
+
+ // A single small 700x690 atlas per lighting theme contains two individually
+ // seeded trees; it is generated only once and shared by both camera layouts.
+ let forestAtlases=null;
+ const forestPalette={
+   night:['#08151e','#10232e','#1a3037','#294346','#476360','#82928a'],
+   dawn:['#283329','#3b5532','#526e3c','#76964c','#a0b65b','#cbcd88'],
+   day:['#153326','#244c2e','#356739','#578444','#81a654','#b7c978'],
+   dusk:['#231d2b','#352937','#4c3740','#735048','#9c6353','#d3a073']
+ };
+ function forestLeaf(g,x,y,length,angle,tone,widthFactor=1){
+   const ux=Math.cos(angle),uy=Math.sin(angle),
+     px=-uy,py=ux,half=length*.235*widthFactor;
+   const tipX=x+ux*length,tipY=y+uy*length;
+   g.beginPath();g.moveTo(x,y);
+   g.bezierCurveTo(x+ux*length*.23+px*half,y+uy*length*.23+py*half,
+     tipX-ux*length*.30+px*half*.74,tipY-uy*length*.30+py*half*.74,
+     tipX,tipY);
+   g.bezierCurveTo(tipX-ux*length*.27-px*half*.91,
+     tipY-uy*length*.27-py*half*.91,
+     x+ux*length*.21-px*half*.72,y+uy*length*.21-py*half*.72,x,y);
+   g.fillStyle=tone;g.fill();
+ }
+ function buildForestAtlas(theme){
+   const tile=document.createElement('canvas');tile.width=700;tile.height=690;
+   const g=tile.getContext('2d',{alpha:true}),P=forestPalette[theme];
+   for(let side=0;side<2;side++){
+     const r=rng(44019+side*7079),ox=side*350;
+     g.save();g.translate(ox,0);
+     if(side===1){g.translate(350,0);g.scale(-1,1);}
+     // Root and crooked living wood are predominantly outside the shot.
+     // Branches bend inward towards their own asymmetrical foliage masses.
+     // Continuous, asymmetric shadow crown underneath the needle-scale
+     // foliage. The voids and fractal outline preserve a true botanical
+     // silhouette rather than disconnected cotton-ball clumps.
+     const baseEdge=g.createLinearGradient(0,100,265,430);
+     baseEdge.addColorStop(0,P[1]);baseEdge.addColorStop(.45,P[0]);
+     baseEdge.addColorStop(1,P[2]);
+     g.save();g.globalAlpha=.82;
+     g.beginPath();g.moveTo(-64,-35);g.lineTo(242,-35);
+     for(let y=-26;y<=573;y+=9){
+       const v=clamp(y/573,0,1),
+         edge=244*Math.pow(1-v,1.14)+
+           29*Math.sin(y*.037+side*.73)+
+           11*Math.sin(y*.131+side*2.1)+
+           6*(r()-.5);
+       g.lineTo(edge,y);
+     }
+     g.lineTo(-65,601);g.closePath();g.fillStyle=baseEdge;g.fill();
+     // Thin curved windows between boughs let the bright sky or distant
+     // mountains show through the canopy rather than forming a flat wall.
+     g.globalCompositeOperation='destination-out';
+     const openings=[[178,171,21],[124,256,16],[151,347,11],
+       [79,424,17],[190,65,11]];
+     for(const [hx,hy,size] of openings){
+       g.beginPath();g.moveTo(hx-size,hy);
+       g.bezierCurveTo(hx-size*.65,hy-size*.72,
+         hx+size*.26,hy-size*.60,hx+size,hy-size*.22);
+       g.bezierCurveTo(hx+size*.67,hy+size*.21,
+         hx-size*.12,hy+size*.30,hx-size,hy);
+       g.fill();
+     }
+     g.restore();
+     const wood=g.createLinearGradient(-30,180,135,590);
+     wood.addColorStop(0,P[1]);wood.addColorStop(.5,P[0]);wood.addColorStop(1,P[2]);
+     g.lineCap='round';g.lineJoin='round';
+     g.beginPath();g.moveTo(-50,715);
+     g.bezierCurveTo(27,535,-43,390,7,248);
+     g.bezierCurveTo(20,152,-32,90,-22,-42);
+     g.lineWidth=26;g.strokeStyle=wood;g.stroke();
+     const branches=[
+       [-16,416,43,345,112,290,188,211],
+       [-11,334,49,288,128,235,226,160],
+       [-11,264,71,213,151,161,274,114],
+       [-18,172,60,129,106,95,194,30],
+       [-25,477,25,419,99,392,177,334],
+       [-23,526,28,454,53,420,104,400]
+     ];
+     for(let k=0;k<branches.length;k++){
+       const p=branches[k],thick=8.5-k*.83;
+       g.beginPath();g.moveTo(p[0],p[1]);
+       g.bezierCurveTo(p[2],p[3],p[4],p[5],p[6],p[7]);
+       g.strokeStyle=P[k%2?1:0];g.lineWidth=Math.max(2.8,thick);g.stroke();
+       g.beginPath();g.moveTo(p[0]+1.6,p[1]-1.4);
+       g.bezierCurveTo(p[2]+1.5,p[3]-1.4,p[4]+1.2,p[5]-1.4,p[6],p[7]);
+       g.strokeStyle=P[3];g.globalAlpha=.15;g.lineWidth=Math.max(.7,thick*.19);
+       g.stroke();g.globalAlpha=1;
+     }
+     // Unbalanced canopy placement keeps open gaps: no scalloped oval stamp,
+     // no identical trees, no periodic triangular "pine" rhythm.
+     const crowns=[
+       [19,34,113,85],[108,28,100,73],[217,40,87,73],
+       [35,128,105,93],[150,133,105,88],[246,164,66,81],
+       [18,247,115,91],[107,246,113,91],[217,275,87,80],
+       [12,369,92,85],[103,368,91,79],[202,404,76,71],
+       [9,475,76,82],[72,509,69,62]
+     ];
+     for(let k=0;k<crowns.length;k++){
+       const [cx,cy,rx,ry]=crowns[k],
+         randomShift=(r()-.5)*16,baseShade=(k%5===0?0:1);
+
+       // Each branch carries overlapping, irregularly torn foliage cushions.
+       // Underpainting provides visual MASS; individual pointed leaves below
+       // keep the edge intricate rather than looking like plain circles.
+       // Small voids between cushions show distant sky and moving light.
+       for(let patch=0;patch<16;patch++){
+         const centerX=cx+(r()+r()-1)*rx*.72,
+           centerY=cy+(r()+r()-1)*ry*.64,
+           radius=(15+r()*21)*(patch%5===0?1.38:1),
+           squash=.53+r()*.32,
+           seedPhase=r()*Math.PI*2,segments=24,
+           tone=P[(patch%11===0?5:patch%5===0?4:patch%3===0?3:2)];
+         g.beginPath();
+         for(let point=0;point<=segments;point++){
+           const angle=point/segments*Math.PI*2,
+             detail=.77+.15*Math.sin(5*angle+seedPhase)+
+               .12*Math.sin(9*angle+seedPhase*.43)+
+               .17*r(),
+             px=centerX+Math.cos(angle)*radius*detail,
+             py=centerY+Math.sin(angle)*radius*detail*squash;
+           if(point===0)g.moveTo(px,py);else g.lineTo(px,py);
+         }
+         g.closePath();
+         g.fillStyle=tone;g.globalAlpha=.54+r()*.25;g.fill();
+       }
+       g.globalAlpha=1;
+       // Build leaf sprays from thin curved shoots. Interior leaflets are
+       // smaller and darker; outer foliage contains individual irregular tips.
+       for(let spray=0;spray<11;spray++){
+         const bx=cx+(r()+r()-1)*rx*.48,
+           by=cy+randomShift+(r()+r()-1)*ry*.42,
+           theta=r()*Math.PI*2,
+           length=16+r()*36,
+           ex=bx+Math.cos(theta)*length,
+           ey=by+Math.sin(theta)*length;
+         g.beginPath();g.moveTo(bx,by);
+         g.quadraticCurveTo(bx+(ex-bx)*.48-4,by+(ey-by)*.56-5,ex,ey);
+         g.strokeStyle=P[baseShade+1];g.globalAlpha=.32+r()*.26;
+         g.lineWidth=.5+r()*.8;g.stroke();g.globalAlpha=1;
+         const leaves=17+Math.floor(r()*11);
+         for(let j=0;j<leaves;j++){
+           const t=(j+r()*.7)/leaves,
+             px=bx+(ex-bx)*t+(r()-.5)*rx*.26,
+             py=by+(ey-by)*t+(r()-.5)*ry*.22,
+             outward=Math.atan2(py-cy,px-cx)+(r()-.5)*2.1,
+             leafLen=3.3+r()*8.2,
+             highlight=(px+py*.23)>cx+cy*.21,
+             index=Math.min(5,Math.max(0,
+               Math.floor((highlight?2:1)+r()*3.3+(t>.68?.5:0))));
+           g.globalAlpha=.40+r()*.55;
+           forestLeaf(g,px,py,leafLen,outward,P[index],.65+r()*.7);
+         }
+       }
+       // Irregular foliage fragments at the silhouette break obvious
+       // "bubble clumps"; no uniform ellipses or block-like stamp edges.
+       for(let j=0;j<34;j++){
+         const angle=r()*Math.PI*2,rad=(.67+r()*.49),
+           px=cx+Math.cos(angle)*rx*rad,
+           py=cy+Math.sin(angle)*ry*rad,
+           direction=angle+(r()-.5)*.9,
+           tone=P[2+Math.floor(r()*4)];
+         g.globalAlpha=.25+r()*.56;
+         forestLeaf(g,px,py,5+r()*12,direction,tone,.43+r()*.73);
+       }
+       g.globalAlpha=1;
+     }
+     // Warm translucent top leaf glints are light-dependent later, because
+     // each theme receives a different palette via the existing sky mixer.
+     g.restore();
+   }
+   return tile;
+ }
+ function livingForestFrame(c,t,mix,relative,night,sun,now){
+   if(!forestAtlases){
+     forestAtlases={
+       night:buildForestAtlas('night'),dawn:buildForestAtlas('dawn'),
+       day:buildForestAtlas('day'),dusk:buildForestAtlas('dusk')
+     };
+   }
+   const portrait=window.innerWidth<=650&&window.innerHeight>window.innerWidth*1.26;
+   const movement=reducedCinematicMotion?0:Math.sin(now*.00018)*.0029;
+   c.save();
+   c.beginPath();
+   if(portrait)c.rect(0,0,window.innerWidth,window.innerHeight);
+   else c.rect(t.x,t.y,t.width,t.height);
+   c.clip();
+   for(const [theme,weight] of mix){
+     if(weight<.004)continue;
+     c.globalAlpha=weight*(portrait?.72:.83+.1*night+.045*sun);
+     const atlas=forestAtlases[theme];
+     if(portrait){
+       // Mobile has a deliberately separate cinematic crop, in viewport
+       // coordinates. It MUST NOT inherit the off-screen laptop world X.
+       const w=window.innerWidth,h=window.innerHeight;
+       const width=w*.305,height=h*.70,
+         move=relative*w*.018+movement*w;
+       c.drawImage(atlas,0,0,350,690,
+         -w*.055-move,h*.037,width,height);
+       c.drawImage(atlas,350,0,350,690,
+         w-width+w*.047-move*.78,h*.064,width*.98,height*.93);
+     }else{
+       const drift=relative*t.width*.0055+movement*t.width;
+       c.drawImage(atlas,0,0,350,690,
+         t.x-t.width*.034-drift,t.y+t.height*.015,t.width*.259,t.height*.80);
+       c.drawImage(atlas,350,0,350,690,
+         t.x+t.width*.795-drift*.7,t.y+t.height*.02,t.width*.255,t.height*.81);
+     }
+   }
+   c.restore();
+   state.forestArtMode='coded-organic-broadleaf';
+   state.canopyThemes=4;
+ }
+
  // Portrait layout reuses this scene's hand-drawn trees as a transparent
  // close-up frame. No bitmap/photo, new scenery or changed avatar positions.
  let portraitCanopy=null;
  function paintPortraitCanopy(ctx,relative,night,sun){
    const viewW=window.innerWidth,viewH=window.innerHeight;
    const portrait=viewW<=650&&viewH>viewW*1.26;
-   state.mobileFraming=portrait?'portrait-canopy-v1':'desktop';
-   if(!portrait)return;
+   state.mobileFraming=portrait?'portrait-scenic-camera-v2':'desktop';
+   if(!portrait||cinematicMode)return;
    if(!portraitCanopy){
      const surface=document.createElement('canvas');
      surface.width=W;surface.height=H;
@@ -1849,8 +2233,8 @@
    // Only paint the outside margins. The center valley and player world
    // remain unmodified. Small parallax shifts preserve the near-tree depth.
    const shift=clamp(relative,-1,1)*Math.min(11,viewW*.029);
-   const top=viewH*.045,treeH=viewH*.79,treeW=viewW*.36;
-   const strength=.73+.12*night+.09*sun;
+   const top=viewH*.07,treeH=viewH*.68,treeW=viewW*.295;
+   const strength=.65+.11*night+.07*sun;
    ctx.save();ctx.beginPath();ctx.rect(0,0,viewW,viewH);ctx.clip();
    ctx.globalAlpha=strength;
    ctx.drawImage(portraitCanopy,0,90,192,720,
@@ -1869,6 +2253,57 @@
    glow.addColorStop(0,'rgba(171,161,169,.26)');
    glow.addColorStop(1,'rgba(171,161,169,0)');
    ctx.fillStyle=glow;ctx.fillRect(viewW*.71,viewH*.15,viewW*.29,viewH*.57);
+   ctx.restore();
+ }
+
+
+ // Responsive micro-branches attached to the existing procedural side
+ // canopy. The larger trees and the shared world never move: only their
+ // outer leaf tips respond to slow gusts. Deliberately sparse and matte.
+ const mobileBranchlets=(()=>{
+   const out=[],r=rng(2026111307);
+   for(let side=0;side<2;side++)
+     for(let i=0;i<29;i++)
+       out.push({
+         side,x:.022+r()*.142,y:.105+r()*.49,
+         len:2.5+r()*4.8,phase:r()*TAU,
+         rate:.78+r()*.40,twist:(r()-.5)*.85,
+         alpha:.14+r()*.16
+       });
+   return out;
+ })();
+ function livingBranchTips(ctx,now,wind,night,sun){
+   const w=window.innerWidth,h=window.innerHeight;
+   const portrait=w<=650&&h>w*1.26;
+   state.mobileTipCount=portrait?mobileBranchlets.length:0;
+   if(!portrait)return;
+   const gust=clamp(wind/26,.13,1.6),
+     sway=reducedCinematicMotion?0:Math.sin(now*.00019)*1.5,
+     size=clamp(w/390,.80,1.35);
+   ctx.save();ctx.beginPath();ctx.rect(0,0,w,h);ctx.clip();
+   ctx.lineCap='round';
+   for(const leaf of mobileBranchlets){
+     const direction=leaf.side===0?1:-1,
+       x=leaf.side===0?w*leaf.x:w*(1-leaf.x),
+       y=h*leaf.y,base=leaf.len*size,
+       wave=reducedCinematicMotion?0:
+         (Math.sin(now*.00051*leaf.rate+leaf.phase)*2.35+sway)*gust*size;
+     const tipX=x+direction*(base*.72)+wave,
+       tipY=y-base*(.65+.2*Math.sin(leaf.phase));
+     ctx.globalAlpha=leaf.alpha*(.60+.17*sun+.12*night);
+     ctx.beginPath();ctx.moveTo(x,y);
+     ctx.quadraticCurveTo(x+wave*.18,y-base*.78,tipX,tipY);
+     ctx.strokeStyle=night>.5?'#72908b':'#99ad8c';
+     ctx.lineWidth=.42*size;ctx.stroke();
+     const along=direction*(base*.88),lift=base*.58;
+     ctx.beginPath();ctx.moveTo(tipX,tipY);
+     ctx.quadraticCurveTo(tipX+along*.56,tipY-lift*.88,
+       tipX+along,tipY-lift*.26);
+     ctx.quadraticCurveTo(tipX+along*.53,tipY+lift*.29,tipX,tipY);
+     ctx.closePath();
+     ctx.fillStyle=night>.5?'#a0b4ab':'#b0b98d';
+     ctx.fill();
+   }
    ctx.restore();
  }
 
@@ -1907,16 +2342,47 @@
    state.windKmh=weather.wind;state.cloudCover=clouds;
    state.artMode=cinematicMode?'cinematic-v1':'reference';
    state.atmospherePasses=0;
+   state.forestArtMode=cinematicMode?'pending':'baseline';
+   state.canopyThemes=0;
    state.rain=weather.rain;state.snow=weather.snow;
    // Moon deliberately hidden: no fixed decorative crescent at sunset.
    state.moonVisible=false;
    if(Date.now()-lastWeatherFetch>15*60*1000)fetchWeather();
-   const relative=clamp((opts.scroll||0),-1,1),
-     scaleX=t.width/W,scaleY=t.height/H;
-   ctx.save();ctx.beginPath();ctx.rect(t.x,t.y,t.width,t.height);ctx.clip();
+   const relative=clamp((opts.scroll||0),-1,1);
+   const vw=window.innerWidth,vh=window.innerHeight;
+   const portrait=vw<=650&&vh>vw*1.26&&!opts.personal;
+   let skyT=t;
+   if(portrait){
+     // Separate perspective distances for the sky and ground. Each layer
+     // keeps its original 1672:941 aspect ratio; nothing is stretched or
+     // tiled, and the multiplayer camera / avatar coordinates stay intact.
+     const groundScale=Math.max(vw/W*2.75,vh/H*.64);
+     const groundW=W*groundScale,groundH=H*groundScale;
+     const skyScale=Math.max(vw/W,vh/H);
+     const pan=relative*Math.min(vw*.10,(groundW-vw)*.15);
+     const skyPan=relative*vw*.012;
+     t={x:(vw-groundW)*.5-pan,y:vh-groundH,
+       width:groundW,height:groundH};
+     skyT={x:(vw-W*skyScale)*.5-skyPan,y:0,
+       width:W*skyScale,height:H*skyScale};
+     state.mobileScenicFrame={
+       mode:'portrait-uniform-v2',viewport:[vw,vh],
+       worldAspect:Number((groundW/groundH).toFixed(5)),
+       scenicWidth:Math.round(groundW),scenicHeight:Math.round(groundH),
+       skyWidth:Math.round(skyT.width),groundBottom:Math.round(t.y+t.height)
+     };
+   }else state.mobileScenicFrame=null;
+   state.portraitFarLift=portrait?Math.min(vh*.090,76):0;
+   state.portraitMidLift=portrait?Math.min(vh*.038,32):0;
+   const scaleX=t.width/W,scaleY=t.height/H;
+   ctx.save();ctx.beginPath();
+   if(portrait)ctx.rect(0,0,vw,vh);
+   else ctx.rect(t.x,t.y,t.width,t.height);
+   ctx.clip();
    ctx.globalAlpha=1;
    for(const [theme,amount] of mix){
-     ctx.globalAlpha=amount;ctx.drawImage(skyCache[theme],t.x,t.y,t.width,t.height);
+     ctx.globalAlpha=amount;
+     ctx.drawImage(skyCache[theme],skyT.x,skyT.y,skyT.width,skyT.height);
    }
    // Seasonal air colors accompany the diurnal sky without changing the
    // fixed Milky Way coordinates. Weather still controls visibility.
@@ -1925,22 +2391,24 @@
    for(const [season,weight] of seasonal){
      if(weight<.01)continue;
      const rgb=air[season],g=ctx.createLinearGradient(
-       t.x,t.y+t.height*.20,t.x,t.y+t.height*.51);
+       skyT.x,skyT.y+skyT.height*.20,
+       skyT.x,skyT.y+skyT.height*.51);
      g.addColorStop(0,'rgba('+rgb.join(',')+',0)');
      g.addColorStop(.65,'rgba('+rgb.join(',')+','+
        (night>.9?.075:.13)+')');
      g.addColorStop(1,'rgba('+rgb.join(',')+',0)');
      ctx.globalAlpha=weight*(1-storm*.40);
-     ctx.fillStyle=g;ctx.fillRect(t.x,t.y+t.height*.20,t.width,t.height*.32);
+     ctx.fillStyle=g;
+     ctx.fillRect(skyT.x,skyT.y+skyT.height*.20,skyT.width,skyT.height*.32);
    }
    // The drifting daytime sun only affects diffuse atmospheric light,
    // not the approved landscape or sky particle positions.
    if(sun>.01){
      const progress=clamp((hour-solar.sunrise)/
        Math.max(1,solar.sunset-solar.sunrise));
-     const sunX=t.x+t.width*(.15+.70*progress),
-       sunY=t.y+t.height*(.19-.125*Math.sin(progress*Math.PI)),
-       radius=t.width*.36;
+     const sunX=skyT.x+skyT.width*(.15+.70*progress),
+       sunY=skyT.y+skyT.height*(.19-.125*Math.sin(progress*Math.PI)),
+       radius=skyT.width*.36;
      ctx.save();ctx.globalAlpha=sun*(1-clouds*.40)*(1-storm*.64);
      ctx.globalCompositeOperation='screen';
      const halo=ctx.createRadialGradient(sunX,sunY,0,sunX,sunY,radius);
@@ -1948,26 +2416,28 @@
      halo.addColorStop(.16,'rgba(251,244,207,.13)');
      halo.addColorStop(.50,'rgba(237,242,226,.047)');
      halo.addColorStop(1,'rgba(235,240,228,0)');
-     ctx.fillStyle=halo;ctx.fillRect(t.x,t.y,t.width,t.height*.78);
+     ctx.fillStyle=halo;
+     ctx.fillRect(skyT.x,skyT.y,skyT.width,skyT.height*.78);
      ctx.restore();
    }
    ctx.globalAlpha=stars;
-   ctx.drawImage(skyCache.stars,t.x,t.y,t.width,t.height);
+   ctx.drawImage(skyCache.stars,skyT.x,skyT.y,skyT.width,skyT.height);
    for(const [theme,amount] of mix){
      ctx.globalAlpha=amount*clamp(.20+clouds*.96+storm*.40);
      const highCloudDrift=(now*.0014*clamp(weather.wind/16,.25,2.5))%
-       Math.max(1,t.width*.008);
-     ctx.drawImage(cloudCache[theme],t.x-highCloudDrift,
-       t.y,t.width+highCloudDrift,t.height);
+       Math.max(1,skyT.width*.008);
+     ctx.drawImage(cloudCache[theme],skyT.x-highCloudDrift,
+       skyT.y,skyT.width+highCloudDrift,skyT.height);
    }
    if(storm>.08){
      // Muted, overcast air changes the sky illumination, not mountain geometry.
      ctx.globalAlpha=storm*.21;
      ctx.fillStyle=weather.snow>weather.rain?'#d8e0eb':'#64778c';
-     ctx.fillRect(t.x,t.y,t.width,t.height*.74);
+     ctx.fillRect(skyT.x,skyT.y,skyT.width,skyT.height*.74);
    }
    ctx.globalAlpha=1;
-   if(cinematicMode)cinematicAirLight(ctx,t,now,hour,solar,night,sun,clouds,storm);
+   if(cinematicMode)cinematicAirLight(ctx,portrait?skyT:t,now,hour,solar,night,sun,clouds,storm);
+   state.mobileRockShoulders=0;
    // Daylight should illuminate the same mountains and grasses, not leave
    // the entire afternoon scene looking like a night-only stage set.
    const mountainDaylight=clamp(sun*(1-storm*.38),0,1);
@@ -1975,6 +2445,11 @@
      const parallax=[0,2.2,5.3,9.2,14.0][i]*relative,
        drift=i===3?Math.sin(now*.00008)*.6:0;
      const x=t.x-(parallax+drift)*scaleX;
+     // Raise only distant silhouettes on portrait displays. This makes the
+     // middle distance legible without moving the clearing, bench, avatars,
+     // or the actual camera / shared-world collision coordinates.
+     const layerY=t.y-(portrait?
+       i===1?Math.min(vh*.090,76):i===2?Math.min(vh*.038,32):0:0);
      if(i===layers.length-1){
        ctx.filter='brightness('+(1+mountainDaylight*.34).toFixed(3)+
          ') saturate('+(1+mountainDaylight*.13).toFixed(3)+')';
@@ -2001,9 +2476,12 @@
        ctx.globalAlpha=1;
      }else{
        const hue=i===1?-24:i===2?-14:-6;
-       ctx.filter='brightness('+(1+mountainDaylight*(i===1?.20:.17)).toFixed(3)+
-         ') hue-rotate('+(hue*mountainDaylight).toFixed(2)+'deg)' +
-         ' saturate('+(1+mountainDaylight*.04).toFixed(3)+')';
+       // Sunlit foliage needs reflected green-gold rather than the blue
+       // monochrome wash suitable only for night. Mountain shape is fixed.
+       const lushDay=cinematicMode&&i>1?sun*.23:0;
+       ctx.filter='brightness('+(1+mountainDaylight*(i===1?.20:.17)+lushDay).toFixed(3)+
+         ') hue-rotate('+(hue*mountainDaylight-lushDay*55).toFixed(2)+'deg)' +
+         ' saturate('+(1+mountainDaylight*.04+lushDay*.85).toFixed(3)+')';
        // Winter variant is painted once on demand. Switching seasons
        // changes only mountain snow; trees, visitors and photos retain
        // their original world coordinates.
@@ -2015,25 +2493,55 @@
          ]);
        }
        ctx.drawImage(i===1&&winterSnow?skyCache.winterMountain:layers[i],
-         x,t.y,t.width,t.height);
+         x,layerY,t.width,t.height);
        if(i===2||i===3){
          // Seasonal vegetation occupies the appropriate existing parallax
          // depth. Smoothly blend both neighboring seasons for ~4 weeks.
          for(const [name,weight] of seasonal){
            if(weight<=.001)continue;
-           ctx.globalAlpha=weight;
+           // The moon does not illuminate green foliage like midday sunlight.
+           ctx.globalAlpha=weight*(cinematicMode?(.92-night*.58):1);
            ctx.drawImage(cachedSeasonLayer(name,i),
-             x,t.y,t.width,t.height);
+             x,layerY,t.width,t.height);
          }
          ctx.globalAlpha=1;
        }
      }
      ctx.filter='none';
+     // Restore the lost V-shaped rocky horizon on portrait phones while
+     // retaining the original painted mountain and forest layers.
+     if(cinematicMode&&portrait&&i===1)
+       paintMobileRockShoulders(ctx,vw,vh,sun,storm);
+     // Light scatters inside the valley *between* distinct forest planes.
+     // Sunlit amber at dawn/dusk, a quieter blue bounce on clear nights.
+     if(cinematicMode&&(i===2||i===3)){
+       const dawn=clamp(1-Math.abs(hour-solar.sunrise)/2,0,1),
+         dusk=clamp(1-Math.abs(hour-solar.sunset)/2.3,0,1),
+         warm=Math.max(dawn,dusk)*(1-clouds*.64)*(1-storm*.68),
+         cool=night*(1-clouds*.38)*(1-storm*.45);
+       if(warm>.02||cool>.12){
+         const cx=t.x+t.width*.50,
+           cy=t.y+t.height*(i===2?.516:.592),
+           rx=t.width*(i===2?.31:.35),
+           ry=t.height*(i===2?.18:.23);
+         ctx.save();ctx.globalCompositeOperation='screen';
+         ctx.translate(cx,cy);ctx.scale(1,ry/rx);
+         const glow=ctx.createRadialGradient(0,0,0,0,0,rx),
+           a=warm*(i===2?.19:.10),b=cool*(i===2?.068:.038);
+         glow.addColorStop(0,'rgba(255,205,155,'+(a+b*.27).toFixed(4)+')');
+         glow.addColorStop(.37,'rgba(232,182,184,'+(a*.32+b*.13).toFixed(4)+')');
+         glow.addColorStop(.74,'rgba(148,186,216,'+(b*.30).toFixed(4)+')');
+         glow.addColorStop(1,'rgba(148,186,216,0)');
+         ctx.fillStyle=glow;ctx.fillRect(-rx,-rx,rx*2,rx*2);
+         ctx.restore();
+       }
+     }
      // These animated veils are composited BETWEEN actual terrain layers.
      if(cinematicMode&&i<layers.length-1)
        depthFog(ctx,t,i,relative,now,night,clouds,storm,weather.wind);
    }
    if(cinematicMode)litFoliage(ctx,t,relative,night,sun);
+   if(cinematicMode)livingForestFrame(ctx,t,mix,relative,night,sun,now);
    // Very gentle sun-filled valley atmosphere: brightens distant slopes
    // without moving their drawn outlines or adding obvious geometric beams.
    if(sun>.01){
@@ -2054,8 +2562,10 @@
    ctx.globalAlpha=1;
    if(stars>.02&&window.StellarGrains?.animate){
      ctx.save();ctx.globalAlpha=stars;
-     ctx.beginPath();ctx.rect(t.x,t.y,t.width,t.height*.348);ctx.clip();
-     ctx.translate(t.x,t.y);ctx.scale(scaleX,scaleY);
+     ctx.beginPath();
+     ctx.rect(skyT.x,skyT.y,skyT.width,skyT.height*(portrait?.53:.348));ctx.clip();
+     ctx.translate(skyT.x,skyT.y);
+     ctx.scale(skyT.width/W,skyT.height/H);
      window.StellarGrains.animate(ctx,now);
      ctx.restore();
    }
@@ -2063,6 +2573,7 @@
    seasonalWind(ctx,now,t,seasonal,weather.wind,night);
    // Mobile-only art-directed framing; the panorama and multiplayer coordinates are intact.
    paintPortraitCanopy(ctx,relative,night,sun);
+   livingBranchTips(ctx,now,weather.wind,night,sun);
    // Fireflies are most active in warm summer nights, very scarce in winter.
    const fireflySeason=seasonal.reduce((v,[name,weight])=>
      v+weight*(name==='summer'?1:name==='spring'?.68:
@@ -2078,7 +2589,7 @@
      ctx.beginPath();ctx.arc(x,y,Math.max(.35,1.15*scaleX),0,TAU);ctx.fill();
    }
    ctx.restore();
-   weatherParticles(ctx,now,t);
+   weatherParticles(ctx,now,skyT);
    ctx.restore();
    state.frames++;return true;
  }

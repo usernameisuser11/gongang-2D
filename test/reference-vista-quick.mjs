@@ -30,7 +30,11 @@ try{
   {name:'reference-mobile-small',width:360,height:780,time:'23:20',weather:'clear',season:'summer',expectedLight:'night',expectedMobileFraming:true},
   {name:'cinematic-night-desktop',width:1440,height:900,time:'23:20',weather:'clear',season:'summer',expectedLight:'night',art:'cinematic',expectedCinematic:true},
   {name:'cinematic-night-mobile',width:390,height:844,time:'23:20',weather:'clear',season:'summer',expectedLight:'night',art:'cinematic',expectedMobileFraming:true,expectedCinematic:true},
+  {name:'cinematic-dusk-mobile',width:390,height:844,time:'17:15',weather:'clear',season:'autumn',art:'cinematic',expectedMobileFraming:true,expectedCinematic:true},
+  {name:'cinematic-landscape-phone',width:844,height:390,time:'23:20',weather:'clear',season:'summer',art:'cinematic',expectedCinematic:true},
   {name:'cinematic-dawn-desktop',width:1440,height:900,time:'06:55',weather:'clear',season:'spring',art:'cinematic',expectedCinematic:true},
+  {name:'cinematic-day-desktop',width:1440,height:900,time:'13:20',weather:'clear',season:'summer',expectedLight:'day',art:'cinematic',expectedCinematic:true},
+  {name:'cinematic-dusk-desktop',width:1440,height:900,time:'17:15',weather:'clear',season:'autumn',art:'cinematic',expectedCinematic:true},
   {name:'reference-winter-night',width:1440,height:900,time:'23:20',weather:'clear',season:'winter',expectedWinter:true,expectedSeason:'winter',expectedLight:'night',minStars:.6},
   {name:'reference-overcast-night',width:1440,height:900,time:'23:20',weather:'rain',season:'autumn',expectedWinter:false,expectedWeather:'rain',expectedLight:'night',minStars:.30},
   {name:'reference-edge-canopy',width:1440,height:900,time:'23:20',weather:'clear',season:'summer',edgeTrees:'canopy',expectedEdgeTrees:'canopy',expectedLight:'night',minStars:.6},
@@ -104,14 +108,31 @@ try{
     await compact.click();
     assert.equal(await page.locator('#skyDock').evaluate(el=>el.classList.contains('expanded')),false);
 
-    assert.equal(state.mobileFraming,'portrait-canopy-v1',
-      'Portrait decorative trees must frame the original world');
+    assert.ok(state.mobileTipCount>=50,
+      'Mobile trees must animate independent leaf tips without a separate photo asset');
+    assert.equal(state.mobileFraming,'portrait-scenic-camera-v2',
+      'Mobile should use the new portrait composition');
+    assert.equal(state.mobileScenicFrame?.mode,'portrait-uniform-v2');
+    assert.ok(Math.abs(state.mobileScenicFrame.worldAspect-1672/941)<.0001,
+      'Mountain/forest/foreground layers must keep the source aspect ratio');
+    assert.equal(state.mobileScenicFrame.groundBottom,cfg.height,
+      'Mobile meadow must fill the screen without a black bottom band');
+    assert.ok(state.portraitFarLift>state.portraitMidLift&&state.portraitMidLift>0,
+      'Phone horizon should gain more scenic depth while the clearing stays put');
+    assert.ok(state.mobileScenicFrame.scenicWidth>cfg.width*2.6,
+      'Landscape camera must reveal more valley than the old tight crop');
     const camera=await page.evaluate(()=>window.GongangViewCamera.sample());
     assert.ok(camera.zoom<.9,'Phone camera must start with the full sky visible');
   }else assert.equal(state.mobileFraming,'desktop','Laptop visuals must remain unchanged');
   if(cfg.expectedCinematic){
     assert.equal(state.artMode,'cinematic-v1','Cinematic mode must be explicitly selected');
     assert.ok(state.atmospherePasses>=3,'Fog should composite at three depths');
+    assert.equal(state.forestArtMode,'coded-organic-broadleaf',
+      'Cinematic forest must be procedurally drawn');
+    assert.equal(state.canopyThemes,4,'All four clock palettes must have canopies');
+    if(cfg.expectedMobileFraming)
+      assert.equal(state.mobileRockShoulders,2,
+        'Portrait cinematic must restore two asymmetrical rocky valley flanks');
   }else assert.equal(state.artMode,'reference','Current stable art must remain default');
   assert.equal(state.ready,true);
   assert.equal(state.error,null);
