@@ -1925,7 +1925,7 @@
  const mobileRockSheets={width:0,height:0,night:null,day:null};
  function buildMobileRockSheet(w,h,day){
    const sheet=document.createElement('canvas');
-   sheet.width=Math.ceil(w);sheet.height=Math.ceil(h*.65);
+   sheet.width=Math.ceil(w);sheet.height=Math.ceil(h*.70);
    const g=sheet.getContext('2d',{alpha:true});
    for(let side=0;side<2;side++){
      const random=rng(51823+side*9177),flip=side===0?1:-1,
@@ -1944,28 +1944,43 @@
      g.lineTo(origin,h*.68);g.closePath();
      const rock=g.createLinearGradient(0,h*.33,0,h*.67);
      if(day){
-       rock.addColorStop(0,'rgba(112,112,117,.64)');
-       rock.addColorStop(.40,'rgba(86,93,95,.57)');
+       rock.addColorStop(0,'rgba(112,112,117,.48)');
+       rock.addColorStop(.40,'rgba(86,93,95,.38)');
        rock.addColorStop(1,'rgba(53,83,78,0)');
      }else{
-       rock.addColorStop(0,'rgba(75,81,100,.70)');
-       rock.addColorStop(.40,'rgba(49,60,78,.58)');
+       rock.addColorStop(0,'rgba(75,81,100,.52)');
+       rock.addColorStop(.40,'rgba(49,60,78,.39)');
        rock.addColorStop(1,'rgba(33,57,68,0)');
      }
      g.fillStyle=rock;g.fill();g.clip();
      // Hand-drawn fractures run WITH the terrain, not tiled as triangles.
-     for(let k=0;k<108;k++){
+     for(let k=0;k<42;k++){
        const u=random()*.93,ox=origin+flip*w*.61*u,
          oy=yAt(u)+h*(.010+random()*.19),
-         dx=flip*(7+random()*38)*(1-u*.68),
-         dy=(4+random()*23)*(random()>.57?1:-1);
+         dx=flip*(4+random()*25)*(1-u*.68),
+         dy=(2+random()*11)*(random()>.57?1:-1);
        g.beginPath();g.moveTo(ox,oy);
        g.quadraticCurveTo(ox+dx*.3,oy+dy*.12,
          ox+dx,oy+dy);
        g.strokeStyle=day?
-         (k%5===0?'rgba(218,201,174,.085)':'rgba(24,44,45,.075)'):
-         (k%5===0?'rgba(174,186,202,.10)':'rgba(12,24,40,.12)');
-       g.lineWidth=.45+random()*1.15;g.stroke();
+         (k%5===0?'rgba(218,201,174,.052)':'rgba(24,44,45,.040)'):
+         (k%5===0?'rgba(174,186,202,.055)':'rgba(12,24,40,.065)');
+       g.lineWidth=.4+random()*.75;g.stroke();
+     }
+     // Broad, transparent mineral washes follow erosion channels; their
+     // varying curvature avoids a repeated polygon or wireframe pattern.
+     for(let wash=0;wash<16;wash++){
+       const u=.04+random()*.78,
+         x=origin+flip*w*.61*u,
+         y=yAt(u)+h*(.025+random()*.15),
+         span=flip*(16+random()*43)*(1-u*.63);
+       g.beginPath();g.moveTo(x,y);
+       g.bezierCurveTo(x+span*.29,y-5-random()*7,
+         x+span*.78,y+3+random()*12,
+         x+span,y+1+random()*9);
+       g.strokeStyle=day?'rgba(207,202,180,.027)':
+         'rgba(181,197,212,.033)';
+       g.lineWidth=1.5+random()*3.8;g.stroke();
      }
      g.restore();
    }
