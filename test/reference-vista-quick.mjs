@@ -92,8 +92,15 @@ try{
       'Warm meadow glow must not produce a hard rectangular seam at y=630');
   }
   if(cfg.expectedMobileFraming){
-    assert.equal(state.mobileFraming,'portrait-canopy-v1',
+    assert.equal(state.mobileFraming,'portrait-cinematic-v2',
       'Portrait decorative trees must frame the original world');
+    assert.ok(state.mobileDepth,'Portrait mode should report its depth composition');
+    const depth=state.mobileDepth;
+    assert.ok(depth.skyWidth<depth.farWidth&&depth.farWidth<depth.midWidth&&
+      depth.midWidth<depth.nearWidth&&depth.nearWidth<depth.foregroundWidth,
+      'Sky, mountains and foreground must use progressively closer framing');
+    assert.ok(depth.skyWidth>=cfg.width*1.05,
+      'Mobile sky should cover the viewport without empty side strips');
     const camera=await page.evaluate(()=>window.GongangViewCamera.sample());
     assert.ok(camera.zoom<.9,'Phone camera must start with the full sky visible');
   }else assert.equal(state.mobileFraming,'desktop','Laptop visuals must remain unchanged');
