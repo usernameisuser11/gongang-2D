@@ -940,7 +940,210 @@
    }
    tc.putImageData(img,0,0);c.drawImage(tile,0,360,W,432);
  }
+ // MOONLIT FOREST STAGE / a deliberately shaped, opaque vegetation pass.
+ // The older grove used hundreds of low-alpha crowns. Once composited with
+ // fog those crowns lost their edges, leaving a monotonous turquoise wash.
+ // This pass uses dark, attached branch systems and small leaf silhouettes,
+ // with highlights only along sky-facing edges. No scenic bitmap is sampled.
+ function stageCrown(c,x,y,rx,ry,seed,palette,exposure=.42){
+   const r=rng(seed),n=31;
+   c.save();c.translate(x,y);
+   for(let band=0;band<3;band++){
+     const dx=(r()-.5)*rx*.24,dy=(r()-.5)*ry*.17;
+     c.beginPath();
+     for(let i=0;i<=n;i++){
+       const a=i/n*TAU,
+         petal=.88+.11*Math.sin(a*7.0+seed*.51)+
+           .075*Math.sin(a*13.0+seed*.23)+.035*Math.sin(a*19.0),
+         xx=dx+Math.cos(a)*rx*petal*(.95-band*.12),
+         yy=dy+Math.sin(a)*ry*petal*(.98-band*.12);
+       if(!i)c.moveTo(xx,yy);else c.lineTo(xx,yy);
+     }
+     c.closePath();c.fillStyle=palette[band];c.fill();
+   }
+   // Upper leaf sprays are physically separate, revealing the branch
+   // silhouette in negative space instead of forming smooth round clouds.
+   for(let i=0;i<46;i++){
+     const a=r()*TAU,d=Math.sqrt(r())*(.58+r()*.47),
+       xx=Math.cos(a)*rx*d,yy=Math.sin(a)*ry*d,
+       upper=Math.sin(a)<-.16,
+       sx=1.0+r()*2.9,sy=1.1+r()*2.8;
+     if(!upper&&r()>.45)continue;
+     c.beginPath();c.moveTo(xx-sx,yy+.5);
+     c.quadraticCurveTo(xx-sx*.34,yy-sy*1.3,xx+sx*.26,yy-sy);
+     c.quadraticCurveTo(xx+sx*1.6,yy-sy*.17,xx+sx*.7,yy+sy*.5);
+     c.closePath();c.fillStyle=palette[upper?3:1];
+     c.globalAlpha=upper?.55+exposure*.40:.70;c.fill();
+   }
+   c.restore();
+ }
+ function stageBroadleaf(c,x,y,h,seed,depth){
+   const r=rng(seed),u=h/165,lean=(r()-.5)*h*.17;
+   const palettes=[
+     ['#263945','#324956','#405965','#91afb4'],
+     ['#142c38','#213e47','#30535b','#80a6a7'],
+     ['#0e2530','#19353b','#28504d','#659b96'],
+     ['#0a1f27','#113133','#1d4741','#639b8b']
+   ];
+   const p=palettes[depth-3],sprays=[
+     [-.35,-.74,.24,.17],[-.17,-.91,.28,.20],
+     [.11,-.97,.30,.21],[.38,-.78,.28,.18],
+     [-.49,-.58,.23,.16],[.47,-.56,.23,.17],
+     [-.08,-.65,.34,.23],[.20,-.64,.35,.22]
+   ];
+   c.save();c.translate(x,y);c.lineCap='round';c.lineJoin='round';
+   c.strokeStyle=p[0];c.lineWidth=Math.max(2.1,h*.047);
+   c.beginPath();c.moveTo(0,5);
+   c.bezierCurveTo(lean*.20,-h*.26,lean*.55,-h*.52,lean,-h*.78);c.stroke();
+   for(let k=0;k<sprays.length;k++){
+     const [xx,yy]=sprays[k],tipX=xx*h+lean*.68,tipY=yy*h;
+     c.beginPath();c.moveTo(lean*.45,-h*.46);
+     c.quadraticCurveTo(tipX*.56,tipY*.88,tipX,tipY);
+     c.lineWidth=Math.max(1.5,h*(.008+(k%3)*.002));c.stroke();
+   }
+   for(let k=0;k<sprays.length;k++){
+     const [xx,yy,sx,sy]=sprays[k],jitter=(r()-.5)*h*.035;
+     stageCrown(c,xx*h+lean*.68+jitter,yy*h+jitter,
+       h*sx*(.88+r()*.22),h*sy*(.86+r()*.17),
+       seed*23+k*173,p,.23);
+   }
+   // Sky-facing bark ridge is a surface detail, not a neon outline.
+   c.lineWidth=Math.max(.55,h*.004);
+   c.strokeStyle='rgba(152,185,168,.18)';
+   c.beginPath();c.moveTo(-h*.010,-h*.09);
+   c.quadraticCurveTo(lean*.22-h*.013,-h*.32,lean*.60-h*.012,-h*.59);
+   c.stroke();c.restore();
+ }
+ function stagePine(c,x,y,h,seed,depth){
+   const r=rng(seed),d=depth-3,lean=(r()-.5)*h*.14;
+   const dark=['#293e47','#172f39','#102831','#0b2028'][d];
+   const mid=['#344e58','#29484c','#1b3c3e','#18332f'][d];
+   const light=['#8ea9ae','#6f9899','#548780','#508574'][d];
+   c.save();c.translate(x,y);c.lineJoin='round';c.lineCap='round';
+   c.beginPath();c.moveTo(-h*.015,3);
+   c.quadraticCurveTo(lean*.18,-h*.5,lean,-h);
+   c.strokeStyle=dark;c.lineWidth=Math.max(1.25,h*.022);c.stroke();
+   for(let i=0;i<17;i++){
+     const t=(i+.4+r()*.25)/17,cy=-h*(1-t),
+       bx=lean*(1-t),span=h*.39*Math.pow(t,.88);
+     for(const side of [-1,1]){
+       if(i<3&&r()<.25)continue;
+       const tip=bx+side*span*(.71+r()*.31);
+       c.beginPath();c.moveTo(bx,cy-h*.016);
+       c.quadraticCurveTo(bx+side*span*.64,cy-h*.036,tip,cy+h*.043*t);
+       c.quadraticCurveTo(bx+side*span*.69,cy+h*.023, bx-side*h*.036,cy+h*.02);
+       c.closePath();c.fillStyle=i%4===0?mid:dark;c.fill();
+       // Leaf needles catch a tiny amount of the valley's blue rim light.
+       c.strokeStyle=color(light,d===0?.25:.14);c.lineWidth=Math.max(.42,h*.003);
+       c.beginPath();c.moveTo(bx+side*span*.55,cy-h*.010);
+       c.lineTo(tip-side*h*.014,cy+h*.021*t);c.stroke();
+     }
+   }
+   c.restore();
+ }
+ function stageForest(c,index){
+   const m=mountains[index],r=rng(101007+index*4781),
+     count=[0,0,0,108,91,73,62][index],
+     foreground=index>=5;
+   // Clear the centre sightline. Distinct tall masses frame the valley;
+   // short trees still connect both sides into a continuous living forest.
+   const trees=[];
+   for(let i=0;i<count;i++){
+     const side=r()<.5?-1:1,
+       anchor=side<0?[92,335,535][Math.floor(r()*3)]:
+         [1150,1380,1610][Math.floor(r()*3)],
+       x=clamp(anchor+(r()+r()+r()-1.5)*(index<5?320:256),-25,W+25),
+       center=Math.exp(-Math.pow((x-835)/330,2)),
+       h=(index===3?24:index===4?33:index===5?43:51)+
+         Math.pow(r(),.72)*(index===3?62:index===4?86:index===5?109:133),
+       height=h*(1-center*(index>=5?.49:.29)),
+       root=ridgeHeight(m.pts,clamp(x,0,W),m.seed)+
+         (index===3?11:17)+r()*(foreground?46:32),
+       pine=r()<(.37+index*.055);
+     trees.push({x,y:root,h:height,seed:10081+index*3107+i*41,pine});
+   }
+   trees.sort((a,b)=>a.y-b.y);
+   // The ridgeline remains one continuous plane. Trunks emerge from it,
+   // so the scene has no row of detached floating foliage sprites.
+   for(const t of trees){
+     if(t.pine)stagePine(c,t.x,t.y,t.h,t.seed,index);
+     else stageBroadleaf(c,t.x,t.y,t.h,t.seed,index);
+   }
+   if(index>=5){
+     const anchors=index===5?
+       [[210,188,0],[1415,182,1]]:
+       [[115,229,0],[380,207,1],[1325,218,0],[1560,251,1]];
+     for(let k=0;k<anchors.length;k++){
+       const [x,h,pine]=anchors[k],y=ridgeHeight(m.pts,x,m.seed)+36;
+       if(pine)stagePine(c,x,y,h,310331+index*101+k,index);
+       else stageBroadleaf(c,x,y,h,310331+index*101+k,index);
+     }
+   }
+   // Narrow, soft blue lift at the foot of each ridge, below the crowns.
+   // It separates planes without flooding the entire canopy with mist.
+   const fog=c.createLinearGradient(0,540,0,790);
+   fog.addColorStop(0,'rgba(100,147,163,0)');
+   fog.addColorStop(.38,'rgba(105,144,153,'+(index===3?.045:.022)+')');
+   fog.addColorStop(1,'rgba(25,42,49,0)');
+   c.fillStyle=fog;c.fillRect(0,540,W,250);
+ }
+ function stageValley(c){
+   const r=rng(190717),steps=170;
+   const planes=[
+     {y:617,dy:17,a:'#203740',b:'#142c34'},
+     {y:658,dy:18,a:'#17313a',b:'#11272d'},
+     {y:694,dy:13,a:'#122b32',b:'#0b242a'}
+   ];
+   for(let k=0;k<planes.length;k++){
+     const p=planes[k];c.beginPath();
+     for(let i=0;i<=steps;i++){
+       const x=i*W/steps,
+         central=Math.exp(-Math.pow((x-836)/370,2)),
+         y=p.y+p.dy*Math.sin(x*.0037+k*.92)+
+           ridgeNoise(x/58,93+k*17)*8-
+           central*(k===0?16:6);
+       if(!i)c.moveTo(x,y);else c.lineTo(x,y);
+     }
+     c.lineTo(W,820);c.lineTo(0,820);c.closePath();
+     c.fillStyle=lgrad(c,0,p.y-15,0,810,[[0,p.a],[.55,p.b],[1,'#12282c']]);
+     c.fill();
+   }
+   // The distant glade is a low grazing ambient reflection, not a bright
+   // white spotlight painted over the trees.
+   c.fillStyle=radial(c,846,672,420,[
+     [0,'rgba(115,157,162,.16)'],[.44,'rgba(77,131,139,.072)'],
+     [1,'rgba(70,125,130,0)']]);
+   c.fillRect(440,600,850,175);
+   // Individually rooted shrubs; all bases follow the landscape.
+   for(let i=0;i<89;i++){
+     const x=r()*W,side=Math.abs(x-W*.5)/W,
+       y=664+r()*72+Math.sin(x*.008)*12,
+       height=8+r()*31*(.54+side),
+       stem=2+r()*3.5;
+     c.beginPath();c.moveTo(x-stem*4,y);
+     c.quadraticCurveTo(x-stem*2,y-height*.78,x-stem*.2,y-height*.66);
+     c.quadraticCurveTo(x+stem*.7,y-height*1.19,x+stem*3,y-height*.54);
+     c.quadraticCurveTo(x+stem*4,y-height*.14,x+stem*5,y);
+     c.closePath();c.fillStyle=i%4===0?'#33534f':'#17352e';c.fill();
+     if(i%3===0){
+       c.strokeStyle='rgba(130,168,142,.12)';c.lineWidth=.7;
+       c.beginPath();c.moveTo(x-stem*2,y-height*.68);
+       c.quadraticCurveTo(x,y-height*.94,x+stem*2.4,y-height*.49);c.stroke();
+     }
+   }
+   // Tiny rim-lit sedges break up the horizontal floor without introducing
+   // translucent ellipse clouds or geometric neon particles.
+   for(let i=0;i<350;i++){
+     const x=r()*W,y=704+r()*54,
+       h=3+r()*10,dx=(r()-.5)*h*.64;
+     c.strokeStyle=i%6===0?'rgba(133,178,149,.27)':
+       'rgba(66,114,105,.18)';c.lineWidth=.40+r()*.6;
+     c.beginPath();c.moveTo(x,y);
+     c.quadraticCurveTo(x+dx*.2,y-h*.55,x+dx,y-h);c.stroke();
+   }
+ }
  function forestGrove(c,index){
+  if(cinematicMode&&params.get('forest')!=='legacy')return stageForest(c,index);
   const m=mountains[index],r=rng(7983+index*1171);
   // A few legible, overlapping crowns read as a forest from a distance.
   // Hundreds of identical small crowns had collapsed into noisy teal mud.
@@ -1001,6 +1204,7 @@
   forestMist(c,index);
  }
  function valley(c){
+  if(cinematicMode&&params.get('forest')!=='legacy')return stageValley(c);
   // No artificial lightning-shaped river across the forest.
   // The low valley is defined by broken mist and natural vegetation.
   // Fog is a ragged transparent condensation layer, concentrated in valleys.
