@@ -679,9 +679,13 @@
      rx=spread*(1.06+r()*.35),
      ry=h*(.22+r()*.09)*(species===3?1.18:1);
    c.save();c.translate(x,y);c.globalAlpha*=weight;c.lineCap='round';
+   // The trunk must recede into atmospheric shadow. When every dark trunk
+   // remained equally opaque, the grove read as hundreds of black sticks.
+   c.globalAlpha=weight*(depth<=4?.48:.30);
    c.beginPath();c.moveTo(0,1);
    c.bezierCurveTo(-lean*.2,-h*.28,lean*.9,-h*.51,lean,-h*.89);
    c.strokeStyle=colors[0];c.lineWidth=Math.max(.55,h*.019);c.stroke();
+   c.globalAlpha=weight*(depth<=4?.67:.48);
    const branches=7+Math.floor(r()*4),tips=[];
    for(let j=0;j<branches;j++){
      const t=.35+(j+r()*.42)/branches*.49,
@@ -723,7 +727,7 @@
          (current[0]+next[0])*.5,(current[1]+next[1])*.5);
      }
      c.closePath();c.fillStyle=colors[(p+seed)%3];
-     c.globalAlpha=weight*(.37+r()*.24);c.fill();
+     c.globalAlpha=weight*(.45+r()*.26);c.fill();
    }
    // Broken outer twigs and individual leaves form a ragged crown edge.
    // Each spray is rooted at one of this tree's actual branch endpoints.
