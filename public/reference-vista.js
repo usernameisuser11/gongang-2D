@@ -830,7 +830,7 @@
   const m=mountains[index],r=rng(7983+index*1171);
   // A few legible, overlapping crowns read as a forest from a distance.
   // Hundreds of identical small crowns had collapsed into noisy teal mud.
-  const groveCount=(cinematicMode?[0,0,0,156,194,228,254]:
+  const groveCount=(cinematicMode?[0,0,0,106,124,134,156]:
     [0,0,0,235,280,310,345])[index];
   const tones=['','','','#39494c','#2e4142','#24393b','#1d3133'];
   const clusters=index===3?[145,438,1170,1490]:
@@ -864,15 +864,15 @@
   // The valley centre remains open to preserve the distant-sky focal point.
   if(cinematicMode&&index>=4){
     const anchors=index===4?
-      [[210,139,0],[1406,128,1]]:
-      index===5?[[382,151,1],[1302,144,0]]:
-      [[150,162,0],[580,136,1],[1150,141,0],[1550,159,1]];
+      [[210,151,0],[1406,143,1]]:
+      index===5?[[382,168,1],[1302,164,0]]:
+      [[150,183,0],[580,156,1],[1150,163,0],[1550,186,1]];
     for(let j=0;j<anchors.length;j++){
       const [x,h,cedar]=anchors[j],
         root=ridgeHeight(m.pts,x,m.seed)+(index>=5?30:19),
         seed=271883+index*191+j*837;
-      if(cedar)cinematicCedar(c,x,root,h,seed,index,index===6?.70:.59);
-      else cinematicGroveTree(c,x,root,h,seed,index,index===6?.78:.66);
+      if(cedar)cinematicCedar(c,x,root,h,seed,index,index===6?.84:.72);
+      else cinematicGroveTree(c,x,root,h,seed,index,index===6?.94:.82);
     }
   }
   forestMist(c,index);
@@ -1093,6 +1093,52 @@
    }
    c.restore();
  }
+ // A small set of close botanical silhouettes gives the clearing an actual
+ // foreground scale. The blade veins and moon-facing rims share one curved
+ // stem, unlike random disconnected grass strokes or glowing sprite decals.
+ function moonlitFrond(c,x,y,h,seed,lamplit=false){
+   const r=rng(seed),lean=(r()-.46)*h*.31,
+     px=t=>x+lean*t*t+Math.sin(t*2.7+seed)*h*.014*t,
+     py=t=>y-h*t;
+   c.save();c.lineCap='round';
+   c.beginPath();c.moveTo(x,y);
+   c.bezierCurveTo(x+lean*.16,y-h*.27,x+lean*.82,y-h*.82,px(1),py(1));
+   c.strokeStyle=lamplit?'rgba(181,155,113,.54)':'rgba(99,161,151,.50)';
+   c.lineWidth=Math.max(.65,h*.021);c.stroke();
+   for(let j=1;j<=11;j++){
+     const t=j/12,shoulder=Math.sin(t*Math.PI*.96),
+       reach=h*(.17+.035*r())*shoulder*(1-t*.42),
+       yy=py(t),xx=px(t);
+     for(const side of [-1,1]){
+       if((j>8||j<3)&&r()<.14)continue;
+       const dx=side*reach*(.83+r()*.31),dy=-h*(.027+.044*r()),
+         tipX=xx+dx,tipY=yy+dy;
+       c.beginPath();c.moveTo(xx,yy);
+       c.bezierCurveTo(xx+dx*.35,yy-h*.039,xx+dx*.81,tipY-h*.035,tipX,tipY);
+       c.bezierCurveTo(xx+dx*.81,tipY+h*.018,xx+dx*.32,yy+h*.009,xx,yy);
+       c.closePath();
+       c.fillStyle=color(lamplit?(j%3===0?'#c6a77f':'#718b77'):
+         (j%4===0?'#8cb4a9':j%3===0?'#537d76':'#315d5d'),
+         .35+r()*.22);
+       c.fill();
+       // A broken, one-sided rim makes leaf orientation readable at a glance.
+       if(j>3&&j%2===0){
+         c.beginPath();c.moveTo(xx+dx*.38,yy+dy*.53-h*.020);
+         c.quadraticCurveTo(xx+dx*.72,tipY-h*.025,tipX,tipY);
+         c.strokeStyle=color(lamplit?'#e4bc91':'#abd7cb',.10+r()*.16);
+         c.lineWidth=.50;c.stroke();
+       }
+     }
+   }
+   // The seedhead is a subdued scatter of individual light-catching tips.
+   for(let j=0;j<3;j++){
+     const a=j*TAU/3+r()*.2;
+     ellipse(c,px(1)+Math.cos(a)*h*.022,py(1)+Math.sin(a)*h*.016,
+       .58+r()*.66,.65+r()*.75,
+       color(lamplit?'#e4bd89':'#beded3',.20+r()*.27));
+   }
+   c.restore();
+ }
  function foreground(c,lanternLit=true){
    // Left and right framing bluffs. Front and rear edges are separate
    // curves so every stone has a discernible top and side plane.
@@ -1130,8 +1176,8 @@
      if(x===0)c.moveTo(x,y);else c.lineTo(x,y);
    }
    c.lineTo(W,H);c.lineTo(0,H);c.closePath();
-   c.fillStyle=lgrad(c,0,730,0,941,[[0,'#65565b'],[.24,'#4c414b'],
-     [.7,'#273742'],[1,'#122434']]);c.fill();
+   c.fillStyle=lgrad(c,0,730,0,941,[[0,'#4a5754'],[.23,'#354b49'],
+     [.7,'#203c41'],[1,'#102834']]);c.fill();
    // Crucial: the old warm meadow bounce was clipped to a hard
    // 950×310 rectangle beginning at y=630, creating the very straight
    // horizontal stripe across the forest. Paint the *entire radial
@@ -1160,12 +1206,12 @@
       color(p%4===0?'#b2a06e':p%3===0?'#5c8073':'#466b62',.025+sod()*.055),-.12);
    }
    // Hand-authored large rocks (position in pixels matches the original).
-   rock(c,71,823,274,137,131);
-   rock(c,364,860,244,103,132);
-   rock(c,1360,841,291,116,133);
-   rock(c,1293,754,177,82,134);
-   rock(c,521,736,137,61,135);
-   rock(c,1043,764,118,49,136);
+   rock(c,85,823,244,87,131);
+   rock(c,364,860,216,76,132);
+   rock(c,1360,841,258,81,133);
+   rock(c,1293,754,169,65,134);
+   rock(c,521,736,132,49,135);
+   rock(c,1043,764,119,45,136);
    // A shallow mossy stepping stone beneath the visitor replaces the
    // tall round plinth that made the avatar look displayed on a pedestal.
    rock(c,818,827,184,33,137);
@@ -1188,6 +1234,17 @@
      const h=(14+Math.pow(fern(),.82)*30)*(.62+(y-775)/270);
      const warm=lanternLit&&Math.abs(x-1058)<240;
      meadowFern(c,x,y,h,71779+patch*121+k*47,warm);
+   }
+   // Moonlit plant colonies become increasingly defined toward the camera.
+   // Preserve the central gathering place and seat as a quiet negative space.
+   const groves=rng(2026111619),frondBeds=[142,345,506,1195,1435,1595];
+   for(let bed=0;bed<frondBeds.length;bed++)for(let j=0;j<9;j++){
+     const x=frondBeds[bed]+(groves()+groves()-1)*82,
+       y=796+groves()*136;
+     if(x>663&&x<1114)continue;
+     const h=(25+groves()*45)*(.77+(y-796)/230),
+       lamplit=lanternLit&&x>960&&x<1245&&y<864;
+     moonlitFrond(c,x,y,h,318119+bed*137+j*31,lamplit);
    }
    // Detail stones and ground texture are contained to the lower third.
    const r=rng(8735);
@@ -1251,7 +1308,7 @@
      const left=j<72,cx=left?295:1379;
      const x=clamp(cx+(meadow()+meadow()+meadow()-1.5)*392,0,W),
        y=736+meadow()*188,stem=5+meadow()*16;
-     const tint=j%4===0?'#f3c9da':j%3===0?'#d7b5df':'#d18cba';
+     const tint=j%4===0?'#b5ced6':j%3===0?'#d7c3e1':'#bba6c6';
      line(c,[x,y],[x+(meadow()-.5)*5,y-stem],
        color('#83927a',.12+meadow()*.19),.45);
      const size=.7+meadow()*1.55;
@@ -1328,12 +1385,12 @@
    c.lineTo(x+w*.40,y+h*.17);c.quadraticCurveTo(x,y+h*.255,x-w*.43,y+h*.16);
    c.closePath();c.fillStyle='rgba(12,22,31,.23)';c.fill();c.restore();
    trace();c.fillStyle=lgrad(c,x-w*.25,y-h,x+w*.33,y+h*.17, [
-     [0,'#928994'],[.25,'#777180'],[.55,'#4d5463'],[1,'#283846']]);c.fill();
+     [0,'#849499'],[.25,'#647981'],[.55,'#405d66'],[1,'#1d3743']]);c.fill();
    c.save();trace();c.clip();
    // A continuous diffuse face catches the sky; a cooler recessed side
    // restores volume without a mesh of visible triangles.
    const frost=radial(c,x-w*.26,y-h*.75,w*.76, [
-     [0,'rgba(210,198,193,.16)'],[.48,'rgba(158,170,186,.075)'],
+     [0,'rgba(192,222,221,.17)'],[.48,'rgba(158,198,200,.08)'],
      [1,'rgba(155,167,186,0)']]);
    c.fillStyle=frost;c.fillRect(x-w*.53,y-h*1.07,w*1.06,h*1.33);
    const shade=lgrad(c,x-w*.02,y-h*.68,x+w*.37,y+h*.17,[
@@ -1646,7 +1703,7 @@
      const ids=depth===2?[3,4]:[5,6],near=depth===3;
      for(const index of ids){
        const m=mountains[index];
-       const count=near?83:61;
+       const count=cinematicMode?(near?43:35):(near?83:61);
        const zones=index===3?[188,450,1165,1457]:
          index===4?[230,517,1127,1495]:
          index===5?[200,564,1108,1480]:[132,510,1034,1584];
@@ -1762,9 +1819,9 @@
        color('#e3e6e5',.055+r()*.15),.4+r()*.68);
    }
    const rocks=[
-     [71,823,274,137,131],[364,860,244,103,132],
-     [1360,841,291,116,133],[1293,754,177,82,134],
-     [521,736,137,61,135],[1043,764,118,49,136],
+     [85,823,244,87,131],[364,860,216,76,132],
+     [1360,841,258,81,133],[1293,754,169,65,134],
+     [521,736,132,49,135],[1043,764,119,45,136],
      [818,827,184,33,137],[527,715,40,27,203],
      [526,702,30,18,204],[529,689,19,13,205]
    ];
