@@ -59,6 +59,8 @@ try{
     if(!state.ready||state.failed)throw Error(scene.name+': '+state.error);
     if(state.meshCount<50||state.triangles<2000)
       throw Error(scene.name+': unexpectedly empty Blender model '+JSON.stringify(state));
+    if(state.forestInstances<100||state.forestInstancedDraws<4)
+      throw Error(scene.name+': forest was not GPU-instanced '+JSON.stringify(state));
   }
   await writeFile(OUT+'/report.json',JSON.stringify(report,null,2));
   process.stdout.write(JSON.stringify(report,null,2)+'\n');
