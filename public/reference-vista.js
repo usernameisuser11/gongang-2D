@@ -781,6 +781,20 @@
        if(r()<.065)continue;
        const spread=branchScale*(side>0?.88:1.11),
          tipX=axis+side*spread,tipY=py+h*(.035+r()*.048);
+       // A drooping bough has one continuous needle mass beneath the stem.
+       // Independent fine needles alone left the nearby cedars looking like
+       // bare wire antennae. The bowed, asymmetrical cushion remains porous
+       // because every whorl leaves its own gaps to the sky.
+       const rise=h*(.017+r()*.018);
+       c.globalAlpha=weight*(.22+r()*.10);
+       c.beginPath();
+       c.moveTo(axis+side*spread*.07,py-rise*.31);
+       c.bezierCurveTo(axis+side*spread*.41,py-rise*1.18,
+         axis+side*spread*.75,tipY-rise*.78,tipX,tipY);
+       c.bezierCurveTo(axis+side*spread*.78,tipY+rise*.41,
+         axis+side*spread*.34,py+rise*.92,
+         axis+side*spread*.07,py+rise*.27);
+       c.closePath();c.fillStyle=P[j%4===0?2:1];c.fill();
        c.globalAlpha=weight*.42;
        c.beginPath();c.moveTo(axis,py);
        c.bezierCurveTo(axis+side*spread*.31,py-h*.048,
@@ -1407,7 +1421,7 @@
    c.lineTo(x+w*.40,y+h*.17);c.quadraticCurveTo(x,y+h*.255,x-w*.43,y+h*.16);
    c.closePath();c.fillStyle='rgba(12,22,31,.23)';c.fill();c.restore();
    trace();c.fillStyle=lgrad(c,x-w*.25,y-h,x+w*.33,y+h*.17, [
-     [0,'#849499'],[.25,'#647981'],[.55,'#405d66'],[1,'#1d3743']]);c.fill();
+     [0,'#76878c'],[.25,'#526b72'],[.55,'#34525b'],[1,'#1a333c']]);c.fill();
    c.save();trace();c.clip();
    // A continuous diffuse face catches the sky; a cooler recessed side
    // restores volume without a mesh of visible triangles.
@@ -1444,10 +1458,10 @@
        ridgeNoise(py/9+px/32,seed+83)*.30+
        ridgeNoise(px/3+py/8,seed+129)*.18;
      const fleck=grain(),bright=mineral+slow*.18>.015;
-     pixels.data[p]=bright?190:31;pixels.data[p+1]=bright?187:51;
-     pixels.data[p+2]=bright?192:65;
-     pixels.data[p+3]=Math.round(Math.abs(mineral)*84+
-       Math.abs(slow)*32+(fleck>.984?48:fleck*13));
+     pixels.data[p]=bright?148:33;pixels.data[p+1]=bright?171:59;
+     pixels.data[p+2]=bright?173:70;
+     pixels.data[p+3]=Math.round(Math.abs(mineral)*72+
+       Math.abs(slow)*26+(fleck>.984?36:fleck*11));
    }
    tc.putImageData(pixels,0,0);c.drawImage(tex,x-w*.53,y-h,w*1.06,h*1.2);
    // Subtle branching fracture lines track the rounded face. Their pale
