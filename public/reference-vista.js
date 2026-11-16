@@ -1171,6 +1171,50 @@
    }
    c.restore();
  }
+ // Close foliage has to read as individual living blades, not a stamped
+ // triangular grass clump. Long, doubly curved reeds overlap in silhouette;
+ // only the moon-facing edges receive interrupted, quiet specular strokes.
+ function cinematicReedClump(c,x,y,h,seed){
+   const r=rng(seed),count=15+Math.floor(r()*7);
+   c.save();c.lineCap='round';
+   for(let j=0;j<count;j++){
+     const side=(r()+r()-1),length=h*(.49+r()*.62),
+       bend=side*length*(.23+r()*.25),
+       width=1.3+r()*3.7,
+       xx=x+(r()-.5)*h*.30,yy=y+r()*4,
+       tipX=xx+bend,tipY=yy-length;
+     c.beginPath();c.moveTo(xx-width*.64,yy);
+     c.bezierCurveTo(xx+bend*.05-width*.91,yy-length*.30,
+       xx+bend*.59-width*.24,yy-length*.89,tipX,tipY);
+     c.bezierCurveTo(xx+bend*.64+width*.35,yy-length*.72,
+       xx+bend*.08+width*.65,yy-length*.27,xx+width*.69,yy);
+     c.closePath();
+     const shade=j%6===0?'#779b8b':j%4===0?'#4e7971':
+       j%3===0?'#2f5b58':'#193b42';
+     c.fillStyle=color(shade,.39+r()*.33);c.fill();
+     // Separate fine lines follow the curved blade, never ruler-straight.
+     if(j%3!==0){
+       c.beginPath();c.moveTo(xx-width*.23,yy-length*.16);
+       c.bezierCurveTo(xx+bend*.14-width*.37,yy-length*.41,
+         xx+bend*.69-width*.18,yy-length*.81,
+         tipX,tipY);
+       c.strokeStyle=color(j%5===0?'#c1c8a7':'#a0c4b7',
+         .07+r()*.13);
+       c.lineWidth=.38+r()*.38;c.stroke();
+     }
+   }
+   // Curled seed stems add scale without introducing bright decorative dots.
+   for(let j=0;j<5;j++){
+     const x0=x+(r()-.5)*h*.30,
+       len=h*(.42+r()*.41),dx=(r()-.5)*len*.26;
+     c.beginPath();c.moveTo(x0,y);
+     c.bezierCurveTo(x0+dx*.17,y-len*.37,
+       x0+dx*.69,y-len*.79,x0+dx,y-len);
+     c.strokeStyle=color('#6b9184',.17+r()*.13);
+     c.lineWidth=.46+r()*.5;c.stroke();
+   }
+   c.restore();
+ }
  function foreground(c,lanternLit=true){
    // Left and right framing bluffs. Front and rear edges are separate
    // curves so every stone has a discernible top and side plane.
@@ -1349,6 +1393,19 @@
          py=y-stem+Math.sin(a)*size;
        ellipse(c,px,py,size*.57,size*.79,
          color(tint,.11+meadow()*.27),a*.3);
+     }
+   }
+   if(cinematicMode){
+     // Dense near silhouettes hug both edges of the photographed overlook.
+     // Smaller inner tufts survive the portrait crop but leave the seat open.
+     const tufts=[
+       [75,911,108],[230,936,112],[409,946,99],
+       [566,940,63],[1126,940,67],[1325,943,94],
+       [1492,931,112],[1641,906,107]
+     ];
+     for(let k=0;k<tufts.length;k++){
+       const [x,y,h]=tufts[k];
+       cinematicReedClump(c,x,y,h,619110+k*427);
      }
    }
    // Small constellation-like warm fireflies near the grass, restrained.
