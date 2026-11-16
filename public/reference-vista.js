@@ -112,7 +112,7 @@
  // do NOT change; only the light in the sky responds to time and weather.
  function skyBase(c,kind){
   const P={
-   night:[[0,'#050c20'],[.23,'#101c38'],[.44,'#252a4b'],[.70,'#41435e'],[1,'#635e76']],
+   night:[[0,'#050c20'],[.23,'#0d1a36'],[.44,'#1a2945'],[.70,'#2c3852'],[1,'#41465e']],
    dawn:[[0,'#14234b'],[.24,'#52608a'],[.48,'#aa7597'],[.74,'#f3a191'],[1,'#ffd3a2']],
    day:[[0,'#266eaa'],[.18,'#458dbf'],[.42,'#76b6d5'],[.69,'#b2d5e3'],[1,'#e2e9e6']],
    dusk:[[0,'#050d29'],[.23,'#11194c'],[.43,'#39265f'],[.61,'#804078'],[.77,'#e56880'],[.91,'#ff9770'],[1,'#f9af79']]
@@ -149,13 +149,13 @@
    // ridge and beneath the star field. Edges fade to zero transparency.
    const air=c.createLinearGradient(0,250,0,482);
    air.addColorStop(0,'rgba(124,102,167,0)');
-   air.addColorStop(.32,'rgba(151,107,166,.075)');
-   air.addColorStop(.69,'rgba(225,147,174,.16)');
+   air.addColorStop(.32,'rgba(151,107,166,.044)');
+   air.addColorStop(.69,'rgba(225,147,174,.078)');
    air.addColorStop(1,'rgba(147,118,171,0)');
    c.fillStyle=air;c.fillRect(0,250,W,232);
    c.fillStyle=radial(c,852,389,640,[
-     [0,'rgba(213,139,180,.085)'],
-     [.53,'rgba(156,115,170,.035)'],
+     [0,'rgba(213,139,180,.048)'],
+     [.53,'rgba(156,115,170,.025)'],
      [1,'rgba(126,99,151,0)']]);
    c.fillRect(210,0,1280,770);
   }
@@ -1122,54 +1122,81 @@
    c.fillStyle=radial(c,841,680,1190,[[0,'rgba(10,14,27,0)'],[.72,'rgba(10,14,27,.05)'],[1,'rgba(3,8,18,.38)']]);c.fillRect(0,0,W,H);
  }
  function rock(c,x,y,w,h,seed){
-   const r=rng(seed),pts=[[x-w*.49,y],[x-w*.40,y-h*.57],[x-w*.20,y-h*.91],[x+w*.15,y-h],[x+w*.43,y-h*.69],[x+w*.52,y-h*.23],[x+w*.43,y+h*.12],[x-w*.37,y+h*.17]];
-   // Same surveyed silhouette, with warm granite crowns and slate shadow.
-   poly(c,pts,lgrad(c,x-w*.2,y-h,x+w*.3,y+h*.18,[[0,'#827a86'],[.22,'#635f71'],[.58,'#424652'],[1,'#232e3c']]));
-   c.save();c.beginPath();c.moveTo(...pts[0]);for(let i=1;i<pts.length;i++)c.lineTo(...pts[i]);c.closePath();c.clip();
-   const rows=7,cols=10,mesh=[];
-   for(let j=0;j<=rows;j++){
-    mesh[j]=[];
-    for(let i=0;i<=cols;i++)mesh[j].push([x-w*.6+(i+(r()-.5)*.60)*w*1.2/cols,y-h*1.1+(j+(r()-.5)*.58)*h*1.35/rows]);
-   }
-   for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){
-    const a=mesh[j][i],b=mesh[j][i+1],d=mesh[j+1][i],e=mesh[j+1][i+1];
-    for(const tri of [[a,b,d],[b,e,d]]){
-     const light=r()>.43;
-     poly(c,tri,color(light?'#b7a6aa':'#172733',.014+r()*(light?.075:.12)));
-    }
-   }
-   // Fine mineral inclusions are coherent across several scales; this is
-   // generated material color, never a sampled photograph or stock texture.
+   const r=rng(seed);
+   // Eroded granite is continuous, not a low-poly octagon. Keep the size and
+   // planted position of every existing stone so the lookout layout is stable.
+   const outline=[[-.50,.05],[-.50,-.19],[-.43,-.50],[-.33,-.76],
+     [-.18,-.94],[.025,-.98],[.22,-.86],[.38,-.64],
+     [.48,-.32],[.50,-.07],[.43,.11],[.24,.165],[-.08,.18],[-.35,.15]]
+     .map(([a,b],i)=>[x+w*(a+(r()-.5)*(i>10?.008:.022)),
+       y+h*(b+(r()-.5)*.026)]);
+   const trace=()=>{
+     c.beginPath();
+     const last=outline[outline.length-1],first=outline[0];
+     c.moveTo((last[0]+first[0])/2,(last[1]+first[1])/2);
+     for(let i=0;i<outline.length;i++){
+       const a=outline[i],b=outline[(i+1)%outline.length];
+       c.quadraticCurveTo(a[0],a[1],(a[0]+b[0])/2,(a[1]+b[1])/2);
+     }
+     c.closePath();
+   };
+   // Contact shade is tucked under the rock, not a floating oval decal.
+   c.save();c.beginPath();c.moveTo(x-w*.48,y+h*.10);
+   c.bezierCurveTo(x-w*.26,y+h*.21,x+w*.33,y+h*.23,x+w*.49,y+h*.08);
+   c.lineTo(x+w*.40,y+h*.17);c.quadraticCurveTo(x,y+h*.255,x-w*.43,y+h*.16);
+   c.closePath();c.fillStyle='rgba(12,22,31,.23)';c.fill();c.restore();
+   trace();c.fillStyle=lgrad(c,x-w*.25,y-h,x+w*.33,y+h*.17, [
+     [0,'#928994'],[.25,'#777180'],[.55,'#4d5463'],[1,'#283846']]);c.fill();
+   c.save();trace();c.clip();
+   // A continuous diffuse face catches the sky; a cooler recessed side
+   // restores volume without a mesh of visible triangles.
+   const frost=radial(c,x-w*.20,y-h*.82,w*.83, [
+     [0,'rgba(210,198,193,.19)'],[.48,'rgba(158,170,186,.085)'],
+     [1,'rgba(155,167,186,0)']]);
+   c.fillStyle=frost;c.fillRect(x-w*.53,y-h*1.07,w*1.06,h*1.33);
+   const shade=lgrad(c,x-w*.02,y-h*.68,x+w*.37,y+h*.17,[
+     [0,'rgba(24,37,49,0)'],[.44,'rgba(26,38,48,.065)'],
+     [1,'rgba(12,28,38,.29)']]);
+   c.fillStyle=shade;c.fillRect(x-w*.53,y-h,w*1.06,h*1.20);
+   // Seamless mineral pigments are drawn once at native rock resolution.
+   // Three related grain scales create veins and stone pores, not facets.
    const tw=Math.max(8,Math.ceil(w)),th=Math.max(8,Math.ceil(h*1.2));
    const tex=document.createElement('canvas');tex.width=tw;tex.height=th;
    const tc=tex.getContext('2d'),pixels=tc.createImageData(tw,th),grain=rng(seed*901);
    for(let py=0;py<th;py++)for(let px=0;px<tw;px++){
-    const p=(py*tw+px)*4;
-    const mineral=ridgeNoise(px/12+ridgeNoise(py/14,seed)*2,seed+31)*.6+
-      ridgeNoise(py/8+px/29,seed+83)*.4;
-    const fleck=grain(),bright=mineral>.08;
-    pixels.data[p]=bright?188:29;pixels.data[p+1]=bright?176:38;pixels.data[p+2]=bright?174:48;
-    pixels.data[p+3]=Math.round(Math.abs(mineral)*37+(fleck>.97?39:fleck*12));
+     const p=(py*tw+px)*4;
+     const slow=ridgeNoise(px/49+ridgeNoise(py/53,seed+103)*1.9,seed+31);
+     const mineral=ridgeNoise(px/13+slow*2.8,seed+51)*.52+
+       ridgeNoise(py/9+px/32,seed+83)*.30+
+       ridgeNoise(px/3+py/8,seed+129)*.18;
+     const fleck=grain(),bright=mineral+slow*.18>.015;
+     pixels.data[p]=bright?190:31;pixels.data[p+1]=bright?187:51;
+     pixels.data[p+2]=bright?192:65;
+     pixels.data[p+3]=Math.round(Math.abs(mineral)*38+(fleck>.984?32:fleck*11));
    }
    tc.putImageData(pixels,0,0);c.drawImage(tex,x-w*.53,y-h,w*1.06,h*1.2);
-   for(let k=0;k<14;k++){
-    const sx=x+(r()-.5)*w*.91,sy=y-h*(.05+r()*.9),dx=(r()-.5)*w*.28,dy=h*(.06+r()*.24);
-    // Paired recess and narrow reflected edge give every crack thickness.
-    windingFiber(c,sx,sy,dx,dy,seed*101+k,color('#18232e',.12+r()*.30),.45+r()*1.1);
-    windingFiber(c,sx-1,sy,dx,dy,seed*101+k,color('#d1b6ae',.06+r()*.16),.35);
-    if(k%3===0)windingFiber(c,sx+dx*.57,sy+dy*.58,-dx*.34,dy*.42,seed*103+k,color('#1a2730',.19),.5);
+   // Subtle branching fracture lines track the rounded face. Their pale
+   // rims are displaced by only a pixel, never a polygonal outline.
+   for(let k=0;k<20;k++){
+     const sx=x+(r()-.5)*w*.82,sy=y-h*(.13+r()*.77),
+       dx=(r()-.5)*w*.21,dy=h*(.06+r()*.20),s=seed*101+k;
+     windingFiber(c,sx,sy,dx,dy,s,color('#1d2935',.08+r()*.22),.35+r()*.85);
+     if(k%2===0)windingFiber(c,sx-.8,sy-.65,dx,dy,s,
+       color('#d4c3be',.042+r()*.087),.30+r()*.42);
    }
-   // Lichen follows the sheltered base instead of random bright scratches.
-   for(let k=0;k<80;k++){
-    const sx=x+(r()-.5)*w,sy=y-h*r()*.27;
-    ellipse(c,sx,sy,.4+r()*2.3,.3+r(),color(k%4?'#818477':'#b5a78b',.06+r()*.15));
+   // Lichen and moss accumulate where rainwater meets the soil.
+   for(let k=0;k<105;k++){
+     const sx=x+(r()-.5)*w*.87,sy=y-h*r()*.26;
+     ellipse(c,sx,sy,.28+r()*2.1,.23+r()*.86,
+       color(k%4?'#83958b':'#b7ad93',.035+r()*.135));
    }
    c.restore();
-   // Broken moonlit crest avoids a uniform luminous polygon outline.
-   for(let k=0;k<3;k++){
-    const a=pts[1+k],b=pts[2+k];
-    line(c,[lerp(a[0],b[0],.12),lerp(a[1],b[1],.12)],
-      [lerp(a[0],b[0],.72),lerp(a[1],b[1],.72)],color('#d4b3af',.18),.75);
+   // A few intermittent rim reflections read as true mineral edges.
+   for(let k=1;k<6;k++){
+     const a=outline[k],b=outline[k+1],fraction=.10+r()*.18;
+     windingFiber(c,lerp(a[0],b[0],fraction),lerp(a[1],b[1],fraction),
+       (b[0]-a[0])*(.35+r()*.24),(b[1]-a[1])*(.35+r()*.24),
+       seed*37+k,color('#d9cad0',.060+r()*.085),.45+r()*.45);
    }
  }
  // Low, handcrafted lookout bench; a compact natural resting place
@@ -1795,25 +1822,32 @@
      lerp(cinematicHash(a,b+1,seed),cinematicHash(a+1,b+1,seed),fx),fy);
  }
  function createVeil(){
-   const w=480,h=132,v=document.createElement('canvas');
+   const w=640,h=164,v=document.createElement('canvas');
    v.width=w;v.height=h;
    const g=v.getContext('2d',{alpha:true}),pixels=g.createImageData(w,h);
    for(let j=0;j<h;j++)for(let i=0;i<w;i++){
      const u=i/(w-1),q=j/(h-1);
-     const v0=.53*cinematicNoise(u*5.8+2.1,q*3.8,23)+
-       .31*cinematicNoise(u*16,q*8.3,49)+
-       .16*cinematicNoise(u*40,q*21,73);
-     const mid=.50+.079*Math.sin(u*8.8+1.4)+.041*Math.sin(u*19.7);
-     const body=Math.exp(-Math.pow((q-mid)*3.5,2));
-     const softEdge=Math.pow(Math.sin(Math.PI*u),.75)*
-       Math.pow(Math.sin(Math.PI*q),1.2);
-     const clouds=clamp((v0-.31)/.39);
-     const opacity=softEdge*body*Math.pow(clouds,1.32);
+     // Three unrelated scales prevent a fog bank from becoming a smooth
+     // full-width ribbon. Wisps rise and dissolve around invisible trees.
+     const warp=cinematicNoise(u*12.7,q*7.1,129)-.5;
+     const v0=.48*cinematicNoise(u*5.8+2.1,q*4.3+warp*.55,23)+
+       .32*cinematicNoise(u*17.1,q*9.1+warp*.90,49)+
+       .20*cinematicNoise(u*46.0,q*25.2,73);
+     const center=.48+.084*Math.sin(u*8.8+1.4)+
+       .033*Math.sin(u*22.3+warp*3.2);
+     const deviation=q-center-warp*.071;
+     const broad=Math.exp(-Math.pow(deviation*3.6,2));
+     const lifted=Math.exp(-Math.pow((deviation+.20)*7.2,2));
+     const broken=Math.pow(clamp((v0-.325)/.39),1.45);
+     const veil=(broad*.76+lifted*.26)*broken;
+     const softEdge=Math.pow(Math.sin(Math.PI*u),.95)*
+       Math.pow(Math.sin(Math.PI*q),1.58);
+     const opacity=softEdge*veil;
      const p=(j*w+i)*4;
-     pixels.data[p]=182+Math.round(17*v0);
-     pixels.data[p+1]=202+Math.round(15*v0);
-     pixels.data[p+2]=220+Math.round(12*v0);
-     pixels.data[p+3]=Math.round(clamp(opacity*.9)*222);
+     pixels.data[p]=169+Math.round(23*v0);
+     pixels.data[p+1]=198+Math.round(17*v0);
+     pixels.data[p+2]=218+Math.round(13*v0);
+     pixels.data[p+3]=Math.round(clamp(opacity*.88)*216);
    }
    g.putImageData(pixels,0,0);
    return v;
@@ -2395,7 +2429,7 @@
        skyT.x,skyT.y+skyT.height*.51);
      g.addColorStop(0,'rgba('+rgb.join(',')+',0)');
      g.addColorStop(.65,'rgba('+rgb.join(',')+','+
-       (night>.9?.075:.13)+')');
+       (night>.9?.040:.13)+')');
      g.addColorStop(1,'rgba('+rgb.join(',')+',0)');
      ctx.globalAlpha=weight*(1-storm*.40);
      ctx.fillStyle=g;
