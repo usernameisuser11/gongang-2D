@@ -144,14 +144,9 @@ function instanceRepeatedForest(group){
   const buckets=new Map();
   group.traverse(node=>{
     if(!node.isMesh||!node.geometry||!node.material)return;
-    let parent=node,tree=false;
-    while(parent&&parent!==group){
-      if(/Forest \| linked tree|Foreground hero tree/.test(parent.name)){
-        tree=true;break;
-      }
-      parent=parent.parent;
-    }
-    if(!tree)return;
+    // Only the botanicals reuse the same geometry many times; terrain,
+    // grass and river have unique geometry and are left in place.
+    // Avoid matching Blender object names, which glTF may sanitize.
     const mats=Array.isArray(node.material)?node.material:[node.material];
     const key=node.geometry.uuid+'/'+mats.map(m=>m.uuid).join(',');
     if(!buckets.has(key))buckets.set(key,[]);
