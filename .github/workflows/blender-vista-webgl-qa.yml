@@ -4,6 +4,8 @@ on:
     branches: [feat/blender-authored-vista-20261117]
     paths:
       - 'public/assets/models/blender-cinematic-valley.glb'
+      - 'public/blender-vista-3d.js'
+      - 'test/blender-vista-visual.mjs'
       - '.github/workflows/blender-vista-webgl-qa.yml'
   workflow_dispatch:
 permissions:
