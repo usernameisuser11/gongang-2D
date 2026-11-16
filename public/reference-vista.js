@@ -1125,11 +1125,22 @@
    const r=rng(seed);
    // Eroded granite is continuous, not a low-poly octagon. Keep the size and
    // planted position of every existing stone so the lookout layout is stable.
-   const outline=[[-.50,.05],[-.50,-.19],[-.43,-.50],[-.33,-.76],
-     [-.18,-.94],[.025,-.98],[.22,-.86],[.38,-.64],
-     [.48,-.32],[.50,-.07],[.43,.11],[.24,.165],[-.08,.18],[-.35,.15]]
-     .map(([a,b],i)=>[x+w*(a+(r()-.5)*(i>10?.008:.022)),
-       y+h*(b+(r()-.5)*.026)]);
+   // Three different fractured outlines, all asymmetrical and explicitly
+   // broad-sided: the previous near-circular contour read as a soap bubble.
+   const profiles=[
+     [[-.52,.06],[-.52,-.18],[-.48,-.34],[-.40,-.44],[-.34,-.67],
+       [-.22,-.76],[-.06,-.73],[.10,-.86],[.23,-.80],[.35,-.57],
+       [.48,-.47],[.49,-.18],[.43,.05],[.23,.16],[-.15,.17],[-.40,.13]],
+     [[-.52,.06],[-.49,-.21],[-.43,-.47],[-.34,-.59],[-.27,-.77],
+       [-.13,-.87],[.035,-.83],[.16,-.69],[.31,-.72],[.39,-.54],
+       [.49,-.31],[.49,-.04],[.38,.10],[.15,.16],[-.26,.17]],
+     [[-.52,.05],[-.50,-.20],[-.44,-.36],[-.37,-.61],[-.26,-.72],
+       [-.10,-.79],[.07,-.70],[.21,-.76],[.31,-.56],[.43,-.39],
+       [.51,-.15],[.47,.06],[.28,.16],[-.11,.17],[-.42,.13]]
+   ];
+   const outline=profiles[seed%profiles.length].map(([a,b],i)=>[
+     x+w*(a+(r()-.5)*(i>11?.009:.026)),
+     y+h*(b+(r()-.5)*(i>11?.012:.041))]);
    const trace=()=>{
      c.beginPath();
      const last=outline[outline.length-1],first=outline[0];
@@ -1150,14 +1161,27 @@
    c.save();trace();c.clip();
    // A continuous diffuse face catches the sky; a cooler recessed side
    // restores volume without a mesh of visible triangles.
-   const frost=radial(c,x-w*.20,y-h*.82,w*.83, [
-     [0,'rgba(210,198,193,.19)'],[.48,'rgba(158,170,186,.085)'],
+   const frost=radial(c,x-w*.26,y-h*.75,w*.76, [
+     [0,'rgba(210,198,193,.16)'],[.48,'rgba(158,170,186,.075)'],
      [1,'rgba(155,167,186,0)']]);
    c.fillStyle=frost;c.fillRect(x-w*.53,y-h*1.07,w*1.06,h*1.33);
    const shade=lgrad(c,x-w*.02,y-h*.68,x+w*.37,y+h*.17,[
      [0,'rgba(24,37,49,0)'],[.44,'rgba(26,38,48,.065)'],
      [1,'rgba(12,28,38,.29)']]);
    c.fillStyle=shade;c.fillRect(x-w*.53,y-h,w*1.06,h*1.20);
+   // Eroded shelves and connected mineral bands travel across the stone.
+   // Their feathered curves bring back geology without triangulated facets.
+   for(let k=0;k<32;k++){
+     const yy=y-h*(.10+r()*.80),xx=x-w*.50+r()*w*.88,
+       span=(.08+r()*.21)*w,fall=(.025+r()*.20)*h;
+     c.beginPath();c.moveTo(xx,yy);
+     c.bezierCurveTo(xx+span*.20,yy-fall*.55,
+       xx+span*.67,yy+fall*.23,xx+span,yy+fall);
+     c.strokeStyle=color(k%6===0?'#d5c3c1':k%3===0?'#a29ca8':'#273947',
+       (k%3===0?.075:.12)+r()*.105);
+     c.lineWidth=.7+r()*(w>130?5:1.8);
+     c.lineCap='round';c.stroke();
+   }
    // Seamless mineral pigments are drawn once at native rock resolution.
    // Three related grain scales create veins and stone pores, not facets.
    const tw=Math.max(8,Math.ceil(w)),th=Math.max(8,Math.ceil(h*1.2));
@@ -1172,12 +1196,13 @@
      const fleck=grain(),bright=mineral+slow*.18>.015;
      pixels.data[p]=bright?190:31;pixels.data[p+1]=bright?187:51;
      pixels.data[p+2]=bright?192:65;
-     pixels.data[p+3]=Math.round(Math.abs(mineral)*38+(fleck>.984?32:fleck*11));
+     pixels.data[p+3]=Math.round(Math.abs(mineral)*84+
+       Math.abs(slow)*32+(fleck>.984?48:fleck*13));
    }
    tc.putImageData(pixels,0,0);c.drawImage(tex,x-w*.53,y-h,w*1.06,h*1.2);
    // Subtle branching fracture lines track the rounded face. Their pale
    // rims are displaced by only a pixel, never a polygonal outline.
-   for(let k=0;k<20;k++){
+   for(let k=0;k<41;k++){
      const sx=x+(r()-.5)*w*.82,sy=y-h*(.13+r()*.77),
        dx=(r()-.5)*w*.21,dy=h*(.06+r()*.20),s=seed*101+k;
      windingFiber(c,sx,sy,dx,dy,s,color('#1d2935',.08+r()*.22),.35+r()*.85);
