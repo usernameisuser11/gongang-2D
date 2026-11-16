@@ -760,6 +760,52 @@
    c.restore();
  }
 
+ // Old wind-sculpted cedars establish a second forest silhouette language.
+ // No filled triangle: every bough is a hanging branch with separate sprays
+ // and transparent air between the needles. Only a handful are art-placed.
+ function cinematicCedar(c,x,y,h,seed,depth,weight=.72){
+   const r=rng(seed+depth*701),lean=(r()-.54)*h*.19;
+   const P=depth>=5?['#142a2e','#24413e','#375b54','#789185']:
+     ['#263b41','#365457','#527474','#a2b2a9'];
+   c.save();c.translate(x,y);c.lineCap='round';
+   c.globalAlpha=weight*.48;
+   c.beginPath();c.moveTo(0,1);
+   c.bezierCurveTo(lean*.06,-h*.28,lean*.84,-h*.70,lean,-h);
+   c.strokeStyle=P[0];c.lineWidth=Math.max(.75,h*.016);c.stroke();
+   const groups=12+Math.floor(r()*5);
+   for(let j=0;j<groups;j++){
+     const q=.19+(j+r()*.20)/groups*.77;
+     const py=-h*q,axis=lean*q*q,branchScale=h*(.23+r()*.18)*
+       Math.pow(1-q,.62);
+     for(const side of [-1,1]){
+       if(r()<.065)continue;
+       const spread=branchScale*(side>0?.88:1.11),
+         tipX=axis+side*spread,tipY=py+h*(.035+r()*.048);
+       c.globalAlpha=weight*.42;
+       c.beginPath();c.moveTo(axis,py);
+       c.bezierCurveTo(axis+side*spread*.31,py-h*.048,
+         axis+side*spread*.78,py+h*.015,tipX,tipY);
+       c.strokeStyle=P[0];c.lineWidth=Math.max(.35,h*.005*(1-q*.5));c.stroke();
+       // Each branch divides into feathered, overlapping needle groups.
+       for(let s=0;s<11;s++){
+         const u=(s+.32+r()*.24)/11,
+           bx=axis+side*spread*u,
+           by=py+h*(.038+r()*.022)*u*u,
+           reach=h*(.023+r()*.043)*(1-q*.55)*(1-u*.29),
+           ang=side*(.25+r()*.6);
+         for(const n of [-1,1]){
+           const direction=-Math.PI*.5+n*(.46+r()*.4)+ang*.23,
+             tip=reach*(.65+r()*.7);
+           c.globalAlpha=weight*(.24+r()*.33);
+           forestLeaf(c,bx,by,tip,direction,
+             P[(s+n+11)%3+1],.40+r()*.42);
+         }
+       }
+     }
+   }
+   c.restore();
+ }
+
  function fir(c,x,y,height,seed,col,weight=1){
    if(params.get('treeTexture')==='needles')
      return needleFir(c,x,y,height,seed,col,weight);
@@ -813,6 +859,21 @@
    if(cinematicMode&&k%4!==0)
      cinematicGroveTree(c,x,y,h,seed,index,.75+r()*.16);
    else fir(c,x,y,h,seed,tones[index],.74+r()*.16);
+  }
+  // Carefully spaced large silhouettes create a readable foreground rhythm.
+  // The valley centre remains open to preserve the distant-sky focal point.
+  if(cinematicMode&&index>=4){
+    const anchors=index===4?
+      [[210,139,0],[1406,128,1]]:
+      index===5?[[382,151,1],[1302,144,0]]:
+      [[150,162,0],[580,136,1],[1150,141,0],[1550,159,1]];
+    for(let j=0;j<anchors.length;j++){
+      const [x,h,cedar]=anchors[j],
+        root=ridgeHeight(m.pts,x,m.seed)+(index>=5?30:19),
+        seed=271883+index*191+j*837;
+      if(cedar)cinematicCedar(c,x,root,h,seed,index,index===6?.70:.59);
+      else cinematicGroveTree(c,x,root,h,seed,index,index===6?.78:.66);
+    }
   }
   forestMist(c,index);
  }
@@ -1956,7 +2017,7 @@
  // Every pigment and silhouette below is constructed from code. No photos.
  const cinematicMode=params.get('art')==='cinematic';
  const reducedCinematicMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
- let fogVeils=null,needleLight=null;
+ let fogVeils=null,needleLight=null,forestSkyBounce=null;
  function cinematicHash(x,y,s){
    let v=Math.imul(x+17*s,0x27d4eb2d)^Math.imul(y+31*s,0x165667b1);
    v=Math.imul(v^(v>>>15),0x85ebca6b);
@@ -2019,6 +2080,36 @@
      width*1.04,height*.76);
    c.restore();
    state.atmospherePasses++;
+ }
+ function makeForestSkyBounce(){
+   const sheet=document.createElement('canvas');sheet.width=W;sheet.height=H;
+   const g=sheet.getContext('2d',{alpha:true});
+   const patches=[
+     [228,485,305,'126,192,201',.155],
+     [777,530,394,'174,172,212',.115],
+     [1227,486,357,'118,190,207',.158],
+     [1543,550,259,'184,174,198',.087]
+   ];
+   for(const [x,y,rgbRadius,rgb,opacity] of patches){
+     const light=g.createRadialGradient(x,y,0,x,y,rgbRadius);
+     light.addColorStop(0,'rgba('+rgb+','+opacity+')');
+     light.addColorStop(.36,'rgba('+rgb+','+(opacity*.33).toFixed(4)+')');
+     light.addColorStop(.77,'rgba('+rgb+','+(opacity*.055).toFixed(4)+')');
+     light.addColorStop(1,'rgba('+rgb+',0)');
+     g.fillStyle=light;
+     g.fillRect(x-rgbRadius,y-rgbRadius,rgbRadius*2,rgbRadius*2);
+   }
+   return sheet;
+ }
+ function forestReflectedSky(c,t,depth,relative,night,clouds,storm){
+   if(night<.04)return;
+   if(!forestSkyBounce)forestSkyBounce=makeForestSkyBounce();
+   c.save();c.globalCompositeOperation='screen';
+   c.globalAlpha=night*(1-clouds*.55)*(1-storm*.60)*
+     (depth===2?.76:.49);
+   const x=t.x-relative*depth*t.width*.0025;
+   c.drawImage(forestSkyBounce,x,t.y,t.width,t.height);
+   c.restore();
  }
  function cinematicAirLight(c,t,now,hour,solar,night,sun,clouds,storm){
    const dawn=clamp(1-Math.abs(hour-solar.sunrise)/1.9,0,1);
@@ -2727,6 +2818,10 @@
          ctx.restore();
        }
      }
+     // The same celestial colours scatter across the valley's canopy and
+     // understorey. This is atmospheric bounce, not an isolated light blob.
+     if(cinematicMode&&(i===2||i===3))
+       forestReflectedSky(ctx,t,i,relative,night,clouds,storm);
      // These animated veils are composited BETWEEN actual terrain layers.
      if(cinematicMode&&i<layers.length-1)
        depthFog(ctx,t,i,relative,now,night,clouds,storm,weather.wind);
