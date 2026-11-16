@@ -147,8 +147,8 @@ async function prepare(){
     haze=new THREE.FogExp2('#294b5e',.005);
     scene.fog=haze;
     camera=new THREE.OrthographicCamera(-25,25,27.5,-27.5,.1,550);
-    camera.position.set(0,13,42);
-    camera.lookAt(0,5.5,-65);
+    camera.position.set(0,13,-42);
+    camera.lookAt(0,5.5,65);
     hemi=new THREE.HemisphereLight('#e3edff','#244c45',1.7);
     scene.add(hemi);
     sun=new THREE.DirectionalLight('#c7d8ff',1.5);
@@ -199,8 +199,8 @@ function draw(ctx,t,now,{personal=false,scroll=0}={}){
     camera.updateProjectionMatrix();
     const horizontal=portrait?-4.8:0;
     const drift=clamp(scroll,-1,1)*(personal?3.2:2.1);
-    camera.position.set(horizontal+drift,personal?17:13,42);
-    camera.lookAt(horizontal+drift*.30,personal?9:5.5,-65);
+    camera.position.set(horizontal+drift,personal?17:13,-42);
+    camera.lookAt(horizontal+drift*.30,personal?9:5.5,65);
     skyClock.value=now*.001;
     if((state.frames%30)===0){updateLight(now);getWeather();}
     if(!reduced){
