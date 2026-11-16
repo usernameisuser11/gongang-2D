@@ -3039,9 +3039,14 @@
        // deeper values, while distant ridges catch more cold starlight.
        const lushDay=cinematicMode&&i>1?sun*.23:0;
        const moonBounce=cinematicMode?night*(i===1?.084:i===2?.125:.031):0;
-       ctx.filter='brightness('+(1+mountainDaylight*(i===1?.20:.17)+lushDay+moonBounce).toFixed(3)+
+       // Distinct atmospheric value planes are more important than adding
+       // another hundred translucent trees. The distant forest catches sky
+       // bounce, while the nearer ridge stays a readable dark silhouette.
+       const depthExposure=cinematicMode?(i===2?.095:i===3?-.105:0):0;
+       const depthSaturation=cinematicMode?(i===2?-.055:i===3?.13:0):0;
+       ctx.filter='brightness('+(1+mountainDaylight*(i===1?.20:.17)+lushDay+moonBounce+depthExposure).toFixed(3)+
          ') hue-rotate('+(hue*mountainDaylight-lushDay*55).toFixed(2)+'deg)' +
-         ' saturate('+(1+mountainDaylight*.04+lushDay*.85+moonBounce*.24).toFixed(3)+')';
+         ' saturate('+(1+mountainDaylight*.04+lushDay*.85+moonBounce*.24+depthSaturation).toFixed(3)+')';
        // Winter variant is painted once on demand. Switching seasons
        // changes only mountain snow; trees, visitors and photos retain
        // their original world coordinates.
