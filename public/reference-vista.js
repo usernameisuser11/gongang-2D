@@ -1206,6 +1206,27 @@
     ellipse(c,x,y,8+sod()*42,2+sod()*7,
       color(p%4===0?'#b2a06e':p%3===0?'#5c8073':'#466b62',.025+sod()*.055),-.12);
    }
+   // Two distinct woodland guardians create a recognizable middle-to-near
+   // silhouette transition. Their roots belong to the real clearing, but
+   // their boughs interrupt the otherwise unbroken band of distant crowns.
+   // Keep the central seat, sky and social photo sightline completely open.
+   if(cinematicMode){
+     cinematicCedar(c,308,752,206,231901,6,.97);
+     cinematicGroveTree(c,1418,751,211,410239,6,.91);
+     // Tree bases disappear into their own soil and small root shadows.
+     for(const [x,spread] of [[308,94],[1418,109]]){
+       ellipse(c,x,758,spread,14,'rgba(15,39,42,.13)');
+       const rootR=rng(x*17);
+       for(let k=0;k<30;k++){
+         const xx=x+(rootR()-.5)*spread*1.6,
+           yy=755+rootR()*19,
+           len=2+rootR()*12;
+         windingFiber(c,xx,yy,(rootR()-.5)*8,-len,x*11+k,
+           color(k%4===0?'#8ba99a':'#42685f',.15+rootR()*.18),
+           .45+rootR()*.7);
+       }
+     }
+   }
    // Hand-authored large rocks (position in pixels matches the original).
    rock(c,85,823,244,87,131);
    rock(c,364,860,216,76,132);
@@ -2188,6 +2209,29 @@
    c.fillStyle=veil;c.fillRect(-rx,-rx,rx*2,rx*2);
    c.restore();
  }
+ // Air directly behind the two near woodland guardians is brighter than
+ // their shaded bark. Both light wells have broad feathered perimeters and
+ // move with the terrain, so no circular halo appears on the finished scene.
+ function guardianBacklight(c,t,night,sun,clouds,storm){
+   const transmission=(1-clouds*.56)*(1-storm*.71),
+     strength=(night*.20+sun*.075)*transmission;
+   if(strength<.012)return;
+   c.save();c.globalCompositeOperation='screen';
+   for(const [u,v,r] of [[.187,.620,.158],[.845,.606,.147]]){
+     const x=t.x+t.width*u,y=t.y+t.height*v,rx=t.width*r;
+     c.save();c.translate(x,y);c.scale(1,.57);
+     const g=c.createRadialGradient(0,0,0,0,0,rx);
+     g.addColorStop(0,night>.45?
+       'rgba(136,209,215,'+strength.toFixed(4)+')':
+       'rgba(246,212,166,'+strength.toFixed(4)+')');
+     g.addColorStop(.36,'rgba(150,194,205,'+(strength*.36).toFixed(4)+')');
+     g.addColorStop(.77,'rgba(141,179,193,'+(strength*.045).toFixed(4)+')');
+     g.addColorStop(1,'rgba(141,179,193,0)');
+     c.fillStyle=g;c.fillRect(-rx,-rx,rx*2,rx*2);
+     c.restore();
+   }
+   c.restore();
+ }
  function cinematicAirLight(c,t,now,hour,solar,night,sun,clouds,storm){
    const dawn=clamp(1-Math.abs(hour-solar.sunrise)/1.9,0,1);
    const dusk=clamp(1-Math.abs(hour-solar.sunset)/2.1,0,1);
@@ -2901,6 +2945,8 @@
        forestReflectedSky(ctx,t,i,relative,night,clouds,storm);
      if(cinematicMode&&i===2)
        moonlitValleyOpening(ctx,t,night,clouds,storm,now);
+     if(cinematicMode&&i===3)
+       guardianBacklight(ctx,t,night,sun,clouds,storm);
      // These animated veils are composited BETWEEN actual terrain layers.
      if(cinematicMode&&i<layers.length-1)
        depthFog(ctx,t,i,relative,now,night,clouds,storm,weather.wind);
