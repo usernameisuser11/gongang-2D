@@ -583,17 +583,34 @@
     const pad=overscan*t.width;
     c.drawImage(layer,t.x-pad+shift,t.y,t.width+pad*2,t.height);
   }
-  function drawMeteor(c,t,fx,fy,scale=1,color='#dceeff'){
-    const x=fx*WIDTH,y=fy*HEIGHT;
-    const headX=x+t*230*scale,headY=y+t*82*scale;
-    if(t<0||t>1.3)return;
-    const a=Math.min(1,t*3,(1.3-t)*2);
-    c.save();c.globalAlpha=clamp(a,0,1);
-    const trail=c.createLinearGradient(headX-155*scale,headY-55*scale,headX,headY);
-    trail.addColorStop(0,'rgba(115,155,255,0)');trail.addColorStop(.65,color);trail.addColorStop(1,'#ffffff');
-    c.strokeStyle=trail;c.lineCap='round';c.lineWidth=2.2*scale;
-    c.beginPath();c.moveTo(headX-155*scale,headY-55*scale);c.lineTo(headX,headY);c.stroke();
-    glow(c,headX,headY,18*scale,'rgba(225,241,255,.55)','rgba(166,211,255,0)');
+  function drawMeteor(c,age,fx,fy,scale=1,color='#dceeff'){
+    // Sub-pixel motion and a feathered, gently curved tail avoid the rigid
+    // full-length white line that used to snap into existence each frame.
+    const life=1.65;
+    if(age<=0||age>=life)return;
+    const u=age/life,visible=smooth(0,.13,u)*(1-smooth(.70,1,u));
+    const travel=450*(u+.08*Math.sin(u*Math.PI))*scale;
+    const headX=fx*WIDTH+travel,headY=fy*HEIGHT+travel*.33;
+    const length=(95+54*scale)*Math.min(1,u*7)*scale;
+    const tailX=headX-length,tailY=headY-length*.33;
+    const bend=Math.sin(u*Math.PI)*length*.019;
+    c.save();c.globalAlpha=visible*.90;c.lineCap='round';
+    const trail=c.createLinearGradient(tailX,tailY,headX,headY);
+    trail.addColorStop(0,'rgba(124,164,235,0)');
+    trail.addColorStop(.36,'rgba(160,190,240,.12)');
+    trail.addColorStop(.79,color);trail.addColorStop(1,'#fffdf5');
+    const stroke=()=>{
+      c.beginPath();c.moveTo(tailX,tailY);
+      c.quadraticCurveTo((tailX+headX)*.5,
+        (tailY+headY)*.5-bend,headX,headY);c.stroke();
+    };
+    c.strokeStyle=trail;c.globalAlpha=visible*.18;
+    c.lineWidth=7*scale;stroke();
+    c.globalAlpha=visible*.63;c.lineWidth=2.45*scale;stroke();
+    c.globalAlpha=visible*.94;c.lineWidth=.82*scale;stroke();
+    glow(c,headX,headY,11*scale,'rgba(230,244,255,.39)','rgba(166,211,255,0)',visible*.72);
+    c.fillStyle='#fffdfa';c.globalAlpha=visible*.86;
+    c.beginPath();c.arc(headX,headY,Math.max(.48,1.06*scale),0,TAU);c.fill();
     c.restore();
   }
   function fireworks(c,seconds,seed){
@@ -622,7 +639,7 @@
     const time=(Date.now()+clockOffset)/1000;
     const naturalWindow=Math.floor(time/47);
     const naturalTime=time%47-5.0;
-    if(naturalTime>0&&naturalTime<1.3){
+    if(naturalTime>0&&naturalTime<1.65){
       const r=seeded(naturalWindow+474);
       drawMeteor(c,naturalTime,.13+r()*.61,.10+r()*.27,.85,'#ccdcff');
     }
@@ -645,7 +662,7 @@
           for(let i=0;i<15;i++){
             const r=seeded(event.seed+i*51);
             const time=elapsed-i*.77;
-            if(time>0&&time<1.3)drawMeteor(c,time,.08+r()*.67,.12+r()*.32,.72+r()*.54,i%3===0?'#b8ffd2':'#c9dcff');
+            if(time>0&&time<1.65)drawMeteor(c,time,.08+r()*.67,.12+r()*.32,.72+r()*.54,i%3===0?'#b8ffd2':'#c9dcff');
           }
         }
       }
@@ -672,7 +689,12 @@
     const referenceVista=window.GongangReferenceVista;
     if((!requestedRenderer || requestedRenderer==='reference') && referenceVista?.ready){
       const relative=clamp((state.x-1600)/1600,-1,1);
-      if(referenceVista.draw(c,personal?t:viewT,now,{personal,scroll:relative})){
+      if(referenceVista.draw(c,personal?t:viewT,now,{
+        personal,scroll:relative,
+        // The reference panorama must composite shared sky events BEFORE
+        // mountains. Otherwise both event buttons were visually silent.
+        onSky:skyTransform=>drawSkyEffects(c,skyTransform,now,{threeD:true})
+      })){
         metrics.rendered++;
         return;
       }
