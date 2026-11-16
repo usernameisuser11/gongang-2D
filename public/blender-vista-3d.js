@@ -137,6 +137,49 @@ async function getWeather(){
     weather.wind=clamp((d.wind_speed_10m||0)/7,0,3);
   }catch{/* Local default atmosphere remains usable offline. */}
 }
+function instanceRepeatedForest(group){
+  // Blender's linked objects share the same geometry in glTF. Turn the
+  // imported instances into a handful of GPU draw calls on portrait phones.
+  group.updateMatrixWorld(true);
+  const buckets=new Map();
+  group.traverse(node=>{
+    if(!node.isMesh||!node.geometry||!node.material)return;
+    let parent=node,tree=false;
+    while(parent&&parent!==group){
+      if(/Forest \| linked tree|Foreground hero tree/.test(parent.name)){
+        tree=true;break;
+      }
+      parent=parent.parent;
+    }
+    if(!tree)return;
+    const mats=Array.isArray(node.material)?node.material:[node.material];
+    const key=node.geometry.uuid+'/'+mats.map(m=>m.uuid).join(',');
+    if(!buckets.has(key))buckets.set(key,[]);
+    buckets.get(key).push(node);
+  });
+  let merged=0,instances=0;
+  for(const nodes of buckets.values()){
+    if(nodes.length<2)continue;
+    const original=nodes[0];
+    const gpu=new THREE.InstancedMesh(original.geometry,original.material,nodes.length);
+    gpu.name='Blender forest | GPU instanced '+original.name;
+    gpu.frustumCulled=false;
+    gpu.castShadow=false;gpu.receiveShadow=false;
+    const matrix=new THREE.Matrix4();
+    nodes.forEach((node,i)=>{
+      node.updateWorldMatrix(true,false);
+      matrix.copy(node.matrixWorld);
+      gpu.setMatrixAt(i,matrix);
+    });
+    gpu.instanceMatrix.needsUpdate=true;
+    for(const node of nodes)node.parent?.remove(node);
+    scene.add(gpu);
+    merged++;
+    instances+=nodes.length;
+  }
+  state.forestInstancedDraws=merged;
+  state.forestInstances=instances;
+}
 async function prepare(){
   try{
     if(!document.createElement('canvas').getContext('webgl2'))throw Error('WebGL2 unsupported');
@@ -176,6 +219,7 @@ async function prepare(){
       o.castShadow=false;o.receiveShadow=false;
     });
     scene.add(root);
+    instanceRepeatedForest(root);
     state.ready=true;
     state.loading=false;
     await getWeather();
