@@ -955,12 +955,17 @@
        const a=i/n*TAU,
          petal=.88+.095*Math.sin(a*7.0+seed*.51)+
            .048*Math.sin(a*13.0+seed*.23)+.022*Math.sin(a*19.0),
-         xx=dx+Math.cos(a)*rx*petal*(.95-band*.12),
-         yy=dy+Math.sin(a)*ry*petal*(.98-band*.12);
+         xx=dx+Math.cos(a)*rx*petal*(.98-band*.052),
+         yy=dy+Math.sin(a)*ry*petal*(.98-band*.055);
        if(!i)c.moveTo(xx,yy);else c.lineTo(xx,yy);
      }
-     c.closePath();c.fillStyle=palette[band];
-     c.globalAlpha=band===0?.87:band===1?.67:.48;c.fill();
+     c.closePath();
+     if(band===0)c.fillStyle=palette[0];
+     else c.fillStyle=radial(c,-rx*.24,-ry*.35,rx*1.57,[
+       [0,color(palette[Math.min(band+1,3)],band===1?.43:.26)],
+       [.62,color(palette[1],band===1?.24:.10)],
+       [1,color(palette[0],0)]]);
+     c.globalAlpha=band===0?.96:band===1?.58:.41;c.fill();
    }
    // Upper leaf sprays are physically separate, revealing the branch
    // silhouette in negative space instead of forming smooth round clouds.
@@ -1016,9 +1021,9 @@
      c.lineWidth=Math.max(1.5,h*(.008+(k%3)*.002));c.stroke();
    }
    for(let k=0;k<sprays.length;k++){
-     const [xx,yy,sx,sy]=sprays[k],jitter=(r()-.5)*h*.035;
-     stageCrown(c,xx*h+lean*.68+jitter,yy*h+jitter,
-       h*sx*(.88+r()*.22),h*sy*(.86+r()*.17),
+     const [xx,yy,sx,sy]=sprays[k],jitter=(r()-.5)*h*.09;
+     stageCrown(c,xx*h+lean*.68+jitter,yy*h+jitter*.47,
+       h*sx*(.76+r()*.34),h*sy*(.79+r()*.22),
        seed*23+k*173,p,.23);
    }
    // Sky-facing bark ridge is a surface detail, not a neon outline.
@@ -1080,6 +1085,9 @@
    trees.sort((a,b)=>a.y-b.y);
    // The ridgeline remains one continuous plane. Trunks emerge from it,
    // so the scene has no row of detached floating foliage sprites.
+   c.save();
+   if(index===3)c.filter='blur(1.35px)';
+   else if(index===4)c.filter='blur(.65px)';
    for(const t of trees){
      if(t.pine)stagePine(c,t.x,t.y,t.h,t.seed,index);
      else stageBroadleaf(c,t.x,t.y,t.h,t.seed,index);
@@ -1094,6 +1102,7 @@
        else stageBroadleaf(c,x,y,h,310331+index*101+k,index);
      }
    }
+   c.restore();
    // Narrow, soft blue lift at the foot of each ridge, below the crowns.
    // It separates planes without flooding the entire canopy with mist.
    const fog=c.createLinearGradient(0,540,0,790);
@@ -1158,6 +1167,17 @@
        'rgba(66,114,105,.18)';c.lineWidth=.40+r()*.6;
      c.beginPath();c.moveTo(x,y);
      c.quadraticCurveTo(x+dx*.2,y-h*.55,x+dx,y-h);c.stroke();
+   }
+   // Scattered moon-facing grassy brush along the lower forest floor.
+   // Each strand is attached to its own world point; there is no tiled
+   // grass sprite and no horizontal airbrushed texture strip.
+   for(let i=0;i<510;i++){
+     const x=r()*W,y=609+r()*124,
+       hh=2.5+r()*11,lean=(r()-.5)*hh*.85;
+     c.beginPath();c.moveTo(x,y);
+     c.quadraticCurveTo(x+lean*.22,y-hh*.69,x+lean,y-hh);
+     c.strokeStyle=i%8===0?'rgba(99,151,132,.18)':
+       'rgba(29,75,70,.17)';c.lineWidth=.35+r()*.75;c.stroke();
    }
  }
  function forestGrove(c,index){
