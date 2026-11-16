@@ -27,6 +27,11 @@ jobs:
         run: python3 -m py_compile blender/build_cinematic_valley.py
       - name: Generate editable .blend, realtime .glb, preview PNG
         run: blender --background --python blender/build_cinematic_valley.py -- --render
+      - name: Validate browser and server JavaScript
+        run: |
+          node --check server.mjs
+          node --check public/stargaze.js
+          node --check public/blender-vista-3d.js
       - name: Check outputs
         run: |
           test -s blender/output/gongang-cinematic-valley.blend
@@ -49,5 +54,7 @@ jobs:
           git add blender/output/gongang-cinematic-valley.blend blender/output/cinematic-valley-night.png public/assets/models/blender-cinematic-valley.glb
           if ! git diff --cached --quiet; then
             git commit -m "art: generate editable Blender scene, glb and preview"
+            git fetch origin feat/blender-authored-vista-20261117
+            git rebase origin/feat/blender-authored-vista-20261117
             git push origin HEAD:feat/blender-authored-vista-20261117
           fi
