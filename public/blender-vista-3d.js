@@ -79,6 +79,12 @@ function buildAtmosphere(){
   scene.add(stars);
 }
 function hourInSeoul(time){
+  // QA override only. Ordinary visitors always see the actual Seoul time.
+  const forced=new URLSearchParams(location.search).get('time');
+  if(/^([01]\d|2[0-3]):[0-5]\d$/.test(forced||'')){
+    const [h,m]=forced.split(':').map(Number);
+    return h+m/60;
+  }
   const parts=new Intl.DateTimeFormat('en-GB',{
     timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hourCycle:'h23'
   }).formatToParts(new Date(time));
