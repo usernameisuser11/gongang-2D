@@ -358,6 +358,9 @@ def studio():
     bg.inputs["Strength"].default_value=.48
     scene.render.engine="CYCLES"
     scene.cycles.samples=16
+    # Ubuntu's Blender package may ship without OpenImageDenoise.
+    for view_layer in scene.view_layers:
+        view_layer.cycles.use_denoising = False
     scene.render.resolution_x=1600
     scene.render.resolution_y=900
     scene.render.resolution_percentage=100
