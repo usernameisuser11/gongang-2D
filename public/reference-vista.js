@@ -836,6 +836,89 @@
    c.restore();
  }
 
+ // A few landmark trees form a readable silhouette against the luminous
+ // valley. Their long trunks split into actual branching paths, and their
+ // foliage grows in uneven clusters around those endpoints. Distant groves
+ // can stay soft, but the viewer needs a sharp intermediate scale to read.
+ function landmarkBroadleaf(c,x,y,h,seed,side=1){
+   const r=rng(seed),P=['#10272d','#1a3538','#2d4a49',
+     '#466660','#6d8980','#a1b3a5'];
+   const flip=side<0?-1:1;
+   c.save();c.translate(x,y);c.scale(flip,1);c.lineCap='round';
+   const trunk=c.createLinearGradient(-h*.07,0,h*.06,-h*.66);
+   trunk.addColorStop(0,'#0a222b');trunk.addColorStop(.64,'#233d41');
+   trunk.addColorStop(1,'#3c5a56');
+   c.beginPath();c.moveTo(-h*.045,4);
+   c.bezierCurveTo(-h*.051,-h*.22,-h*.079,-h*.36,-h*.12,-h*.54);
+   c.bezierCurveTo(-h*.13,-h*.65,-h*.09,-h*.77,-h*.084,-h*.84);
+   c.lineTo(-h*.053,-h*.83);
+   c.bezierCurveTo(-h*.063,-h*.70,-h*.077,-h*.59,-h*.062,-h*.52);
+   c.bezierCurveTo(-h*.020,-h*.33,h*.025,-h*.22,h*.034,3);
+   c.closePath();c.fillStyle=trunk;c.globalAlpha=.88;c.fill();
+   const limbs=[
+     [-.090,-.70,-.22,-.78,-.31,-.83,-.48,-.84,4.7],
+     [-.071,-.58,.015,-.69,.19,-.72,.37,-.78,5.5],
+     [-.052,-.47,-.12,-.56,-.23,-.60,-.39,-.64,5.4],
+     [-.072,-.49,.04,-.58,.18,-.51,.42,-.51,4.1],
+     [-.083,-.78,-.06,-.89,.07,-.96,.16,-1.00,3.8],
+     [-.093,-.64,-.16,-.79,-.16,-.92,-.19,-.98,3.4]
+   ];
+   for(let k=0;k<limbs.length;k++){
+     const b=limbs[k];c.beginPath();c.moveTo(b[0]*h,b[1]*h);
+     c.bezierCurveTo(b[2]*h,b[3]*h,b[4]*h,b[5]*h,b[6]*h,b[7]*h);
+     c.strokeStyle=P[k%3];c.lineWidth=b[8]*(h/190);c.stroke();
+     if(k%2===0){
+       c.strokeStyle='rgba(165,196,176,.16)';
+       c.lineWidth=Math.max(.45,h*.0028);c.stroke();
+     }
+   }
+   const nodes=[
+     [-.47,-.84,.19,.15],[-.30,-.92,.22,.18],[-.13,-.99,.19,.17],
+     [.035,-1.04,.21,.16],[.22,-.92,.22,.19],[.40,-.79,.18,.16],
+     [.33,-.57,.20,.16],[-.37,-.63,.21,.15],[-.13,-.68,.20,.14],
+     [.05,-.72,.24,.17]
+   ];
+   for(let k=0;k<nodes.length;k++){
+     const [nx,ny,sx,sy]=nodes[k],px=nx*h,py=ny*h;
+     const rx=sx*h*(.88+r()*.22),ry=sy*h*(.84+r()*.24),
+       tilt=(r()-.5)*.30;
+     // Dense cores are discontinuous and dark; smaller pointed leaflets
+     // carry the silhouette instead of a chain of inflated round blobs.
+     for(let mass=0;mass<4;mass++){
+       const mx=px+(r()-.5)*rx*.65,my=py+(r()-.5)*ry*.53,
+         radX=rx*(.45+r()*.31),radY=ry*(.46+r()*.31),n=22;
+       c.beginPath();
+       for(let j=0;j<=n;j++){
+         const a=j/n*TAU,rough=.79+.12*Math.sin(a*7+k*2.31)+
+           .09*Math.sin(a*13+mass*3.9)+r()*.055,
+           xx=mx+Math.cos(a)*radX*rough+Math.sin(a)*tilt*radY,
+           yy=my+Math.sin(a)*radY*rough;
+         if(j===0)c.moveTo(xx,yy);else c.lineTo(xx,yy);
+       }
+       c.closePath();c.fillStyle=P[(k+mass)%3];
+       c.globalAlpha=.42+r()*.23;c.fill();
+     }
+     // Each branch-supported spray has its own orientation and light side.
+     // The leaf scale is intentionally larger than the tiny distant forest.
+     for(let j=0;j<108;j++){
+       const a=r()*TAU,dist=Math.sqrt(r())*(.69+r()*.43),
+         xx=px+Math.cos(a)*rx*dist,
+         yy=py+Math.sin(a)*ry*dist,
+         outer=dist>.76,upper=Math.sin(a)<-.08,
+         hue=upper?(r()<.12?5:3+Math.floor(r()*2)):
+           1+Math.floor(r()*3),
+         size=h*(.014+r()*.021)*(outer?1.17:.89);
+       c.globalAlpha=(upper?.44:.35)+r()*.33;
+       forestLeaf(c,xx,yy,size,a+(r()-.5)*.85,P[hue],.48+r()*.67);
+     }
+   }
+   // Two bark glints orient the tree with the same sky light as its leaves.
+   c.globalAlpha=.18;c.lineWidth=Math.max(.7,h*.0033);
+   c.strokeStyle=P[5];c.beginPath();c.moveTo(-h*.018,-h*.07);
+   c.bezierCurveTo(-h*.048,-h*.27,-h*.065,-h*.38,-h*.094,-h*.51);
+   c.stroke();c.restore();
+ }
+
  function fir(c,x,y,height,seed,col,weight=1){
    if(params.get('treeTexture')==='needles')
      return needleFir(c,x,y,height,seed,col,weight);
@@ -861,7 +944,7 @@
   const m=mountains[index],r=rng(7983+index*1171);
   // A few legible, overlapping crowns read as a forest from a distance.
   // Hundreds of identical small crowns had collapsed into noisy teal mud.
-  const groveCount=(cinematicMode?[0,0,0,82,100,110,128]:
+  const groveCount=(cinematicMode?[0,0,0,61,72,82,93]:
     [0,0,0,235,280,310,345])[index];
   const tones=['','','','#39494c','#2e4142','#24393b','#1d3133'];
   const clusters=index===3?[145,438,1170,1490]:
@@ -884,7 +967,7 @@
       cinematicGroveTree(c,t.x,t.y,t.h,t.seed,index,near?.88:.78);
     else fir(c,t.x,t.y,t.h,t.seed,t.col,near?.92:.83);
   }
-  for(let k=0;k<(cinematicMode?20:14);k++){
+  for(let k=0;k<(cinematicMode?12:14);k++){
    const x=65+r()*(W-130),y=ridgeHeight(m.pts,x,m.seed)+11+r()*23;
    if(index===3&&x>650&&x<1000)continue;
    const h=42+r()*(cinematicMode?93:72),seed=m.seed*26017+k;
@@ -905,6 +988,14 @@
         seed=271883+index*191+j*837;
       if(cedar)cinematicCedar(c,x,root,h,seed,index,index===6?.84:.72);
       else cinematicGroveTree(c,x,root,h,seed,index,index===6?.94:.82);
+    }
+  }
+  // Only two near-forest landmarks: asymmetrical, wide crowns against a
+  // cleaner gap. An entire row of additional cedars read as black poles.
+  if(cinematicMode&&index===6){
+    for(const [x,h,s,seed] of [[237,188,1,609122],[1420,202,-1,609673]]){
+      const root=ridgeHeight(m.pts,x,m.seed)+27;
+      landmarkBroadleaf(c,x,root,h,seed,s);
     }
   }
   forestMist(c,index);
@@ -955,7 +1046,7 @@
   // became the obvious ruler-straight seam in the user's screenshot.
   const bottom=rng(14051);
   const thickets=[132,338,545,858,1095,1350,1585];
-  for(let j=0;j<(cinematicMode?252:340);j++){
+  for(let j=0;j<(cinematicMode?144:340);j++){
    const center=thickets[Math.floor(bottom()*thickets.length)];
    const x=clamp(center+(bottom()+bottom()+bottom()-1.5)*355,0,W);
    const drift=Math.sin(x*.009+2.8)*20+Math.sin(x*.021)*10;
