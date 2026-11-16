@@ -8,7 +8,11 @@
   const sceneQuery=new URLSearchParams(location.search);
   const requestedRenderer=sceneQuery.get('renderer');
   const artFirst=!['procedural','25d','3d','live3d'].includes(requestedRenderer);
-  if((artFirst && sceneQuery.get('hybrid')!=='off') ||
+  // Dedicated Blender-generated 3D scene. Existing reference art is the safe fallback.
+  if(requestedRenderer==='blender'){
+    import('/blender-vista-3d.js').catch(e=>console.warn('Blender landscape not available',e));
+  }
+  if((requestedRenderer!=='blender' && artFirst && sceneQuery.get('hybrid')!=='off') ||
       sceneQuery.get('hybrid')==='on'){
     import('/hybrid-scenic-props.js').catch(error=>
       console.warn('Hybrid 3D props could not load; painted scenery unaffected',error));
@@ -684,6 +688,20 @@
     const viewT=makeTransform(t,personal);
     const outputT=personal?t:viewT;
     const livingOverlook=window.GongangOverlook25D;
+    if(requestedRenderer==='blender'){
+      const authored=window.GongangBlenderVista;
+      const scroll=clamp((state.x-1600)/1600,-1,1);
+      if(authored?.draw(c,personal?t:viewT,now,{personal,scroll})){
+        c.save();
+        c.beginPath();
+        c.rect(outputT.x,outputT.y,outputT.width,outputT.height*.56);
+        c.clip();
+        drawSkyEffects(c,outputT,now,{threeD:true});
+        c.restore();
+        metrics.rendered++;
+        return;
+      }
+    }
     // Coordinate-matched redraw: not the reference bitmap, not the old
     // generative terrain. Keep the multiplayer/camera/photo canvas intact.
     const referenceVista=window.GongangReferenceVista;
