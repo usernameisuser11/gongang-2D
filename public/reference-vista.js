@@ -727,7 +727,7 @@
          (current[0]+next[0])*.5,(current[1]+next[1])*.5);
      }
      c.closePath();c.fillStyle=colors[(p+seed)%3];
-     c.globalAlpha=weight*(.45+r()*.26);c.fill();
+     c.globalAlpha=weight*(depth>=5?.59+r()*.23:.47+r()*.25);c.fill();
    }
    // Broken outer twigs and individual leaves form a ragged crown edge.
    // Each spray is rooted at one of this tree's actual branch endpoints.
@@ -753,7 +753,7 @@
        px=crownX+Math.cos(a)*rx*dist,
        py=crownY+Math.sin(a)*ry*dist,
        len=h*(.019+r()*.043);
-     c.globalAlpha=weight*(.24+r()*.41);
+     c.globalAlpha=weight*(depth>=5?.31+r()*.43:.24+r()*.41);
      forestLeaf(c,px,py,len,a+(r()-.5)*1.4,
        colors[1+Math.floor(r()*4)],.54+r()*.65);
    }
@@ -845,7 +845,7 @@
   const m=mountains[index],r=rng(7983+index*1171);
   // A few legible, overlapping crowns read as a forest from a distance.
   // Hundreds of identical small crowns had collapsed into noisy teal mud.
-  const groveCount=(cinematicMode?[0,0,0,106,124,134,156]:
+  const groveCount=(cinematicMode?[0,0,0,82,100,110,128]:
     [0,0,0,235,280,310,345])[index];
   const tones=['','','','#39494c','#2e4142','#24393b','#1d3133'];
   const clusters=index===3?[145,438,1170,1490]:
@@ -854,9 +854,10 @@
   const near=index>=5,trees=[];
   for(let i=0;i<groveCount;i++){
    const center=clusters[Math.floor(r()*clusters.length)];
-   const x=clamp(center+(r()+r()+r()-1.5)*(near?340:400),0,W);
+   const x=clamp(center+(r()+r()+r()-1.5)*
+     (cinematicMode?(near?286:326):(near?340:400)),0,W);
    const rootY=ridgeHeight(m.pts,x,m.seed)+6+r()*(near?43:29);
-   const height=(near?25:14)+(near?95:64)*Math.pow(r(),.86);
+   const height=(near?27:16)+(near?107:72)*Math.pow(r(),.86);
    const col=i%9===0?'#3d4d4c':i%5===0?'#304146':tones[index];
    trees.push({x,y:rootY,h:height,seed:m.seed*10011+i,col});
   }
@@ -1718,7 +1719,7 @@
      const ids=depth===2?[3,4]:[5,6],near=depth===3;
      for(const index of ids){
        const m=mountains[index];
-       const count=cinematicMode?(near?43:35):(near?83:61);
+       const count=cinematicMode?(near?35:28):(near?83:61);
        const zones=index===3?[188,450,1165,1457]:
          index===4?[230,517,1127,1495]:
          index===5?[200,564,1108,1480]:[132,510,1034,1584];
