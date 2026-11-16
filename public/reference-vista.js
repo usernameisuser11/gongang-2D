@@ -953,37 +953,51 @@
      c.beginPath();
      for(let i=0;i<=n;i++){
        const a=i/n*TAU,
-         petal=.88+.11*Math.sin(a*7.0+seed*.51)+
-           .075*Math.sin(a*13.0+seed*.23)+.035*Math.sin(a*19.0),
+         petal=.88+.095*Math.sin(a*7.0+seed*.51)+
+           .048*Math.sin(a*13.0+seed*.23)+.022*Math.sin(a*19.0),
          xx=dx+Math.cos(a)*rx*petal*(.95-band*.12),
          yy=dy+Math.sin(a)*ry*petal*(.98-band*.12);
        if(!i)c.moveTo(xx,yy);else c.lineTo(xx,yy);
      }
-     c.closePath();c.fillStyle=palette[band];c.fill();
+     c.closePath();c.fillStyle=palette[band];
+     c.globalAlpha=band===0?.87:band===1?.67:.48;c.fill();
    }
    // Upper leaf sprays are physically separate, revealing the branch
    // silhouette in negative space instead of forming smooth round clouds.
-   for(let i=0;i<46;i++){
+   for(let i=0;i<35;i++){
      const a=r()*TAU,d=Math.sqrt(r())*(.58+r()*.47),
        xx=Math.cos(a)*rx*d,yy=Math.sin(a)*ry*d,
        upper=Math.sin(a)<-.16,
-       sx=1.0+r()*2.9,sy=1.1+r()*2.8;
+       sx=.8+r()*1.7,sy=.85+r()*1.8;
      if(!upper&&r()>.45)continue;
      c.beginPath();c.moveTo(xx-sx,yy+.5);
      c.quadraticCurveTo(xx-sx*.34,yy-sy*1.3,xx+sx*.26,yy-sy);
      c.quadraticCurveTo(xx+sx*1.6,yy-sy*.17,xx+sx*.7,yy+sy*.5);
      c.closePath();c.fillStyle=palette[upper?3:1];
-     c.globalAlpha=upper?.55+exposure*.40:.70;c.fill();
+     c.globalAlpha=upper?.10+exposure*.22:.20;c.fill();
+   }
+   // Dark internal leaf overlaps restore volume without separate floating
+   // circles, while a few short strokes catch the same skyward direction.
+   for(let i=0;i<66;i++){
+     const xx=(r()*2-1)*rx*.78,yy=(r()*2-1)*ry*.75;
+     if((xx/rx)**2+(yy/ry)**2>.81)continue;
+     const len=.8+r()*3.5;
+     c.lineWidth=.45+r()*.75;
+     c.strokeStyle=i%5===0?palette[3]:palette[i%3];
+     c.globalAlpha=i%5===0?.10:.21;
+     c.beginPath();c.moveTo(xx-len*.46,yy+len*.29);
+     c.quadraticCurveTo(xx,yy-len*.60,xx+len*.58,yy-len*.46);
+     c.stroke();
    }
    c.restore();
  }
  function stageBroadleaf(c,x,y,h,seed,depth){
    const r=rng(seed),u=h/165,lean=(r()-.5)*h*.17;
    const palettes=[
-     ['#263945','#324956','#405965','#91afb4'],
-     ['#142c38','#213e47','#30535b','#80a6a7'],
-     ['#0e2530','#19353b','#28504d','#659b96'],
-     ['#0a1f27','#113133','#1d4741','#639b8b']
+     ['#334653','#405360','#4a6066','#768f97'],
+     ['#203941','#2b484c','#355555','#668585'],
+     ['#173039','#21413f','#2e514a','#608a7d'],
+     ['#11292d','#1d3d38','#285047','#619184']
    ];
    const p=palettes[depth-3],sprays=[
      [-.35,-.74,.24,.17],[-.17,-.91,.28,.20],
@@ -1023,27 +1037,28 @@
    c.beginPath();c.moveTo(-h*.015,3);
    c.quadraticCurveTo(lean*.18,-h*.5,lean,-h);
    c.strokeStyle=dark;c.lineWidth=Math.max(1.25,h*.022);c.stroke();
-   for(let i=0;i<17;i++){
-     const t=(i+.4+r()*.25)/17,cy=-h*(1-t),
-       bx=lean*(1-t),span=h*.39*Math.pow(t,.88);
+   for(let i=0;i<15;i++){
+     const t=(i+.3+r()*.65)/15,cy=-h*(1-t),
+       bx=lean*(1-t),span=h*(.23+r()*.15)*Math.pow(t,.84);
      for(const side of [-1,1]){
-       if(i<3&&r()<.25)continue;
-       const tip=bx+side*span*(.71+r()*.31);
+       if(r()<(i<3?.34:.19))continue;
+       const tip=bx+side*span*(.51+r()*.46),
+         tipY=cy+h*t*(.02+r()*.055);
        c.beginPath();c.moveTo(bx,cy-h*.016);
-       c.quadraticCurveTo(bx+side*span*.64,cy-h*.036,tip,cy+h*.043*t);
-       c.quadraticCurveTo(bx+side*span*.69,cy+h*.023, bx-side*h*.036,cy+h*.02);
+       c.quadraticCurveTo(bx+side*span*.55,cy-h*(.015+r()*.035),tip,tipY);
+       c.quadraticCurveTo(bx+side*span*.57,cy+h*.039, bx-side*h*.026,cy+h*.015);
        c.closePath();c.fillStyle=i%4===0?mid:dark;c.fill();
        // Leaf needles catch a tiny amount of the valley's blue rim light.
        c.strokeStyle=color(light,d===0?.25:.14);c.lineWidth=Math.max(.42,h*.003);
-       c.beginPath();c.moveTo(bx+side*span*.55,cy-h*.010);
-       c.lineTo(tip-side*h*.014,cy+h*.021*t);c.stroke();
+       c.beginPath();c.moveTo(bx+side*span*.46,cy-h*.009);
+       c.lineTo(tip-side*h*.014,tipY-h*.008);c.stroke();
      }
    }
    c.restore();
  }
  function stageForest(c,index){
    const m=mountains[index],r=rng(101007+index*4781),
-     count=[0,0,0,108,91,73,62][index],
+     count=[0,0,0,67,63,51,43][index],
      foreground=index>=5;
    // Clear the centre sightline. Distinct tall masses frame the valley;
    // short trees still connect both sides into a continuous living forest.
@@ -1059,7 +1074,7 @@
        height=h*(1-center*(index>=5?.49:.29)),
        root=ridgeHeight(m.pts,clamp(x,0,W),m.seed)+
          (index===3?11:17)+r()*(foreground?46:32),
-       pine=r()<(.37+index*.055);
+       pine=r()<(.19+(index===3?.14:0));
      trees.push({x,y:root,h:height,seed:10081+index*3107+i*41,pine});
    }
    trees.sort((a,b)=>a.y-b.y);
@@ -1115,20 +1130,23 @@
      [1,'rgba(70,125,130,0)']]);
    c.fillRect(440,600,850,175);
    // Individually rooted shrubs; all bases follow the landscape.
-   for(let i=0;i<89;i++){
+   for(let i=0;i<145;i++){
      const x=r()*W,side=Math.abs(x-W*.5)/W,
        y=664+r()*72+Math.sin(x*.008)*12,
-       height=8+r()*31*(.54+side),
-       stem=2+r()*3.5;
-     c.beginPath();c.moveTo(x-stem*4,y);
-     c.quadraticCurveTo(x-stem*2,y-height*.78,x-stem*.2,y-height*.66);
-     c.quadraticCurveTo(x+stem*.7,y-height*1.19,x+stem*3,y-height*.54);
-     c.quadraticCurveTo(x+stem*4,y-height*.14,x+stem*5,y);
-     c.closePath();c.fillStyle=i%4===0?'#33534f':'#17352e';c.fill();
-     if(i%3===0){
-       c.strokeStyle='rgba(130,168,142,.12)';c.lineWidth=.7;
-       c.beginPath();c.moveTo(x-stem*2,y-height*.68);
-       c.quadraticCurveTo(x,y-height*.94,x+stem*2.4,y-height*.49);c.stroke();
+       height=8+r()*24*(.54+side);
+     for(let stem=0;stem<5;stem++){
+       const dx=(r()-.5)*height*.9,h=height*(.40+r()*.60),
+         baseX=x+(stem-2)*1.8;
+       c.beginPath();c.moveTo(baseX,y);
+       c.quadraticCurveTo(baseX+dx*.35,y-h*.58,baseX+dx,y-h);
+       c.strokeStyle=stem%3===0?'rgba(90,141,121,.25)':
+         'rgba(24,71,66,.36)';c.lineWidth=.8+r()*.65;c.stroke();
+       if(stem%2===0){
+         c.beginPath();c.moveTo(baseX+dx*.53,y-h*.6);
+         c.quadraticCurveTo(baseX+dx*.55+4,y-h*.75,
+           baseX+dx*.69+8,y-h*.64);
+         c.strokeStyle='rgba(60,122,106,.20)';c.lineWidth=.7;c.stroke();
+       }
      }
    }
    // Tiny rim-lit sedges break up the horizontal floor without introducing
