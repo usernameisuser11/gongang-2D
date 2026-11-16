@@ -661,7 +661,8 @@
  // Branch-grown broadleaf groves replace uniform midground fir triangles in
  // the cinematic view only. Fully procedural paths, cached at build time.
  function cinematicGroveTree(c,x,y,h,seed,depth,weight=.85,season=null){
-   const r=rng(seed+depth*1703),lean=(r()-.5)*h*.28;
+   const r=rng(seed+depth*1703),species=Math.abs(seed)%9,
+     lean=(r()-.5)*h*(species===2?.39:.27);
    const colors=season==='spring'?
      ['#2c4939','#50784d','#82a268','#b4c08a','#d3c6a1']:
      season==='summer'?
@@ -672,40 +673,66 @@
      ['#13292d','#1b3536','#2b4946','#49665f','#6f8276']:
      ['#263b3d','#34494a','#486166','#688184','#96a4a0'];
    const crownY=-h*(.66+r()*.08),crownX=lean*.63;
-   const spread=h*(.28+r()*.085),rx=spread*(1.15+r()*.24);
-   const ry=h*(.235+r()*.075);
+   // Individual species have tall, spreading or windswept crowns. Their
+   // branches determine where foliage can actually grow; no cloned oval.
+   const spread=h*(.235+r()*.12)*(species===1?.78:species===5?1.24:1),
+     rx=spread*(1.06+r()*.35),
+     ry=h*(.22+r()*.09)*(species===3?1.18:1);
    c.save();c.translate(x,y);c.globalAlpha*=weight;c.lineCap='round';
    c.beginPath();c.moveTo(0,1);
    c.bezierCurveTo(-lean*.2,-h*.28,lean*.9,-h*.51,lean,-h*.89);
-   c.strokeStyle=colors[0];c.lineWidth=Math.max(.55,h*.023);c.stroke();
-   const branches=6+Math.floor(r()*3);
+   c.strokeStyle=colors[0];c.lineWidth=Math.max(.55,h*.019);c.stroke();
+   const branches=7+Math.floor(r()*4),tips=[];
    for(let j=0;j<branches;j++){
      const t=.35+(j+r()*.42)/branches*.49,
        px=lean*t*.8,py=-h*t,side=j%2?1:-1,
        ex=px+side*h*(.18+r()*.17),
        ey=py-h*(.05+r()*.15);
+     tips.push({x:ex,y:ey,side});
      c.beginPath();c.moveTo(px,py);
      c.bezierCurveTo(px+(ex-px)*.24,py-h*.03,
        ex-(ex-px)*.31,ey+h*.036,ex,ey);
      c.strokeStyle=colors[0];c.lineWidth=Math.max(.35,h*.009*(1-t));c.stroke();
    }
-   const patches=seed%5===0?5:8;
+   const patches=seed%5===0?5:7;
    for(let p=0;p<patches;p++){
-     const angle=p/patches*TAU+(r()-.5)*.9,
-       bx=crownX+Math.cos(angle)*rx*.48+(r()-.5)*rx*.18,
-       by=crownY+Math.sin(angle)*ry*.48+(r()-.5)*ry*.19,
-       wr=rx*(.49+r()*.23),hr=ry*(.44+r()*.25),
+     const anchor=tips[(p*3+species)%tips.length],
+       angle=p/patches*TAU+(r()-.5)*1.1,
+       bx=lerp(crownX,anchor.x,.42)+Math.cos(angle)*rx*.37+(r()-.5)*rx*.18,
+       by=lerp(crownY,anchor.y,.35)+Math.sin(angle)*ry*.38+(r()-.5)*ry*.14,
+       wr=rx*(.47+r()*.27),hr=ry*(.40+r()*.28),
        phase=r()*TAU;
      c.beginPath();
      for(let k=0;k<=23;k++){
        const a=k/23*TAU,
-         irregular=.80+.14*Math.sin(5*a+phase)+.09*Math.sin(9*a+phase*.61)+.045*r(),
+         torn=.81+.13*Math.sin(5*a+phase)+.10*Math.sin(9*a+phase*.61)+
+           .08*Math.sin(13*a+phase*.42)+.055*r(),
+         irregular=torn*(1-.16*Math.pow(Math.max(0,
+           Math.sin(4*a+phase*.74)),8)),
          lx=bx+Math.cos(a)*wr*irregular,
          ly=by+Math.sin(a)*hr*irregular;
        if(k===0)c.moveTo(lx,ly);else c.lineTo(lx,ly);
      }
      c.closePath();c.fillStyle=colors[(p+seed)%3];
-     c.globalAlpha=weight*(.46+r()*.20);c.fill();
+     c.globalAlpha=weight*(.37+r()*.24);c.fill();
+   }
+   // Broken outer twigs and individual leaves form a ragged crown edge.
+   // Each spray is rooted at one of this tree's actual branch endpoints.
+   for(const tip of tips){
+     const direction=tip.side,off=(.025+r()*.09)*h;
+     c.beginPath();c.moveTo(tip.x,tip.y);
+     c.quadraticCurveTo(tip.x+direction*off*.53,tip.y-off*.6,
+       tip.x+direction*off,tip.y-off);
+     c.globalAlpha=weight*(.16+r()*.16);
+     c.strokeStyle=colors[1];c.lineWidth=Math.max(.24,h*.003);c.stroke();
+     for(let k=0;k<7;k++){
+       const q=k/7,px=tip.x+direction*off*q+(r()-.5)*h*.030,
+         py=tip.y-off*q+(r()-.5)*h*.032,
+         directionAngle=Math.atan2(py-crownY,px-crownX)+(r()-.5)*.85;
+       c.globalAlpha=weight*(.25+r()*.42);
+       forestLeaf(c,px,py,h*(.018+r()*.034),directionAngle,
+         colors[2+Math.floor(r()*3)],.38+r()*.60);
+     }
    }
    const n=h<39?26:h<65?45:70;
    for(let j=0;j<n;j++){
@@ -2495,6 +2522,13 @@
      ctx.fillRect(skyT.x,skyT.y,skyT.width,skyT.height*.74);
    }
    ctx.globalAlpha=1;
+   // Shared meteor showers and fireworks belong to the open sky, BEHIND
+   // every mountain. The caller passes the same sky crop used by the stars,
+   // including the independent portrait composition. Pure Canvas drawing.
+   if(typeof opts.onSky==='function'){
+     ctx.save();ctx.globalAlpha=1;ctx.filter='none';
+     opts.onSky(skyT);ctx.restore();
+   }
    if(cinematicMode)cinematicAirLight(ctx,portrait?skyT:t,now,hour,solar,night,sun,clouds,storm);
    state.mobileRockShoulders=0;
    // Daylight should illuminate the same mountains and grasses, not leave
