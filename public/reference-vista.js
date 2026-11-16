@@ -668,7 +668,7 @@
      season==='summer'?
      ['#233f34','#355f3d','#548048','#81a45b','#bed08b']:
      season==='autumn'?
-     ['#362b32','#5c3e3b','#8d5943','#b88052','#deb180']:
+     ['#323431','#504b3a','#786843','#a58b5a','#d3b47b']:
      depth>=5?
      ['#13292d','#1b3536','#2b4946','#49665f','#6f8276']:
      ['#263b3d','#34494a','#486166','#688184','#96a4a0'];
@@ -822,7 +822,8 @@
     const veil=Math.exp(-h*h)*(.46+.27*ridgeNoise(x/112+j*.05,index+420));
     const edge=Math.min(1,j/8,(107-j)/8),p=(j*418+i)*4;
     img.data[p]=123-index*3;img.data[p+1]=137-index*2;img.data[p+2]=150-index*2;
-    img.data[p+3]=Math.round(veil*edge*(index<5?43:31));
+    img.data[p+3]=Math.round(veil*edge*(cinematicMode?
+      (index<5?31:22):(index<5?43:31)));
    }
    tc.putImageData(img,0,0);c.drawImage(tile,0,360,W,432);
  }
@@ -1564,7 +1565,7 @@
   c.fillStyle='rgba(16,18,26,.64)';ellipse(c,x,y+6,39,9,'rgba(15,19,29,.36)');
   c.beginPath();c.moveTo(x-14,y-52);c.lineTo(x+14,y-52);c.lineTo(x+17,y-5);c.lineTo(x-17,y-5);c.closePath();c.fillStyle='#3d3032';c.fill();
   c.fillStyle=lit?lgrad(c,x,y-48,x,y-8,[[0,'#ffc98c'],[.38,'#ffdf8b'],[1,'#bf6c46']]):
-    lgrad(c,x,y-48,x,y-8,[[0,'#a9c8d5'],[.5,'#78969f'],[1,'#4d6575']]);
+    lgrad(c,x,y-48,x,y-8,[[0,'#889b99'],[.5,'#6b807f'],[1,'#405a61']]);
   c.fillRect(x-10,y-48,20,36);
   if(lit)ellipse(c,x,y-31,5,14,'rgba(255,240,183,.85)');
   c.lineWidth=3;c.strokeStyle='#282531';c.strokeRect(x-12,y-51,24,44);
@@ -1580,7 +1581,7 @@
  const SEASON_TONES={
    spring:['#8ca997','#bad1b0','#d9a4bb','#c5b1c7','#9eb8ad'],
    summer:['#4c796a','#628f76','#729b74','#436c65','#85a18a'],
-   autumn:['#bd8760','#a27755','#9d6457','#c39674','#887460'],
+   autumn:['#b18d58','#9d8855','#aa8250','#bea16c','#807b55'],
    winter:['#607071','#718083','#5c696d','#576368','#828b8b']
  };
  function needleSeasonalBranchTree(c,x,y,h,seed,season,opacity){
@@ -2127,7 +2128,7 @@
      relative*depth*3.8*t.width/W;
    const y=t.y+t.height*(.365+depth*.083);
    const width=t.width*1.18,height=t.height*(.15+depth*.034);
-   const strength=clamp(.255+clouds*.18+night*.055+storm*.10,0,.56)*
+   const strength=clamp(.205+clouds*.16+night*.065+storm*.13,0,.55)*
      (1-depth*.075);
    c.save();c.globalCompositeOperation='screen';
    c.globalAlpha=strength;
@@ -2166,6 +2167,25 @@
      (depth===2?.76:.49);
    const x=t.x-relative*depth*t.width*.0025;
    c.drawImage(forestSkyBounce,x,t.y,t.width,t.height);
+   c.restore();
+ }
+ // The clear air gap is deliberately BEHIND the nearest grove. Slightly
+ // luminous mist therefore reveals the silhouette of individual trees,
+ // while its soft zero-alpha perimeter never becomes an artificial portal.
+ function moonlitValleyOpening(c,t,night,clouds,storm,now){
+   const amount=night*(1-clouds*.53)*(1-storm*.69);
+   if(amount<.03)return;
+   c.save();c.globalCompositeOperation='screen';
+   const drift=reducedCinematicMotion?0:Math.sin(now*.000021)*.006;
+   const cx=t.x+t.width*(.515+drift),cy=t.y+t.height*.518,
+     rx=t.width*.325,ry=t.height*.146;
+   c.translate(cx,cy);c.scale(1,ry/rx);
+   const veil=c.createRadialGradient(0,0,0,0,0,rx);
+   veil.addColorStop(0,'rgba(119,208,214,'+(amount*.20).toFixed(4)+')');
+   veil.addColorStop(.29,'rgba(106,186,204,'+(amount*.11).toFixed(4)+')');
+   veil.addColorStop(.64,'rgba(125,158,194,'+(amount*.035).toFixed(4)+')');
+   veil.addColorStop(1,'rgba(115,168,194,0)');
+   c.fillStyle=veil;c.fillRect(-rx,-rx,rx*2,rx*2);
    c.restore();
  }
  function cinematicAirLight(c,t,now,hour,solar,night,sun,clouds,storm){
@@ -2879,6 +2899,8 @@
      // understorey. This is atmospheric bounce, not an isolated light blob.
      if(cinematicMode&&(i===2||i===3))
        forestReflectedSky(ctx,t,i,relative,night,clouds,storm);
+     if(cinematicMode&&i===2)
+       moonlitValleyOpening(ctx,t,night,clouds,storm,now);
      // These animated veils are composited BETWEEN actual terrain layers.
      if(cinematicMode&&i<layers.length-1)
        depthFog(ctx,t,i,relative,now,night,clouds,storm,weather.wind);
