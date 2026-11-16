@@ -702,16 +702,25 @@
        by=lerp(crownY,anchor.y,.35)+Math.sin(angle)*ry*.38+(r()-.5)*ry*.14,
        wr=rx*(.47+r()*.27),hr=ry*(.40+r()*.28),
        phase=r()*TAU;
-     c.beginPath();
-     for(let k=0;k<=23;k++){
-       const a=k/23*TAU,
+     const contour=[];
+     for(let k=0;k<24;k++){
+       const a=k/24*TAU,
          torn=.81+.13*Math.sin(5*a+phase)+.10*Math.sin(9*a+phase*.61)+
            .08*Math.sin(13*a+phase*.42)+.055*r(),
          irregular=torn*(1-.16*Math.pow(Math.max(0,
            Math.sin(4*a+phase*.74)),8)),
          lx=bx+Math.cos(a)*wr*irregular,
          ly=by+Math.sin(a)*hr*irregular;
-       if(k===0)c.moveTo(lx,ly);else c.lineTo(lx,ly);
+       contour.push([lx,ly]);
+     }
+     // Continuous quadratic interpolation removes the little angular
+     // polygons visible at the edge of a hundred distant leaf cushions.
+     const last=contour[contour.length-1],first=contour[0];
+     c.beginPath();c.moveTo((last[0]+first[0])*.5,(last[1]+first[1])*.5);
+     for(let k=0;k<contour.length;k++){
+       const current=contour[k],next=contour[(k+1)%contour.length];
+       c.quadraticCurveTo(current[0],current[1],
+         (current[0]+next[0])*.5,(current[1]+next[1])*.5);
      }
      c.closePath();c.fillStyle=colors[(p+seed)%3];
      c.globalAlpha=weight*(.37+r()*.24);c.fill();
@@ -769,7 +778,10 @@
  }
  function forestGrove(c,index){
   const m=mountains[index],r=rng(7983+index*1171);
-  const groveCount=[0,0,0,235,280,310,345][index];
+  // A few legible, overlapping crowns read as a forest from a distance.
+  // Hundreds of identical small crowns had collapsed into noisy teal mud.
+  const groveCount=(cinematicMode?[0,0,0,156,194,228,254]:
+    [0,0,0,235,280,310,345])[index];
   const tones=['','','','#39494c','#2e4142','#24393b','#1d3133'];
   const clusters=index===3?[145,438,1170,1490]:
     index===4?[220,490,1130,1470]:
@@ -779,7 +791,7 @@
    const center=clusters[Math.floor(r()*clusters.length)];
    const x=clamp(center+(r()+r()+r()-1.5)*(near?340:400),0,W);
    const rootY=ridgeHeight(m.pts,x,m.seed)+6+r()*(near?43:29);
-   const height=(near?24:13)+(near?81:48)*Math.pow(r(),.86);
+   const height=(near?25:14)+(near?95:64)*Math.pow(r(),.86);
    const col=i%9===0?'#3d4d4c':i%5===0?'#304146':tones[index];
    trees.push({x,y:rootY,h:height,seed:m.seed*10011+i,col});
   }
@@ -790,10 +802,10 @@
       cinematicGroveTree(c,t.x,t.y,t.h,t.seed,index,near?.88:.78);
     else fir(c,t.x,t.y,t.h,t.seed,t.col,near?.92:.83);
   }
-  for(let k=0;k<14;k++){
+  for(let k=0;k<(cinematicMode?20:14);k++){
    const x=65+r()*(W-130),y=ridgeHeight(m.pts,x,m.seed)+11+r()*23;
    if(index===3&&x>650&&x<1000)continue;
-   const h=38+r()*72,seed=m.seed*26017+k;
+   const h=42+r()*(cinematicMode?93:72),seed=m.seed*26017+k;
    if(cinematicMode&&k%4!==0)
      cinematicGroveTree(c,x,y,h,seed,index,.75+r()*.16);
    else fir(c,x,y,h,seed,tones[index],.74+r()*.16);
@@ -846,17 +858,20 @@
   // became the obvious ruler-straight seam in the user's screenshot.
   const bottom=rng(14051);
   const thickets=[132,338,545,858,1095,1350,1585];
-  for(let j=0;j<340;j++){
+  for(let j=0;j<(cinematicMode?252:340);j++){
    const center=thickets[Math.floor(bottom()*thickets.length)];
    const x=clamp(center+(bottom()+bottom()+bottom()-1.5)*355,0,W);
    const drift=Math.sin(x*.009+2.8)*20+Math.sin(x*.021)*10;
    const y=clamp(668+drift+(bottom()-.5)*121,613,757);
-   const h=16+Math.pow(bottom(),.75)*75;
+   const h=18+Math.pow(bottom(),.75)*(cinematicMode?91:75);
    const tint=j%7===0?'#40514e':j%4===0?'#314343':
      j%5===0?'#273b3d':'#233436';
    // Small clumped understory, taller firs and shrubs occupy different
    // elevations. No repeated y0 row and no uniform artificial cutoff.
-   if(bottom()<.70)fir(c,x,y,h,40381+j*17,tint,.42+bottom()*.33);
+   const kind=bottom();
+   if(cinematicMode&&kind<.66)
+     cinematicGroveTree(c,x,y,h,40381+j*17,6,.43+bottom()*.21);
+   else if(kind<.78)fir(c,x,y,h,40381+j*17,tint,.42+bottom()*.33);
    else{
     const r=3+bottom()*10;
     c.beginPath();c.moveTo(x-r*2,y);
@@ -975,6 +990,44 @@
    }
    c.restore();
  }
+ // The meadow does not start at one ruler-straight horizontal strip. Its
+ // worn rock-and-grass boundary is a continuous low-frequency terrain curve.
+ function clearingEdgeAt(x){
+   return 742+8*Math.sin(x*.0078+.5)+4*Math.sin(x*.019+2.7)+
+     8*ridgeNoise(x/73,627)+3.5*ridgeNoise(x/20,1291);
+ }
+ // Distinct fern fronds give the near meadow a readable plant scale. Each
+ // blade grows from a curved stem, rather than a repeated grass-line stamp.
+ function meadowFern(c,x,y,h,seed,lamplit=false){
+   const r=rng(seed),lean=(r()-.5)*h*.29;
+   const stemX=q=>x+lean*q*q+Math.sin(q*2.1+seed)*h*.012*q;
+   const stemY=q=>y-h*q;
+   c.save();c.lineCap='round';
+   c.beginPath();c.moveTo(x,y);
+   c.bezierCurveTo(x+lean*.11,y-h*.34,x+lean*.75,y-h*.68,
+     stemX(1),stemY(1));
+   c.strokeStyle=color(lamplit?'#b5a185':'#60766b',.34);
+   c.lineWidth=Math.max(.55,h*.021);c.stroke();
+   for(let j=0;j<10;j++){
+     const q=.12+j*.082,px=stemX(q),py=stemY(q),
+       spread=h*(.22+.035*r())*Math.sin(Math.PI*q*.90)*(1-q*.44);
+     for(const side of [-1,1]){
+       if(j>6&&r()<.15)continue;
+       const tipX=px+side*spread*(.83+.26*r()),
+         tipY=py-h*(.052+.039*r());
+       c.beginPath();c.moveTo(px,py);
+       c.quadraticCurveTo(px+side*spread*.60,py-h*.075,
+         tipX,tipY);
+       c.quadraticCurveTo(px+side*spread*.58,py+h*.018,
+         px,py);
+       c.closePath();
+       c.fillStyle=color(lamplit?(j%4===0?'#d5b68b':'#839980'):
+         (j%4===0?'#93a698':'#47675f'),.20+r()*.25);
+       c.fill();
+     }
+   }
+   c.restore();
+ }
  function foreground(c,lanternLit=true){
    // Left and right framing bluffs. Front and rear edges are separate
    // curves so every stone has a discernible top and side plane.
@@ -1006,8 +1059,14 @@
     materialGrain(c,.16);c.restore();
    }
    // Central clearing remains broad enough for a shared group photo.
-   poly(c,[[0,737],[142,749],[310,755],[464,736],[598,736],[737,751],[894,736],[1048,742],[1214,746],[1401,726],[1550,738],[1672,735],[1672,941],[0,941]],
-      lgrad(c,0,730,0,941,[[0,'#6a555a'],[.24,'#50434b'],[.7,'#283446'],[1,'#151e35']]));
+   c.beginPath();
+   for(let x=0;x<=W;x+=4){
+     const y=clearingEdgeAt(x);
+     if(x===0)c.moveTo(x,y);else c.lineTo(x,y);
+   }
+   c.lineTo(W,H);c.lineTo(0,H);c.closePath();
+   c.fillStyle=lgrad(c,0,730,0,941,[[0,'#65565b'],[.24,'#4c414b'],
+     [.7,'#273742'],[1,'#122434']]);c.fill();
    // Crucial: the old warm meadow bounce was clipped to a hard
    // 950×310 rectangle beginning at y=630, creating the very straight
    // horizontal stripe across the forest. Paint the *entire radial
@@ -1019,7 +1078,7 @@
    // meadow outline reads as soil among plants, rather than a bare ribbon.
    const edge=rng(61129);
    for(let k=0;k<370;k++){
-    const x=edge()*W,y=745+ridgeNoise(x/81,813)*7+edge()*11;
+    const x=edge()*W,y=clearingEdgeAt(x)+edge()*11;
     const h=3+edge()*12;
     for(let n=0;n<3;n++){
      c.beginPath();c.moveTo(x+n*1.4,y);
@@ -1045,6 +1104,26 @@
    // A shallow mossy stepping stone beneath the visitor replaces the
    // tall round plinth that made the avatar look displayed on a pedestal.
    rock(c,818,827,184,33,137);
+   if(lanternLit){
+     // The lamp lights the ground it actually sits on. A low, broad ellipse
+     // softly warms mineral and soil colours without painting a neon halo.
+     c.save();c.globalCompositeOperation='screen';
+     c.translate(1058,777);c.scale(1,.36);
+     c.fillStyle=radial(c,0,0,218,[
+       [0,'rgba(255,202,138,.19)'],[.34,'rgba(242,167,107,.098)'],
+       [.72,'rgba(217,129,95,.022)'],[1,'rgba(216,126,95,0)']]);
+     c.fillRect(-218,-218,436,436);c.restore();
+   }
+   // Ferns and heather grow in rooted colonies around the clearing, not a
+   // featureless lawn. Keep the shared photo/bench sightline unobstructed.
+   const fern=rng(2026111608),beds=[235,432,567,1225,1432,1600];
+   for(let patch=0;patch<beds.length;patch++)for(let k=0;k<13;k++){
+     const x=beds[patch]+(fern()+fern()-1)*95,
+       y=775+fern()*150;
+     const h=(14+Math.pow(fern(),.82)*30)*(.62+(y-775)/270);
+     const warm=lanternLit&&Math.abs(x-1058)<240;
+     meadowFern(c,x,y,h,71779+patch*121+k*47,warm);
+   }
    // Detail stones and ground texture are contained to the lower third.
    const r=rng(8735);
    for(let k=0;k<710;k++){
@@ -1249,6 +1328,19 @@
      windingFiber(c,lerp(a[0],b[0],fraction),lerp(a[1],b[1],fraction),
        (b[0]-a[0])*(.35+r()*.24),(b[1]-a[1])*(.35+r()*.24),
        seed*37+k,color('#d9cad0',.060+r()*.085),.45+r()*.45);
+   }
+   // Break the cut-out boundary with rooted moss and grass. Stones should
+   // sit IN the ground rather than appear pasted over a separate texture.
+   if(w>80&&h>34)for(let k=0;k<58;k++){
+     const t=r(),px=x+w*(t-.5)*.92,
+       py=y+h*(.085+.07*r()),length=(1.8+r()*7)*(w>220?1.28:1),
+       bend=(r()-.5)*length*.95;
+     c.beginPath();c.moveTo(px,py);
+     c.quadraticCurveTo(px+bend*.28,py-length*.68,
+       px+bend,py-length);
+     c.strokeStyle=color(k%6===0?'#b6b298':
+       k%3===0?'#748f7a':'#405a53',.12+r()*.25);
+     c.lineWidth=.35+r()*.66;c.stroke();
    }
  }
  // Low, handcrafted lookout bench; a compact natural resting place
@@ -1860,7 +1952,7 @@
  // Every pigment and silhouette below is constructed from code. No photos.
  const cinematicMode=params.get('art')==='cinematic';
  const reducedCinematicMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
- let fogVeil=null,needleLight=null;
+ let fogVeils=null,needleLight=null;
  function cinematicHash(x,y,s){
    let v=Math.imul(x+17*s,0x27d4eb2d)^Math.imul(y+31*s,0x165667b1);
    v=Math.imul(v^(v>>>15),0x85ebca6b);
@@ -1873,7 +1965,7 @@
    return lerp(lerp(cinematicHash(a,b,seed),cinematicHash(a+1,b,seed),fx),
      lerp(cinematicHash(a,b+1,seed),cinematicHash(a+1,b+1,seed),fx),fy);
  }
- function createVeil(){
+ function createVeil(depth){
    const w=640,h=164,v=document.createElement('canvas');
    v.width=w;v.height=h;
    const g=v.getContext('2d',{alpha:true}),pixels=g.createImageData(w,h);
@@ -1881,12 +1973,12 @@
      const u=i/(w-1),q=j/(h-1);
      // Three unrelated scales prevent a fog bank from becoming a smooth
      // full-width ribbon. Wisps rise and dissolve around invisible trees.
-     const warp=cinematicNoise(u*12.7,q*7.1,129)-.5;
-     const v0=.48*cinematicNoise(u*5.8+2.1,q*4.3+warp*.55,23)+
-       .32*cinematicNoise(u*17.1,q*9.1+warp*.90,49)+
-       .20*cinematicNoise(u*46.0,q*25.2,73);
-     const center=.48+.084*Math.sin(u*8.8+1.4)+
-       .033*Math.sin(u*22.3+warp*3.2);
+     const warp=cinematicNoise(u*12.7,q*7.1,129+depth*751)-.5;
+     const v0=.48*cinematicNoise(u*5.8+2.1,q*4.3+warp*.55,23+depth*193)+
+       .32*cinematicNoise(u*17.1,q*9.1+warp*.90,49+depth*239)+
+       .20*cinematicNoise(u*46.0,q*25.2,73+depth*349);
+     const center=.48+.084*Math.sin(u*8.8+1.4+depth*.8)+
+       .033*Math.sin(u*22.3+warp*3.2+depth*.5);
      const deviation=q-center-warp*.071;
      const broad=Math.exp(-Math.pow(deviation*3.6,2));
      const lifted=Math.exp(-Math.pow((deviation+.20)*7.2,2));
@@ -1905,7 +1997,7 @@
    return v;
  }
  function depthFog(c,t,depth,relative,now,night,clouds,storm,wind){
-   if(!fogVeil)fogVeil=createVeil();
+   if(!fogVeils)fogVeils=[0,1,2,3].map(createVeil);
    // Three depths move differently with existing shared camera and wind.
    const breathing=reducedCinematicMotion?0:
      Math.sin(now*.000027+depth*1.6)*.010;
@@ -1913,13 +2005,13 @@
      relative*depth*3.8*t.width/W;
    const y=t.y+t.height*(.365+depth*.083);
    const width=t.width*1.18,height=t.height*(.15+depth*.034);
-   const strength=clamp(.22+clouds*.18+night*.040+storm*.10,0,.53)*
+   const strength=clamp(.255+clouds*.18+night*.055+storm*.10,0,.56)*
      (1-depth*.075);
    c.save();c.globalCompositeOperation='screen';
    c.globalAlpha=strength;
-   c.drawImage(fogVeil,x,y,width,height);
+   c.drawImage(fogVeils[depth],x,y,width,height);
    c.globalAlpha=strength*.49;
-   c.drawImage(fogVeil,x-t.width*.043,y+t.height*.025,
+   c.drawImage(fogVeils[depth],x-t.width*.043,y+t.height*.025,
      width*1.04,height*.76);
    c.restore();
    state.atmospherePasses++;
@@ -2570,11 +2662,13 @@
      }else{
        const hue=i===1?-24:i===2?-14:-6;
        // Sunlit foliage needs reflected green-gold rather than the blue
-       // monochrome wash suitable only for night. Mountain shape is fixed.
+       // monochrome wash suitable only for night. The nearest forest keeps
+       // deeper values, while distant ridges catch more cold starlight.
        const lushDay=cinematicMode&&i>1?sun*.23:0;
-       ctx.filter='brightness('+(1+mountainDaylight*(i===1?.20:.17)+lushDay).toFixed(3)+
+       const moonBounce=cinematicMode?night*(i===1?.084:i===2?.125:.031):0;
+       ctx.filter='brightness('+(1+mountainDaylight*(i===1?.20:.17)+lushDay+moonBounce).toFixed(3)+
          ') hue-rotate('+(hue*mountainDaylight-lushDay*55).toFixed(2)+'deg)' +
-         ' saturate('+(1+mountainDaylight*.04+lushDay*.85).toFixed(3)+')';
+         ' saturate('+(1+mountainDaylight*.04+lushDay*.85+moonBounce*.24).toFixed(3)+')';
        // Winter variant is painted once on demand. Switching seasons
        // changes only mountain snow; trees, visitors and photos retain
        // their original world coordinates.
