@@ -670,7 +670,7 @@
      season==='autumn'?
      ['#323431','#504b3a','#786843','#a58b5a','#d3b47b']:
      depth>=5?
-     ['#13292d','#1b3536','#2b4946','#49665f','#6f8276']:
+     ['#10252b','#19343a','#2a4b49','#4a6f66','#849c8d']:
      ['#263b3d','#34494a','#486166','#688184','#96a4a0'];
    const crownY=-h*(.66+r()*.08),crownX=lean*.63;
    // Individual species have tall, spreading or windswept crowns. Their
@@ -728,7 +728,7 @@
      }
      const shade=(p+seed)%7===0?3:(p+seed)%3;
      c.closePath();c.fillStyle=colors[shade];
-     c.globalAlpha=weight*(depth>=5?.52+r()*.22:.46+r()*.24);c.fill();
+     c.globalAlpha=weight*(depth>=5?.74+r()*.16:.57+r()*.20);c.fill();
    }
    // Broken outer twigs and individual leaves form a ragged crown edge.
    // Each spray is rooted at one of this tree's actual branch endpoints.
@@ -754,7 +754,7 @@
        px=crownX+Math.cos(a)*rx*dist,
        py=crownY+Math.sin(a)*ry*dist,
        len=h*(.019+r()*.043);
-     c.globalAlpha=weight*(depth>=5?.31+r()*.43:.24+r()*.41);
+     c.globalAlpha=weight*(depth>=5?.42+r()*.46:.31+r()*.39);
      forestLeaf(c,px,py,len,a+(r()-.5)*1.4,
        colors[1+Math.floor(r()*4)],.54+r()*.65);
    }
@@ -978,10 +978,10 @@
   // Carefully spaced large silhouettes create a readable foreground rhythm.
   // The valley centre remains open to preserve the distant-sky focal point.
   if(cinematicMode&&index>=4){
-    const anchors=index===4?
+   const anchors=index===4?
       [[210,151,0],[1406,143,1]]:
       index===5?[[382,168,1],[1302,164,0]]:
-      [[150,183,0],[580,156,1],[1150,163,0],[1550,186,1]];
+      [[150,183,0],[1150,163,0],[1550,186,1]];
     for(let j=0;j<anchors.length;j++){
       const [x,h,cedar]=anchors[j],
         root=ridgeHeight(m.pts,x,m.seed)+(index>=5?30:19),
@@ -2307,12 +2307,12 @@
      relative*depth*3.8*t.width/W;
    const y=t.y+t.height*(.365+depth*.083);
    const width=t.width*1.18,height=t.height*(.15+depth*.034);
-   const strength=clamp(.205+clouds*.16+night*.065+storm*.13,0,.55)*
+   const strength=clamp(.112+clouds*.115+night*.030+storm*.11,0,.38)*
      (1-depth*.075);
    c.save();c.globalCompositeOperation='screen';
    c.globalAlpha=strength;
    c.drawImage(fogVeils[depth],x,y,width,height);
-   c.globalAlpha=strength*.49;
+   c.globalAlpha=strength*.37;
    c.drawImage(fogVeils[depth],x-t.width*.043,y+t.height*.025,
      width*1.04,height*.76);
    c.restore();
@@ -2343,7 +2343,7 @@
    if(!forestSkyBounce)forestSkyBounce=makeForestSkyBounce();
    c.save();c.globalCompositeOperation='screen';
    c.globalAlpha=night*(1-clouds*.55)*(1-storm*.60)*
-     (depth===2?.76:.49);
+     (depth===2?.56:.36);
    const x=t.x-relative*depth*t.width*.0025;
    c.drawImage(forestSkyBounce,x,t.y,t.width,t.height);
    c.restore();
@@ -2360,9 +2360,9 @@
      rx=t.width*.325,ry=t.height*.146;
    c.translate(cx,cy);c.scale(1,ry/rx);
    const veil=c.createRadialGradient(0,0,0,0,0,rx);
-   veil.addColorStop(0,'rgba(119,208,214,'+(amount*.20).toFixed(4)+')');
-   veil.addColorStop(.29,'rgba(106,186,204,'+(amount*.11).toFixed(4)+')');
-   veil.addColorStop(.64,'rgba(125,158,194,'+(amount*.035).toFixed(4)+')');
+   veil.addColorStop(0,'rgba(170,194,215,'+(amount*.12).toFixed(4)+')');
+   veil.addColorStop(.29,'rgba(147,179,205,'+(amount*.068).toFixed(4)+')');
+   veil.addColorStop(.64,'rgba(138,163,203,'+(amount*.026).toFixed(4)+')');
    veil.addColorStop(1,'rgba(115,168,194,0)');
    c.fillStyle=veil;c.fillRect(-rx,-rx,rx*2,rx*2);
    c.restore();
