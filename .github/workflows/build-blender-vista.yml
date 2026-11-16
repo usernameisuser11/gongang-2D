@@ -21,7 +21,7 @@ jobs:
       - name: Install Blender CPU renderer
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq blender
+          sudo apt-get install -y -qq blender python3-numpy
           blender --version
       - name: Verify Blender script syntax
         run: python3 -m py_compile blender/build_cinematic_valley.py
