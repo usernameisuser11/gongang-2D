@@ -350,7 +350,8 @@ def studio():
     add_light("AREA","Moon | giant soft source",(34,-28,65),9000,(.57,.74,1),38)
     add_light("AREA","Cold sky | rim",(-43,-125,82),7000,(.22,.65,.81),65)
     add_light("AREA","Rose haze | far valley",(80,-180,48),4200,(.87,.35,.66),65)
-    world=scene.world
+    world=bpy.data.worlds.new('Gongang | expansive atmosphere')
+    scene.world=world
     world.use_nodes=True
     bg=world.node_tree.nodes.get("Background")
     bg.inputs["Color"].default_value=(.015,.028,.070,1)
