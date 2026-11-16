@@ -726,8 +726,9 @@
        c.quadraticCurveTo(current[0],current[1],
          (current[0]+next[0])*.5,(current[1]+next[1])*.5);
      }
-     c.closePath();c.fillStyle=colors[(p+seed)%3];
-     c.globalAlpha=weight*(depth>=5?.59+r()*.23:.47+r()*.25);c.fill();
+     const shade=(p+seed)%7===0?3:(p+seed)%3;
+     c.closePath();c.fillStyle=colors[shade];
+     c.globalAlpha=weight*(depth>=5?.52+r()*.22:.46+r()*.24);c.fill();
    }
    // Broken outer twigs and individual leaves form a ragged crown edge.
    // Each spray is rooted at one of this tree's actual branch endpoints.
@@ -747,7 +748,7 @@
          colors[2+Math.floor(r()*3)],.38+r()*.60);
      }
    }
-   const n=h<39?26:h<65?45:70;
+   const n=h<39?26:h<65?49:84;
    for(let j=0;j<n;j++){
      const a=r()*TAU,dist=Math.sqrt(r())*.94,
        px=crownX+Math.cos(a)*rx*dist,
@@ -756,6 +757,21 @@
      c.globalAlpha=weight*(depth>=5?.31+r()*.43:.24+r()*.41);
      forestLeaf(c,px,py,len,a+(r()-.5)*1.4,
        colors[1+Math.floor(r()*4)],.54+r()*.65);
+   }
+   // A discontinuous perimeter of fine pointed leaves breaks the broad
+   // underpainting into readable foliage. These edge leaves are still
+   // attached to each tree's crown, and use a smaller scale than its mass.
+   if(depth>=5&&h>61){
+     const perimeter=Math.round(h*.46);
+     for(let j=0;j<perimeter;j++){
+       const a=r()*TAU,dist=.77+r()*.39,
+         px=crownX+Math.cos(a)*rx*dist,
+         py=crownY+Math.sin(a)*ry*dist,
+         len=h*(.010+r()*.020);
+       c.globalAlpha=weight*(.20+r()*.40);
+       forestLeaf(c,px,py,len,a+(r()-.5)*1.35,
+         colors[2+Math.floor(r()*3)],.38+r()*.52);
+     }
    }
    c.restore();
  }
