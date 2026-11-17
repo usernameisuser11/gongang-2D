@@ -158,6 +158,9 @@ function applyBotanicalWind(){
     for(const mat of mats){
       if(visited.has(mat))continue;
       visited.add(mat);
+      if(/Conifer needles|Broadleaf velvet|Wildflower petals|Grass blade/i.test(mat.name)){
+        mat.side=THREE.DoubleSide;
+      }
       if(!/Conifer needles|Broadleaf velvet/i.test(mat.name))continue;
       mat.onBeforeCompile=shader=>{
         shader.uniforms.gongangWindTime=windClock;
