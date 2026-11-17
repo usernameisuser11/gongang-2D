@@ -49,7 +49,8 @@ needle = [material("Conifer needles %02d" % i, c) for i, c in enumerate([
     (.045, .16, .17), (.08, .23, .22), (.12, .29, .25), (.16, .34, .27), (.11, .20, .30)
 ])]
 leaf = [material("Broadleaf velvet %02d" % i, c) for i, c in enumerate([
-    (.07, .19, .21), (.11, .27, .24), (.16, .33, .24), (.22, .37, .31)
+    (.065, .19, .20), (.11, .26, .23), (.17, .33, .24),
+    (.22, .37, .30), (.27, .31, .20)
 ])]
 stone = [material("Wet layered stone %02d" % i, c) for i,c in enumerate([
     (.14,.20,.245),(.21,.27,.29),(.31,.35,.36),(.11,.18,.23)
@@ -146,9 +147,14 @@ def build_land():
             p=fbm(x*.31,y*.29,91)
             distant=min(1,d/240)
             stony=max(0,min(1,(z-3)/20))
+            # River moisture follows its serpentine banks into the actual soil.
+            damp=math.exp(-(abs(x-river_center(d))/(3.6+d*.023))**2)
             r=.18+.062*stony+.055*p+.055*distant
             g=.30+.085*n+.065*stony+.043*distant
             b=.25+.055*n+.10*distant+.025*p
+            r-=damp*.048
+            g-=damp*.037
+            b+=damp*.020
             colors.data[loop_idx].color=(max(.02,r),max(.035,g),max(.04,b),1)
     # Vertex colors survive the glTF roundtrip: no static panorama texture.
     bsdf=earth.node_tree.nodes.get("Principled BSDF")
@@ -244,7 +250,7 @@ def create_pine(variant):
     return obj
 
 def create_broadleaf(variant):
-    """Open sculpted crowns with individually curved leaves and visible branch structure."""
+    """Asymmetric layered crowns: variable-height boughs, smaller individual leaves."""
     r=random.Random(459+variant)
     v=[];f=[];m=[]
     h=7.2+variant*.85
@@ -254,32 +260,34 @@ def create_broadleaf(variant):
     top=(lean[0],lean[1],h)
     add_tapered_segment(v,f,m,base,bend,.47,.31,0,10)
     add_tapered_segment(v,f,m,bend,top,.31,.12,0,9)
-    for limb in range(13):
-        angle=TAU*(limb+.16*r.random())/13
+    for limb in range(17):
+        angle=TAU*(limb+.65*r.random())/17
         ux,uy=math.cos(angle),math.sin(angle)
-        length=(2.0+r.random()*2.6)*(1.0 if limb%3 else .77)
-        z=h*(.58+r.random()*.32)
-        root=Vector((lean[0]*.5,lean[1]*.5,z-.8))
-        elbow=Vector((lean[0]+ux*length*.52,lean[1]+uy*length*.48,z+.22))
-        tip=Vector((lean[0]+ux*length,lean[1]+uy*length,z+r.uniform(.15,1.35)))
-        add_tapered_segment(v,f,m,root,elbow,.13,.075,0,6)
-        add_tapered_segment(v,f,m,elbow,tip,.075,.013,0,5)
-        for cluster in range(13):
-            q=(cluster+.65)/14
+        length=(1.55+r.random()*2.95)*(1.0 if limb%4 else .73)
+        z=h*(.43+r.random()*.52)
+        root=Vector((lean[0]*.48,lean[1]*.43,z-.72))
+        elbow=Vector((lean[0]+ux*length*.48,lean[1]+uy*length*.52,
+                      z+r.uniform(-.27,.49)))
+        tip=Vector((lean[0]+ux*length,lean[1]+uy*length,
+                    z+r.uniform(-.48,2.18)))
+        add_tapered_segment(v,f,m,root,elbow,.12,.063,0,6)
+        add_tapered_segment(v,f,m,elbow,tip,.063,.012,0,5)
+        for cluster in range(12):
+            q=(cluster+.65)/13
             p=elbow.lerp(tip,q)
-            for leaf_id in range(8):
-                angle2=TAU*(leaf_id+r.random()*.28)/8
+            for leaf_id in range(7):
+                angle2=TAU*(leaf_id+r.random()*.35)/7
                 vec=Vector((math.cos(angle2)*.82+ux*.23,
                             math.sin(angle2)*.82+uy*.23,
-                            r.uniform(-.44,.48)))
-                origin=p+Vector((r.uniform(-.22,.22),
-                                 r.uniform(-.22,.22),
-                                 r.uniform(-.28,.28)))
+                            r.uniform(-.56,.65)))
+                origin=p+Vector((r.uniform(-.24,.24),
+                                 r.uniform(-.24,.24),
+                                 r.uniform(-.32,.32)))
                 add_lance_leaf(v,f,m,origin,vec,
-                               .52+r.random()*.63,
-                               .20+r.random()*.19,
+                               .43+r.random()*.53,
+                               .16+r.random()*.14,
                                2+r.randrange(len(leaf)),
-                               r.uniform(.02,.16))
+                               r.uniform(.05,.19))
     obj=object_from_mesh("BROADLEAF_MASTER_%d"%variant,v,f,
                          [bark,bark_lit]+leaf,m,library_collection)
     obj.hide_render=True
@@ -458,18 +466,25 @@ def flower_patches():
     for p in obj.data.polygons:p.use_smooth=False
 
 def river():
+    # Track the actual terrain so the stream cannot disappear below a ridge.
+    # Subdivisions provide finer specular movement without shoreline tearing.
     v=[];f=[]
-    for i in range(230):
-        y=-249+i*1.03
+    sections=284
+    across=5
+    for i in range(sections):
+        y=-249+i*.84
         d=max(0,-y)
         cx=river_center(d)
-        half=.82+d*.009
-        for side in (-1,1):
-            x=cx+side*half
-            v.append((x,y,height(x,y)+.13))
+        half=(.75+d*.0075)*(1+.07*math.sin(y*.074))
+        for k in range(across):
+            t=k/(across-1)*2-1
+            x=cx+t*half
+            z=height(x,y)+.18+.009*math.sin(y*.25+t*7.1)
+            v.append((x,y,z))
         if i>0:
-            a=(i-1)*2
-            f.append((a,a+1,a+3,a+2))
+            a=(i-1)*across
+            for k in range(across-1):
+                f.append((a+k,a+k+1,a+k+1+across,a+k+across))
     obj=object_from_mesh("River | true sculpted winding ribbon",v,f,[water])
     for p in obj.data.polygons:p.use_smooth=True
 
