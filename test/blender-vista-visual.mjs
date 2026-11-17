@@ -27,6 +27,7 @@ try{
     args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader',
       '--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']
   });
+  // Captures the latest sculpted fern and portrait-frame GLB, not an old preview.
   const scenes=[
     {name:'desktop-night',width:1440,height:900,dpr:1,time:'23:20'},
     {name:'desktop-dusk',width:1440,height:900,dpr:1,time:'18:10'},
