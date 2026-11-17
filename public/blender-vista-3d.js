@@ -230,7 +230,7 @@ function buildAtmosphere(){
   sky.renderOrder=-100;
   scene.add(sky);
   const random=rng(7719),points=[],brightness=[];
-  for(let i=0;i<3800;i++){
+  for(let i=0;i<36000;i++){
     const theta=random()*Math.PI*2;
     const elev=.02+random()*.96;
     const rad=Math.sqrt(Math.max(0,1-elev*elev));
@@ -243,8 +243,8 @@ function buildAtmosphere(){
   stars=new THREE.Points(geometry,new THREE.ShaderMaterial({
     transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
     uniforms:{uDay:skyDay,uTime:skyClock},
-    vertexShader:"attribute float aBright;varying float vBright;void main(){vBright=aBright;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_PointSize=1.3+aBright*1.8;}",
-    fragmentShader:"precision mediump float;uniform float uDay,uTime;varying float vBright;void main(){float r=length(gl_PointCoord-.5);float a=pow(max(0.,1.-r*2.),1.7)*vBright*(1.-uDay)*(.88+.12*sin(uTime+vBright*52.));gl_FragColor=vec4(.78,.88,1.,a);}"
+    vertexShader:"attribute float aBright;varying float vBright;void main(){vBright=aBright;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_PointSize=1.65+aBright*2.3;}",
+    fragmentShader:"precision mediump float;uniform float uDay,uTime;varying float vBright;void main(){float r=length(gl_PointCoord-.5);float a=pow(max(0.,1.-r*2.),1.7)*(.24+.76*vBright)*(1.-uDay)*(.88+.12*sin(uTime+vBright*52.));gl_FragColor=vec4(.78,.88,1.,a);}"
   }));
   stars.frustumCulled=false;
   stars.renderOrder=-99;
@@ -281,7 +281,7 @@ function updateLight(now){
   if(moon&&moonGlow){
     const lunarArc=((hour-18.2)/12)*Math.PI;
     const moonPos=new THREE.Vector3(
-      70*Math.cos(lunarArc),23+29*Math.max(0,Math.sin(lunarArc)),235);
+      12*Math.cos(lunarArc)-2,28+9*Math.max(0,Math.sin(lunarArc)),180);
     moon.position.copy(moonPos);
     moonGlow.position.copy(moonPos);
     const opacity=night*(1-weather.cloud*.63);
@@ -294,8 +294,8 @@ function updateLight(now){
   const a=(hour/24)*Math.PI*2;
   sun.position.set(70*Math.cos(a),30+70*Math.max(.12,Math.abs(altitude)),45*Math.sin(a));
   hemi.color.set('#e6f1ff').lerp(new THREE.Color('#ffe7d4'),daylight*.72);
-  hemi.groundColor.set('#102b32').lerp(new THREE.Color('#567263'),daylight*.8);
-  hemi.intensity=mix(1.6,2.25,daylight);
+  hemi.groundColor.set('#214856').lerp(new THREE.Color('#567263'),daylight*.8);
+  hemi.intensity=mix(2.05,2.4,daylight);
   haze.color.set('#152c47').lerp(new THREE.Color('#a4bbc5'),daylight*.83);
   haze.density=.0042+weather.cloud*.0018+weather.rain*.0015;
   root?.traverse(o=>{
@@ -372,7 +372,7 @@ async function prepare(){
     renderer.setClearColor('#09152a');
     renderer.outputColorSpace=THREE.SRGBColorSpace;
     renderer.toneMapping=THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure=1.24;
+    renderer.toneMappingExposure=1.39;
     scene=new THREE.Scene();
     haze=new THREE.FogExp2('#294b5e',.005);
     scene.fog=haze;
@@ -423,7 +423,7 @@ function draw(ctx,t,now,{personal=false,scroll=0}={}){
       state.renderWidth=w;state.renderHeight=h;
     }
     const aspect=w/h;
-    const worldHeight=personal?46:(portrait?61:55);
+    const worldHeight=personal?46:(portrait?61:61);
     camera.left=-worldHeight*aspect/2;
     camera.right=worldHeight*aspect/2;
     camera.top=worldHeight/2;
@@ -432,7 +432,7 @@ function draw(ctx,t,now,{personal=false,scroll=0}={}){
     const horizontal=portrait?-4.8:0;
     const drift=clamp(scroll,-1,1)*(personal?3.2:2.1);
     camera.position.set(horizontal+drift,personal?17:(portrait?15:13),-42);
-    camera.lookAt(horizontal+drift*.30,personal?9:(portrait?10.5:5.5),65);
+    camera.lookAt(horizontal+drift*.30,personal?9:(portrait?10.5:9.8),65);
     skyClock.value=now*.001;
     windClock.value=now*.001;
     windPower.value=reduced?0:clamp(.30+weather.wind*.30,.24,1.1);
