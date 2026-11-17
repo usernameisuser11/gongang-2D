@@ -75,6 +75,7 @@ function buildMoon(){
   moon.scale.set(4.1,4.1,1);
   moon.renderOrder=-1;
   scene.add(moon);
+  state.moonReady=true;
 }
 function buildValleyMist(){
   const layers=[
@@ -82,6 +83,7 @@ function buildValleyMist(){
     {z:79,y:8,width:165,height:27,alpha:.15,phase:1.4},
     {z:144,y:13,width:210,height:32,alpha:.18,phase:2.6}
   ];
+  state.mistLayers=layers.length;
   for(const layer of layers){
     const uniforms={
       uTime:skyClock,uDay:skyDay,uDusk:skyDusk,
@@ -148,6 +150,7 @@ function buildFireflies(){
   }));
   fireflies.frustumCulled=false;
   scene.add(fireflies);
+  state.fireflyCount=verts.length/3;
 }
 function applyBotanicalWind(){
   const visited=new Set();
