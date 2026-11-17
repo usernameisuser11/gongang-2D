@@ -209,16 +209,16 @@ function enlivenBlenderSurface(){
         shader.uniforms.gongangRiverTime=windClock;
         shader.vertexShader=shader.vertexShader.replace(
           '#include <common>',
-          '#include <common>\\nvarying vec2 gongangRiverPos;');
+          '#include <common>\nvarying vec2 gongangRiverPos;');
         shader.vertexShader=shader.vertexShader.replace(
           '#include <begin_vertex>',
-          '#include <begin_vertex>\\ngongangRiverPos=position.xz;');
+          '#include <begin_vertex>\ngongangRiverPos=position.xz;');
         shader.fragmentShader=shader.fragmentShader.replace(
           '#include <common>',
-          '#include <common>\\nuniform float gongangRiverTime;\\nvarying vec2 gongangRiverPos;');
+          '#include <common>\nuniform float gongangRiverTime;\nvarying vec2 gongangRiverPos;');
         shader.fragmentShader=shader.fragmentShader.replace(
           '#include <color_fragment>',
-          '#include <color_fragment>\\n'+
+          '#include <color_fragment>\n'+
           'float waterFlow=sin(gongangRiverPos.y*2.1+sin(gongangRiverPos.x*.83+gongangRiverTime*.27)*.7-gongangRiverTime*.78);'+
           'float glint=pow(max(0.,waterFlow),14.);'+
           'float secondRipple=sin(gongangRiverPos.y*5.1+gongangRiverPos.x*1.7+gongangRiverTime*1.2);'+
