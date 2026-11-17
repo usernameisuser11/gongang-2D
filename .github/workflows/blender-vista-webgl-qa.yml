@@ -1,7 +1,7 @@
 name: Gongang Blender Vista WebGL visual QA
 on:
   push:
-    branches: [feat/blender-organic-forest-20261117]
+    branches: [feat/blender-forest-river-light-20261117]
     paths:
       - 'public/assets/models/blender-cinematic-valley.glb'
       - 'public/blender-vista-3d.js'
@@ -65,7 +65,7 @@ jobs:
           git add docs/previews/blender-desktop-night.png docs/previews/blender-mobile-night.png docs/previews/blender-desktop-dusk.png docs/previews/blender-mobile-day.png docs/previews/blender-desktop-night.jpg docs/previews/blender-desktop-dusk.jpg
           if ! git diff --cached --quiet; then
             git commit -m "art: store real-browser desktop and mobile Blender scene previews"
-            git fetch origin feat/blender-organic-forest-20261117
-            git rebase origin/feat/blender-organic-forest-20261117
-            git push origin HEAD:feat/blender-organic-forest-20261117
+            git fetch origin feat/blender-forest-river-light-20261117
+            git rebase origin/feat/blender-forest-river-light-20261117
+            git push origin HEAD:feat/blender-forest-river-light-20261117
           fi
