@@ -42,20 +42,20 @@ def material(name, color, roughness=0.9, metallic=0.0):
     palette[name] = m
     return m
 
-earth = material("Sculpted earth | shadow sea-green", (.092, .21, .23))
+earth = material("Sculpted earth | shadow sea-green", (.18, .31, .27))
 bark = material("Pine bark | deep sienna", (.10, .095, .115))
 bark_lit = material("Pine bark | moonlit edges", (.16, .17, .19))
 needle = [material("Conifer needles %02d" % i, c) for i, c in enumerate([
-    (.035, .16, .19), (.075, .24, .255), (.11, .30, .31), (.17, .38, .36), (.08, .22, .28)
+    (.065, .24, .22), (.09, .32, .27), (.15, .40, .34), (.22, .49, .40), (.12, .28, .36)
 ])]
 leaf = [material("Broadleaf velvet %02d" % i, c) for i, c in enumerate([
-    (.05, .17, .19), (.08, .23, .24), (.14, .31, .30), (.20, .38, .33)
+    (.10, .26, .25), (.14, .36, .30), (.24, .46, .34), (.31, .50, .39)
 ])]
 stone = [material("Wet layered stone %02d" % i, c) for i,c in enumerate([
     (.14,.20,.245),(.21,.27,.29),(.31,.35,.36),(.11,.18,.23)
 ])]
 grass = [material("Grass blade %02d" % i, c) for i,c in enumerate([
-    (.07,.21,.24),(.14,.30,.31),(.21,.36,.32),(.28,.39,.34)
+    (.12,.27,.23),(.19,.37,.29),(.28,.44,.35),(.40,.48,.37)
 ])]
 water = material("Silent mirror | cold deep lake", (.055,.18,.24), .18, .16)
 wildflower = [material("Wildflower petals %02d" % i, color) for i,color in enumerate([
@@ -94,11 +94,11 @@ def height(x, y):
     # Natural asymmetry: split ridge masses on both sides, never mirror them.
     shelf = -3.8 + .37*fbm(x*.14,y*.12,41)
     near = max(0.0,min(1.0,(y+21)/36))
-    hillside = 17.0*(1-math.exp(-bank*bank*.66))
-    far_rise = 14.0*min(1.0,depth/215)**.9
-    ridge = 4.1*fbm(x*.062,y*.041,8)+2.6*fbm(x*.15,y*.09,73)
-    spires = (max(0.0,noise(x*.052,y*.038,130))**2.8)*10.0
-    split = 1.8*math.sin(x*.083+depth*.019)+2.8*math.sin(x*.031-depth*.054)
+    hillside = 11.5*(1-math.exp(-bank*bank*.63))
+    far_rise = 8.7*min(1.0,depth/215)**.9
+    ridge = 3.7*fbm(x*.062,y*.041,8)+1.5*fbm(x*.15,y*.09,73)
+    spires = (max(0.0,noise(x*.052,y*.038,130))**2.8)*4.5
+    split = 1.1*math.sin(x*.083+depth*.019)+1.8*math.sin(x*.031-depth*.054)
     high = shelf + hillside + far_rise + ridge*(.3+.7*(1-near)) + spires*(1-near) + split*(1-near)
     # Keep the shared multiplayer resting terrace open and almost level.
     clearing = max(0.0,1-abs(x)/24)**2 * max(0.0,1-abs(y-4)/31)**2
@@ -134,7 +134,7 @@ def build_land():
         for i in range(nx-1):
             a=j*nx+i; faces.append((a,a+1,a+nx+1,a+nx))
     obj=object_from_mesh("Terrain | one uninterrupted sculpt",vx,faces,[earth])
-    colors=obj.data.vertex_colors.new(name="GongangTerrainColor")
+    colors=obj.data.vertex_colors.new(name="Color")
     for poly in obj.data.polygons:
         for loop_idx in poly.loop_indices:
             vertex=obj.data.vertices[obj.data.loops[loop_idx].vertex_index].co
@@ -143,41 +143,21 @@ def build_land():
             p=fbm(x*.31,y*.29,91)
             distant=min(1,d/240)
             stony=max(0,min(1,(z-3)/20))
-            r=.105+.065*stony+.052*p+.04*distant
-            g=.215+.09*n+.08*stony+.048*distant
-            b=.205+.07*n+.07*distant+.022*p
+            r=.18+.062*stony+.055*p+.055*distant
+            g=.30+.085*n+.065*stony+.043*distant
+            b=.25+.055*n+.10*distant+.025*p
             colors.data[loop_idx].color=(max(.02,r),max(.035,g),max(.04,b),1)
+    # Vertex colors survive the glTF roundtrip: no static panorama texture.
+    bsdf=earth.node_tree.nodes.get("Principled BSDF")
+    attr=earth.node_tree.nodes.new("ShaderNodeVertexColor")
+    attr.layer_name="Color"
+    earth.node_tree.links.new(attr.outputs["Color"],bsdf.inputs["Base Color"])
     return obj
 
-def add_ellipsoid(v,f,mids,center,scale,mat_idx,segments=7):
-    # Hand-shaped overlapping tapered clumps: never stacked cones.
-    x,y,z=center; sx,sy,sz=scale
-    start=len(v)
-    v.append((x,y,z+sz))
-    for ring,zfac,rfac in ((0,.56,.72),(1,0,1),(2,-.62,.73)):
-        for k in range(segments):
-            t=TAU*k/segments+.17*ring
-            irregular=1+.13*math.sin(k*2.1+ring*3.3)
-            v.append((x+math.cos(t)*sx*rfac*irregular,
-                      y+math.sin(t)*sy*rfac*irregular,
-                      z+sz*zfac))
-    end=len(v);v.append((x,y,z-sz))
-    for k in range(segments):
-        f.append((start,start+1+k,start+1+(k+1)%segments));mids.append(mat_idx)
-    for ring in range(2):
-        for k in range(segments):
-            a=start+1+ring*segments+k
-            b=start+1+ring*segments+(k+1)%segments
-            c=a+segments; d=b+segments
-            f.append((a,b,d,c));mids.append(mat_idx)
-    for k in range(segments):
-        a=start+1+2*segments+k;b=start+1+2*segments+(k+1)%segments
-        f.append((a,b,end));mids.append(mat_idx)
-
-def add_tapered_segment(v,f,mids,start,end,r0,r1,mat_idx,sides=6):
+def add_tapered_segment(v,f,mids,start,end,r0,r1,mat_idx,sides=7):
     va=Vector(start);vb=Vector(end);axis=(vb-va).normalized()
     side=axis.cross(Vector((0,1,0)))
-    if side.length<.01: side=axis.cross(Vector((1,0,0)))
+    if side.length<.01:side=axis.cross(Vector((1,0,0)))
     side.normalize();up=axis.cross(side).normalized()
     first=len(v)
     for center,radius in ((va,r0),(vb,r1)):
@@ -189,51 +169,116 @@ def add_tapered_segment(v,f,mids,start,end,r0,r1,mat_idx,sides=6):
         f.append((first+k,first+(k+1)%sides,first+sides+(k+1)%sides,first+sides+k))
         mids.append(mat_idx)
 
+def add_lance_leaf(v,f,mids,origin,direction,length,width,mat_idx,curl=0.0):
+    """A curved, asymmetric leaf with a narrow petiole and a pointed tip.
+    Actual 3D geometry; no alpha cards, sprites, texture billboards or cones.
+    """
+    base=Vector(origin)
+    d=Vector(direction).normalized()
+    lateral=d.cross(Vector((0,0,1)))
+    if lateral.length<.06:lateral=d.cross(Vector((1,0,0)))
+    lateral.normalize()
+    upwards=Vector((0,0,1))
+    center=base+d*(length*.52)+upwards*curl
+    left=center+lateral*width*.53
+    right=center-lateral*width*.43
+    tip=base+d*length+upwards*(curl*.65)
+    root_left=base+d*(length*.12)+lateral*width*.14
+    root_right=base+d*(length*.12)-lateral*width*.12
+    first=len(v)
+    v.extend((tuple(base),tuple(root_left),tuple(left),
+              tuple(tip),tuple(right),tuple(root_right)))
+    f.extend(((first,first+1,first+2),(first,first+2,first+5),
+              (first+2,first+3,first+4),(first+2,first+4,first+5)))
+    mids.extend((mat_idx,mat_idx,mat_idx,mat_idx))
+
 def create_pine(variant):
+    """Botanical fir: individually shaped trailing sprays instead of balloon tiers."""
     r=random.Random(2100+variant*71)
     v=[];f=[];m=[]
-    h=6.2+variant*.8
-    add_tapered_segment(v,f,m,(0,0,0),(.10,.04,h),.26,.055,0,9)
-    for tier in range(10):
-        z=.72+tier*(h-.95)/10
-        radius=(1-tier/11)**1.15*(2.15+.15*variant)
-        arms=5+(tier%3)
+    h=7.7+variant*.8
+    lean=(r.uniform(-.30,.30),r.uniform(-.27,.27))
+    add_tapered_segment(v,f,m,(0,0,0),(lean[0],lean[1],h),.30,.052,0,9)
+    tiers=17+variant
+    for tier in range(tiers):
+        t=tier/tiers
+        z=.78+t*(h-.85)
+        radius=(1.0-t)**1.08*(2.65+.14*variant)
+        arms=8+(tier%3)
         for k in range(arms):
-            angle=TAU*(k+(tier%2)*.46)/arms+r.uniform(-.12,.12)
-            length=radius*r.uniform(.72,1.15)
+            angle=TAU*(k+(tier%2)*.41)/arms+r.uniform(-.11,.11)
             ux,uy=math.cos(angle),math.sin(angle)
-            tip=(ux*length,uy*length,z+.14+length*.21)
-            add_tapered_segment(v,f,m,(0,0,z),(ux*length*.9,uy*length*.9,tip[2]),.073,.018,0,5)
-            for j in (1,2,3):
-                q=j/3
-                pos=(ux*length*q,uy*length*q,z+q*(tip[2]-z))
-                spread=.29+(.37 if j==2 else .18)*(1-tier/12)
-                add_ellipsoid(v,f,m,pos,(spread,spread*.78,.36+.1*(1-tier/12)),
-                              2+r.randrange(4),6)
-    obj=object_from_mesh("PINE_MASTER_%d"%variant,v,f,[bark,bark_lit]+needle,m,library_collection)
+            length=radius*r.uniform(.76,1.17)
+            tip=(lean[0]*t+ux*length,lean[1]*t+uy*length,
+                 z-.34*(1-t)+.10*length)
+            add_tapered_segment(v,f,m,(lean[0]*t,lean[1]*t,z),tip,
+                                .075*(1-t)+.025,.009,0,5)
+            lateral=(-uy,ux)
+            for j in range(3):
+                q=(j+.55)/3.5
+                base=Vector((lean[0]*t+ux*length*q,
+                             lean[1]*t+uy*length*q,
+                             z+q*(tip[2]-z)))
+                for leaf_id in range(6):
+                    side=(leaf_id-2.5)/2.5
+                    sweep=(.37+.42*(1-t))*(1-.35*q)
+                    direction=Vector((ux*(.68+.18*r.random())+
+                                      lateral[0]*side*.65,
+                                      uy*(.68+.18*r.random())+
+                                      lateral[1]*side*.65,
+                                      r.uniform(-.47,.30)+(t*.22)))
+                    offset=Vector((lateral[0]*side*sweep,
+                                   lateral[1]*side*sweep,
+                                   r.uniform(-.13,.16)))
+                    blade_len=(.52+.31*r.random())*(.56+.44*(1-t))
+                    add_lance_leaf(v,f,m,base+offset,direction,
+                                   blade_len,.13+.10*r.random(),
+                                   2+r.randrange(len(needle)),
+                                   .035+r.random()*.075)
+    obj=object_from_mesh("PINE_MASTER_%d"%variant,v,f,
+                         [bark,bark_lit]+needle,m,library_collection)
     obj.hide_render=True
     return obj
 
 def create_broadleaf(variant):
+    """Open sculpted crowns with individually curved leaves and visible branch structure."""
     r=random.Random(459+variant)
     v=[];f=[];m=[]
-    h=7.5+variant*.6
-    trunk=(0.6 if variant else -.6,.2,h)
-    add_tapered_segment(v,f,m,(0,0,0),trunk,.46,.12,0,11)
-    for limb in range(11):
-        angle=TAU*limb/11+r.uniform(-.17,.17)
-        distance=2.0+r.random()*2.7
-        z=h*(.62+r.random()*.27)
-        x=trunk[0]+math.cos(angle)*distance
-        y=math.sin(angle)*distance
-        add_tapered_segment(v,f,m,(trunk[0]*.5,0,z-.7),(x,y,z),.14,.03,0,6)
-        for k in range(5):
-            px=x+r.uniform(-1.4,1.4);py=y+r.uniform(-1.1,1.1)
-            pz=z+r.uniform(-.9,1.6)
-            add_ellipsoid(v,f,m,(px,py,pz),
-                          (1.0+r.random()*.65,.72+r.random()*.5,.65+r.random()*.65),
-                          2+r.randrange(4),8)
-    obj=object_from_mesh("BROADLEAF_MASTER_%d"%variant,v,f,[bark,bark_lit]+leaf,m,library_collection)
+    h=7.2+variant*.85
+    lean=(r.uniform(-.66,.66),r.uniform(-.48,.48))
+    base=(0,0,0)
+    bend=(lean[0]*.42,lean[1]*.35,h*.52)
+    top=(lean[0],lean[1],h)
+    add_tapered_segment(v,f,m,base,bend,.47,.31,0,10)
+    add_tapered_segment(v,f,m,bend,top,.31,.12,0,9)
+    for limb in range(13):
+        angle=TAU*(limb+.16*r.random())/13
+        ux,uy=math.cos(angle),math.sin(angle)
+        length=(2.0+r.random()*2.6)*(1.0 if limb%3 else .77)
+        z=h*(.58+r.random()*.32)
+        root=Vector((lean[0]*.5,lean[1]*.5,z-.8))
+        elbow=Vector((lean[0]+ux*length*.52,lean[1]+uy*length*.48,z+.22))
+        tip=Vector((lean[0]+ux*length,lean[1]+uy*length,z+r.uniform(.15,1.35)))
+        add_tapered_segment(v,f,m,root,elbow,.13,.075,0,6)
+        add_tapered_segment(v,f,m,elbow,tip,.075,.013,0,5)
+        for cluster in range(13):
+            q=(cluster+.65)/14
+            p=elbow.lerp(tip,q)
+            for leaf_id in range(8):
+                angle2=TAU*(leaf_id+r.random()*.28)/8
+                vec=Vector((math.cos(angle2)*.82+ux*.23,
+                            math.sin(angle2)*.82+uy*.23,
+                            r.uniform(-.44,.48)))
+                origin=p+Vector((r.uniform(-.22,.22),
+                                 r.uniform(-.22,.22),
+                                 r.uniform(-.28,.28)))
+                add_lance_leaf(v,f,m,origin,vec,
+                               .65+r.random()*.72,
+                               .28+r.random()*.24,
+                               2+r.randrange(len(leaf)),
+                               r.uniform(.02,.16))
+    obj=object_from_mesh("BROADLEAF_MASTER_%d"%variant,v,f,
+                         [bark,bark_lit]+leaf,m,library_collection)
     obj.hide_render=True
     return obj
 
@@ -242,7 +287,7 @@ def scatter_forest():
     broad=[create_broadleaf(i) for i in range(2)]
     count=0
     rng=random.Random(20261117)
-    for i in range(258):
+    for i in range(224):
         y=rng.uniform(-240,16)
         x=rng.uniform(-121,121)
         d=max(0,-y)
@@ -261,8 +306,8 @@ def scatter_forest():
         count+=1
     # Distinct framing silhouettes to make the image read at phone size.
     for x,y,scale,master in [
-        (-37,21,2.8,broad[0]),(42,20,3.0,broad[1]),
-        (-56,-9,2.0,masters[1]),(57,-14,2.25,masters[2])]:
+        (-37,21,2.3,broad[0]),(42,20,2.4,broad[1]),
+        (-56,-9,1.75,masters[1]),(57,-14,1.85,masters[2])]:
         obj=bpy.data.objects.new("Foreground hero tree",master.data)
         world_collection.objects.link(obj)
         obj.location=(x,y,height(x,y)-.45)
@@ -273,11 +318,11 @@ def scatter_forest():
 def scatter_rocks():
     rng=random.Random(7123)
     v=[];f=[];m=[]
-    for i in range(135):
+    for i in range(86):
         x=rng.uniform(-114,114);y=rng.uniform(-202,30)
         if -18<y<26 and abs(x)<22:continue
         z=height(x,y)
-        radius=(.28+rng.random()*1.15)*(1+.65*(y>0))
+        radius=(.24+rng.random()*.68)*(1+.40*(y>0))
         bx=len(v)
         # Asymmetric low-poly strata, buried below terrain for natural contact.
         sides=8
@@ -298,11 +343,11 @@ def scatter_rocks():
 def meadow():
     rng=random.Random(34783)
     v=[];f=[];m=[]
-    for n in range(1100):
+    for n in range(5200):
         x=rng.uniform(-70,70);y=rng.uniform(-17,39)
         if abs(x)<18 and -5<y<23 and rng.random()<.76:continue
         z=height(x,y)+.07
-        ht=.25+rng.random()*.86
+        ht=.32+rng.random()*1.05
         direction=rng.random()*TAU
         for k in range(3):
             ang=direction+k*TAU/3+rng.uniform(-.22,.22)
@@ -332,7 +377,7 @@ def flower_patches():
             x=px+rng.gauss(0,2.6)
             y=py+rng.gauss(0,2.0)
             z=height(x,y)+.06
-            h=rng.uniform(.30,.83)
+            h=rng.uniform(.45,1.13)
             tilt=rng.uniform(-.13,.13)
             head=(x+tilt,y+tilt*.63,z+h)
             base=len(v)
@@ -340,7 +385,7 @@ def flower_patches():
             v.extend(((x-.024,y,z),(x+.024,y,z),
                       (head[0]+.02,head[1],head[2])))
             f.append((base,base+1,base+2));materials.append(rng.randrange(2))
-            radius=rng.uniform(.12,.24)
+            radius=rng.uniform(.18,.34)
             petals=rng.choice((5,6,7))
             for k in range(petals):
                 angle=TAU*(k+rng.uniform(-.09,.09))/petals
@@ -379,7 +424,7 @@ def river():
         y=-249+i*1.03
         d=max(0,-y)
         cx=river_center(d)
-        half=1.12+d*.013
+        half=.82+d*.009
         for side in (-1,1):
             x=cx+side*half
             v.append((x,y,height(x,y)+.13))

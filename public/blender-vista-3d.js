@@ -14,7 +14,7 @@ const state={
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const portrait=innerWidth<700 && innerHeight>innerWidth*1.20;
 const skyClock={value:0},skyDay={value:0},skyDusk={value:0},skyRain={value:0};
-let renderer, scene, camera, root, sun, hemi, haze, stars, moon, moonGlow, fireflies;
+let renderer, scene, camera, root, sun, hemi, haze, stars, moon, moonGlow, fireflies, rimLight;
 const windClock={value:0},windPower={value:0};
 const cloudiness={value:.25};
 let weather={cloud:0.25,rain:0,wind:1,updated:0};
@@ -202,7 +202,11 @@ function enlivenBlenderSurface(){
       visited.add(mat);
       if(/Wildflower petals/i.test(mat.name) && mat.isMeshStandardMaterial){
         mat.emissive=new THREE.Color('#484c79');
-        mat.emissiveIntensity=.26;
+        mat.emissiveIntensity=.62;
+      }
+      if(/Wildflower center/i.test(mat.name)&&mat.isMeshStandardMaterial){
+        mat.emissive=new THREE.Color('#dba96e');
+        mat.emissiveIntensity=.70;
       }
       if(!/Silent mirror/i.test(mat.name)||!mat.isMeshStandardMaterial)continue;
       mat.roughness=.27;
@@ -249,7 +253,7 @@ function buildAtmosphere(){
         "return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}",
         "float fbm(vec2 p){float v=0.,w=.50;for(int i=0;i<4;i++){v+=w*n2(p);p*=2.04;w*=.51;}return v;}",
         "void main(){vec3 d=normalize(vRay);float alt=clamp(d.y*.92+.26,0.,1.);",
-        "vec3 night=mix(vec3(.09,.18,.30),vec3(.007,.018,.057),smoothstep(.06,.96,alt));",
+        "vec3 night=mix(vec3(.13,.27,.31),vec3(.012,.022,.075),smoothstep(.06,.96,alt));",
         "vec3 daylight=mix(vec3(.54,.73,.79),vec3(.13,.37,.70),smoothstep(.06,1.,alt));",
         "vec3 rose=vec3(.82,.39,.46)*exp(-pow((alt-.08)*8.0,2.));",
         "vec3 col=mix(night,daylight,uDay)+rose*uDusk*.62;",
@@ -341,8 +345,8 @@ function updateLight(now){
   hemi.color.set('#e6f1ff').lerp(new THREE.Color('#ffe7d4'),daylight*.72);
   hemi.groundColor.set('#214856').lerp(new THREE.Color('#567263'),daylight*.8);
   hemi.intensity=mix(2.05,2.4,daylight);
-  haze.color.set('#152c47').lerp(new THREE.Color('#a4bbc5'),daylight*.83);
-  haze.density=.0042+weather.cloud*.0018+weather.rain*.0015;
+  haze.color.set('#28455b').lerp(new THREE.Color('#a4bbc5'),daylight*.83);
+  haze.density=.0051+weather.cloud*.0018+weather.rain*.0015;
   root?.traverse(o=>{
     if(o.isMesh && o.material){
       const mats=Array.isArray(o.material)?o.material:[o.material];
@@ -417,20 +421,23 @@ async function prepare(){
     renderer.setClearColor('#09152a');
     renderer.outputColorSpace=THREE.SRGBColorSpace;
     renderer.toneMapping=THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure=1.39;
+    renderer.toneMappingExposure=1.48;
     scene=new THREE.Scene();
     haze=new THREE.FogExp2('#294b5e',.005);
     scene.fog=haze;
     camera=new THREE.OrthographicCamera(-25,25,27.5,-27.5,.1,550);
     camera.position.set(0,13,-42);
     camera.lookAt(0,5.5,65);
-    hemi=new THREE.HemisphereLight('#e3edff','#244c45',1.7);
+    hemi=new THREE.HemisphereLight('#e9f4ff','#315347',1.7);
     scene.add(hemi);
     sun=new THREE.DirectionalLight('#c7d8ff',1.5);
     sun.position.set(-40,60,30);
     // Mobile can keep high quality normals without a costly dynamic shadowmap.
     renderer.shadowMap.enabled=false;
     scene.add(sun);
+    rimLight=new THREE.DirectionalLight('#80bfc2',.83);
+    rimLight.position.set(82,44,-66);
+    scene.add(rimLight);
     buildAtmosphere();
     const gltf=await new GLTFLoader().loadAsync('/assets/models/blender-cinematic-valley.glb');
     root=gltf.scene;
