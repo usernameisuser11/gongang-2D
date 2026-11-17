@@ -169,7 +169,7 @@ function applyBotanicalWind(){
           '#include <begin_vertex>',
           '#include <begin_vertex>\n'+
           'float gw= smoothstep(.65,6.8,position.y);'+
-          'float gp=position.x*.28+position.z*.34;'+
+          'float gp=position.x*.28+position.z*.34;\n'+
           '#ifdef USE_INSTANCING\n'+
           'gp+=instanceMatrix[3].x*.092+instanceMatrix[3].z*.064;\n'+
           '#endif\n'+
