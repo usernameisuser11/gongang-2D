@@ -69,6 +69,8 @@ try{
       throw Error(scene.name+': forest was not GPU-instanced '+JSON.stringify(state));
     if(!state.moonReady||state.mistLayers!==3||state.fireflyCount<100||state.windMaterials<2||state.riverMaterials<1)
       throw Error(scene.name+': cinematic atmosphere not complete '+JSON.stringify(state));
+    if(state.portraitTrees<3||state.portraitTreesVisible!==(scene.width<700?state.portraitTrees:0))
+      throw Error(scene.name+': mobile composition was not separated from desktop '+JSON.stringify(state));
     if(errors.length)throw Error(scene.name+': browser shader errors '+errors.join(' | '));
   }
   await writeFile(OUT+'/report.json',JSON.stringify(report,null,2));

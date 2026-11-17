@@ -452,7 +452,12 @@ async function prepare(){
       o.castShadow=false;o.receiveShadow=false;
     });
     scene.add(root);
-    root.traverse(o=>{if(o.name?.startsWith('Portrait framing tree'))o.visible=portrait;});
+    let portraitTrees=0;
+    root.traverse(o=>{
+      if(o.name?.startsWith('Portrait framing tree')){o.visible=portrait;portraitTrees++;}
+    });
+    state.portraitTrees=portraitTrees;
+    state.portraitTreesVisible=portrait?portraitTrees:0;
     instanceRepeatedForest(root);
     applyBotanicalWind();
     enlivenBlenderSurface();
