@@ -129,7 +129,7 @@ def build_land():
     nx,ny = 193,153
     vx, faces, col = [], [], []
     for j in range(ny):
-        y = 42.0 - j*304.0/(ny-1)
+        y = 98.0 - j*360.0/(ny-1)
         for i in range(nx):
             x = -140.0+i*280/(nx-1)
             vx.append((x,y,height(x,y)))
@@ -361,7 +361,7 @@ def meadow():
     rng=random.Random(34783)
     v=[];f=[];m=[]
     for n in range(2150):
-        x=rng.uniform(-70,70);y=rng.uniform(-17,39)
+        x=rng.uniform(-70,70);y=rng.uniform(-17,73)
         if abs(x)<18 and -5<y<23 and rng.random()<.76:continue
         z=height(x,y)+.07
         ht=.29+rng.random()*.78
@@ -385,7 +385,7 @@ def sculpt_fern_groves():
     v=[];f=[];m=[]
     for group in range(126):
         x=r.uniform(-37,37)
-        y=r.uniform(11,41)
+        y=r.uniform(11,68)
         if abs(x)<7 and y<30: continue
         if abs(x)<19 and y<21 and r.random()<.46:continue
         z=height(x,y)+.10
