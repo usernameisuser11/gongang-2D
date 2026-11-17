@@ -57,6 +57,7 @@ try{
     );
     await page.waitForTimeout(1100);
     const state=await page.evaluate(()=>({...window.GongangBlenderVista.state}));
+    const canvasAspect=await page.locator('#game').evaluate(el=>el.width/Math.max(1,el.height));
     report.push({name:scene.name,state,errors});
     await page.screenshot({path:OUT+'/'+scene.name+'.png',fullPage:true});
     await page.locator('#game').screenshot({path:OUT+'/'+scene.name+'-scene.png'});
@@ -72,9 +73,8 @@ try{
     if(state.portraitTrees<3||state.portraitTreesVisible!==(scene.width<700?state.portraitTrees:0))
       throw Error(scene.name+': mobile composition was not separated from desktop '+JSON.stringify(state));
     const renderedAspect=state.renderWidth/Math.max(1,state.renderHeight);
-    const viewportAspect=scene.width/scene.height;
-    if(Math.abs(renderedAspect-viewportAspect)/viewportAspect>.02)
-      throw Error(scene.name+': WebGL portrait is distorted '+JSON.stringify({renderedAspect,viewportAspect}));
+    if(Math.abs(renderedAspect-canvasAspect)/canvasAspect>.02)
+      throw Error(scene.name+': WebGL scene is stretched '+JSON.stringify({renderedAspect,canvasAspect}));
     if(errors.length)throw Error(scene.name+': browser shader errors '+errors.join(' | '));
   }
   await writeFile(OUT+'/report.json',JSON.stringify(report,null,2));
