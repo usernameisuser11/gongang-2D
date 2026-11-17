@@ -14,7 +14,9 @@ const state={
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const portrait=innerWidth<700 && innerHeight>innerWidth*1.20;
 const skyClock={value:0},skyDay={value:0},skyDusk={value:0},skyRain={value:0};
-let renderer, scene, camera, root, sun, hemi, haze, stars, grassMaterials=[];
+let renderer, scene, camera, root, sun, hemi, haze, stars, moon, moonGlow, fireflies;
+const windClock={value:0},windPower={value:0};
+const cloudiness={value:.25};
 let weather={cloud:0.25,rain:0,wind:1,updated:0};
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t)};
@@ -22,6 +24,164 @@ const mix=(a,b,t)=>a+(b-a)*t;
 
 function rng(seed){
   return()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+}
+function paintMoonTexture(halo=false){
+  const canvas=document.createElement('canvas');
+  canvas.width=canvas.height=256;
+  const ctx=canvas.getContext('2d');
+  const center=128,radius=halo?127:112;
+  const gradient=ctx.createRadialGradient(
+    halo?128:113,halo?128:107,halo?0:12,128,128,radius);
+  if(halo){
+    gradient.addColorStop(0,'rgba(255,245,219,.32)');
+    gradient.addColorStop(.13,'rgba(243,226,229,.16)');
+    gradient.addColorStop(.4,'rgba(159,179,229,.048)');
+    gradient.addColorStop(1,'rgba(120,162,219,0)');
+  }else{
+    gradient.addColorStop(0,'rgba(255,251,233,1)');
+    gradient.addColorStop(.75,'rgba(240,241,231,1)');
+    gradient.addColorStop(.92,'rgba(218,232,239,.94)');
+    gradient.addColorStop(1,'rgba(208,227,241,0)');
+  }
+  ctx.fillStyle=gradient;
+  ctx.fillRect(0,0,256,256);
+  if(!halo){
+    const random=rng(1945);
+    for(let i=0;i<65;i++){
+      const a=random()*Math.PI*2,d=Math.sqrt(random())*.68;
+      const x=128+Math.cos(a)*d*94,y=128+Math.sin(a)*d*94;
+      const size=1.3+random()*6.4;
+      ctx.fillStyle=i%4===0?'rgba(77,100,123,.09)':'rgba(119,135,147,.055)';
+      ctx.beginPath();ctx.ellipse(x,y,size,size*(.42+random()),a,0,Math.PI*2);ctx.fill();
+    }
+  }
+  const texture=new THREE.CanvasTexture(canvas);
+  texture.colorSpace=THREE.SRGBColorSpace;
+  return texture;
+}
+function buildMoon(){
+  const glowTexture=paintMoonTexture(true);
+  moonGlow=new THREE.Sprite(new THREE.SpriteMaterial({
+    map:glowTexture,transparent:true,depthWrite:false,depthTest:false,
+    blending:THREE.AdditiveBlending,fog:false
+  }));
+  moonGlow.scale.set(45,45,1);
+  moonGlow.renderOrder=-2;
+  scene.add(moonGlow);
+  moon=new THREE.Sprite(new THREE.SpriteMaterial({
+    map:paintMoonTexture(false),transparent:true,depthWrite:false,
+    depthTest:false,fog:false
+  }));
+  moon.scale.set(4.1,4.1,1);
+  moon.renderOrder=-1;
+  scene.add(moon);
+}
+function buildValleyMist(){
+  const layers=[
+    {z:25,y:2,width:110,height:19,alpha:.095,phase:.3},
+    {z:79,y:8,width:165,height:27,alpha:.15,phase:1.4},
+    {z:144,y:13,width:210,height:32,alpha:.18,phase:2.6}
+  ];
+  for(const layer of layers){
+    const uniforms={
+      uTime:skyClock,uDay:skyDay,uDusk:skyDusk,
+      uCloud:cloudiness,
+      uOpacity:{value:layer.alpha},uPhase:{value:layer.phase}
+    };
+    const mat=new THREE.ShaderMaterial({
+      uniforms,transparent:true,depthWrite:false,depthTest:true,
+      side:THREE.DoubleSide,
+      vertexShader:"varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
+      fragmentShader:[
+        "precision mediump float;varying vec2 vUv;",
+        "uniform float uTime,uDay,uDusk,uCloud,uOpacity,uPhase;",
+        "float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}",
+        "float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);",
+        "return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}",
+        "void main(){vec2 p=vUv*vec2(6.2,3.0)+vec2(uPhase,uPhase*.7);",
+        "float n=noise(p+vec2(uTime*.008,0.));n=.60*n+.40*noise(p*2.15-vec2(uTime*.014,0.));",
+        "float wave=.56+.20*sin(vUv.x*9.+uPhase)+.09*cos(vUv.x*21.+uPhase);",
+        "float height=(vUv.y-wave);",
+        "float band=exp(-height*height*29.)*(.43+.57*n);",
+        "float fade=smoothstep(0.,.17,vUv.x)*(1.-smoothstep(.83,1.,vUv.x));",
+        "fade*=smoothstep(.05,.25,vUv.y)*(1.-smoothstep(.84,1.,vUv.y));",
+        "vec3 color=mix(vec3(.24,.38,.49),vec3(.72,.80,.82),uDay);",
+        "color=mix(color,vec3(.74,.56,.69),uDusk*.26);",
+        "float a=band*fade*uOpacity*(.80+uCloud*.28);",
+        "gl_FragColor=vec4(color,a);}"
+      ].join('\n')
+    });
+    const plane=new THREE.Mesh(new THREE.PlaneGeometry(layer.width,layer.height),mat);
+    plane.position.set(0,layer.y,layer.z);
+    plane.frustumCulled=false;
+    plane.renderOrder=1;
+    scene.add(plane);
+  }
+}
+function buildFireflies(){
+  const random=rng(2517),verts=[],phase=[];
+  for(let i=0;i<125;i++){
+    const x=(random()-.5)*86,z=-32+random()*60;
+    verts.push(x,-3.1+random()*3.0,z);
+    phase.push(random()*Math.PI*2);
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+  geo.setAttribute('aPhase',new THREE.Float32BufferAttribute(phase,1));
+  fireflies=new THREE.Points(geo,new THREE.ShaderMaterial({
+    uniforms:{uTime:skyClock,uDay:skyDay},
+    transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+    vertexShader:[
+      "attribute float aPhase;uniform float uTime;varying float vA;",
+      "void main(){vA=aPhase;vec3 p=position;",
+      "p.x+=sin(uTime*.37+aPhase*3.)*.17;p.y+=sin(uTime*.52+aPhase)*.10;",
+      "gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);",
+      "gl_PointSize=1.6+2.2*pow(.5+.5*sin(uTime*.9+aPhase*8.),3.);}"
+    ].join('\n'),
+    fragmentShader:[
+      "precision mediump float;uniform float uTime,uDay;varying float vA;",
+      "void main(){float r=length(gl_PointCoord-.5);",
+      "float halo=pow(max(0.,1.-r*2.),2.8);",
+      "float glow=(.35+.65*pow(.5+.5*sin(uTime*.84+vA*7.),2.));",
+      "gl_FragColor=vec4(.78,.91,.74,halo*glow*(1.-uDay)*.42);}"
+    ].join('\n')
+  }));
+  fireflies.frustumCulled=false;
+  scene.add(fireflies);
+}
+function applyBotanicalWind(){
+  const visited=new Set();
+  let count=0;
+  scene.traverse(o=>{
+    if(!o.isMesh||!o.material)return;
+    const mats=Array.isArray(o.material)?o.material:[o.material];
+    for(const mat of mats){
+      if(visited.has(mat))continue;
+      visited.add(mat);
+      if(!/Conifer needles|Broadleaf velvet/i.test(mat.name))continue;
+      mat.onBeforeCompile=shader=>{
+        shader.uniforms.gongangWindTime=windClock;
+        shader.uniforms.gongangWindPower=windPower;
+        shader.vertexShader=shader.vertexShader.replace(
+          '#include <common>',
+          '#include <common>\nuniform float gongangWindTime;\nuniform float gongangWindPower;');
+        shader.vertexShader=shader.vertexShader.replace(
+          '#include <begin_vertex>',
+          '#include <begin_vertex>\n'+
+          'float gw= smoothstep(.65,6.8,position.y);'+
+          'float gp=position.x*.28+position.z*.34;'+
+          '#ifdef USE_INSTANCING\n'+
+          'gp+=instanceMatrix[3].x*.092+instanceMatrix[3].z*.064;\n'+
+          '#endif\n'+
+          'transformed.x+=sin(gongangWindTime*.73+gp+position.y*.27)*.13*gw*gongangWindPower;'+
+          'transformed.z+=cos(gongangWindTime*.56+gp*1.31)*.067*gw*gongangWindPower;');
+      };
+      mat.customProgramCacheKey=()=> 'gongang-leaf-wind-v2';
+      mat.needsUpdate=true;
+      count++;
+    }
+  });
+  state.windMaterials=count;
 }
 function buildAtmosphere(){
   const sky=new THREE.Mesh(
