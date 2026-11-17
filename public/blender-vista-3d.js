@@ -189,6 +189,49 @@ function applyBotanicalWind(){
   });
   state.windMaterials=count;
 }
+function enlivenBlenderSurface(){
+  const visited=new Set();
+  let riverMaterials=0;
+  scene.traverse(node=>{
+    if(!node.isMesh||!node.material)return;
+    const mats=Array.isArray(node.material)?node.material:[node.material];
+    for(const mat of mats){
+      if(visited.has(mat))continue;
+      visited.add(mat);
+      if(/Wildflower petals/i.test(mat.name) && mat.isMeshStandardMaterial){
+        mat.emissive=new THREE.Color('#484c79');
+        mat.emissiveIntensity=.26;
+      }
+      if(!/Silent mirror/i.test(mat.name)||!mat.isMeshStandardMaterial)continue;
+      mat.roughness=.27;
+      mat.metalness=.15;
+      mat.onBeforeCompile=shader=>{
+        shader.uniforms.gongangRiverTime=windClock;
+        shader.vertexShader=shader.vertexShader.replace(
+          '#include <common>',
+          '#include <common>\\nvarying vec2 gongangRiverPos;');
+        shader.vertexShader=shader.vertexShader.replace(
+          '#include <begin_vertex>',
+          '#include <begin_vertex>\\ngongangRiverPos=position.xz;');
+        shader.fragmentShader=shader.fragmentShader.replace(
+          '#include <common>',
+          '#include <common>\\nuniform float gongangRiverTime;\\nvarying vec2 gongangRiverPos;');
+        shader.fragmentShader=shader.fragmentShader.replace(
+          '#include <color_fragment>',
+          '#include <color_fragment>\\n'+
+          'float waterFlow=sin(gongangRiverPos.y*2.1+sin(gongangRiverPos.x*.83+gongangRiverTime*.27)*.7-gongangRiverTime*.78);'+
+          'float glint=pow(max(0.,waterFlow),14.);'+
+          'float secondRipple=sin(gongangRiverPos.y*5.1+gongangRiverPos.x*1.7+gongangRiverTime*1.2);'+
+          'diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.10,.28,.36),.16);'+
+          'diffuseColor.rgb+=vec3(.10,.28,.34)*(glint*.54+secondRipple*.05);');
+      };
+      mat.customProgramCacheKey=()=> 'gongang-moving-water-v1';
+      mat.needsUpdate=true;
+      riverMaterials++;
+    }
+  });
+  state.riverMaterials=riverMaterials;
+}
 function buildAtmosphere(){
   const sky=new THREE.Mesh(
     new THREE.SphereGeometry(320,32,20),
@@ -281,7 +324,7 @@ function updateLight(now){
   if(moon&&moonGlow){
     const lunarArc=((hour-18.2)/12)*Math.PI;
     const moonPos=new THREE.Vector3(
-      12*Math.cos(lunarArc)-2,28+9*Math.max(0,Math.sin(lunarArc)),180);
+      12*Math.cos(lunarArc)-2,20+8*Math.max(0,Math.sin(lunarArc)),180);
     moon.position.copy(moonPos);
     moonGlow.position.copy(moonPos);
     const opacity=night*(1-weather.cloud*.63);
@@ -402,6 +445,7 @@ async function prepare(){
     scene.add(root);
     instanceRepeatedForest(root);
     applyBotanicalWind();
+    enlivenBlenderSurface();
     state.ready=true;
     state.loading=false;
     await getWeather();
