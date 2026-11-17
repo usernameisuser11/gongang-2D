@@ -43,6 +43,10 @@ try{
     });
     const errors=[];
     page.on('pageerror',error=>errors.push(error.message));
+    page.on('console',message=>{
+      if(message.type()==='error' && /THREE.WebGLProgram|Shader Error|GLSL|WebGL shader/i.test(message.text()))
+        errors.push(message.text());
+    });
     const url=HOST+'/?map=stargaze&renderer=blender&time='+scene.time;
     await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
     await page.waitForFunction(
@@ -61,6 +65,9 @@ try{
       throw Error(scene.name+': unexpectedly empty Blender model '+JSON.stringify(state));
     if(state.forestInstances<100||state.forestInstancedDraws<4)
       throw Error(scene.name+': forest was not GPU-instanced '+JSON.stringify(state));
+    if(!state.moonReady||state.mistLayers!==3||state.fireflyCount<100||state.windMaterials<2)
+      throw Error(scene.name+': cinematic atmosphere not complete '+JSON.stringify(state));
+    if(errors.length)throw Error(scene.name+': browser shader errors '+errors.join(' | '));
   }
   await writeFile(OUT+'/report.json',JSON.stringify(report,null,2));
   process.stdout.write(JSON.stringify(report,null,2)+'\n');
