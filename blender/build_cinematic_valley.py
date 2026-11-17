@@ -58,6 +58,10 @@ grass = [material("Grass blade %02d" % i, c) for i,c in enumerate([
     (.07,.21,.24),(.14,.30,.31),(.21,.36,.32),(.28,.39,.34)
 ])]
 water = material("Silent mirror | cold deep lake", (.055,.18,.24), .18, .16)
+wildflower = [material("Wildflower petals %02d" % i, color) for i,color in enumerate([
+    (.45,.59,.78), (.55,.46,.71), (.73,.56,.72), (.66,.73,.78), (.35,.54,.62)
+])]
+flower_core = material("Wildflower center | pale amber", (.69,.57,.29))
 
 def deterministic_hash(x, y, seed=0):
     k = int(x)*374761393 + int(y)*668265263 + seed*1442695041
@@ -313,6 +317,62 @@ def meadow():
     obj=object_from_mesh("Meadow | individually rooted blades",v,f,grass,m)
     for p in obj.data.polygons:p.use_smooth=False
 
+def flower_patches():
+    """Small botanical accents, modeled as curved real petals and stems."""
+    rng=random.Random(730021)
+    v=[];f=[];materials=[]
+    sources=grass[:2]+wildflower+[flower_core]
+    for patch in range(39):
+        px=rng.uniform(-76,76)
+        py=rng.uniform(-17,39)
+        # A rest area remains available to actual online visitors.
+        if abs(px)<22 and -8<py<25:continue
+        color_group=rng.randrange(len(wildflower))
+        for n in range(rng.randint(7,16)):
+            x=px+rng.gauss(0,2.6)
+            y=py+rng.gauss(0,2.0)
+            z=height(x,y)+.06
+            h=rng.uniform(.30,.83)
+            tilt=rng.uniform(-.13,.13)
+            head=(x+tilt,y+tilt*.63,z+h)
+            base=len(v)
+            # Two crossed blades form one narrow, organically leaning stem.
+            v.extend(((x-.024,y,z),(x+.024,y,z),
+                      (head[0]+.02,head[1],head[2])))
+            f.append((base,base+1,base+2));materials.append(rng.randrange(2))
+            radius=rng.uniform(.12,.24)
+            petals=rng.choice((5,6,7))
+            for k in range(petals):
+                angle=TAU*(k+rng.uniform(-.09,.09))/petals
+                dx,dy=math.cos(angle),math.sin(angle)
+                tangent=(-dy,dx)
+                tip=(head[0]+dx*radius,head[1]+dy*radius,head[2]+rng.uniform(-.03,.075))
+                left=(head[0]+dx*radius*.55+tangent[0]*radius*.33,
+                      head[1]+dy*radius*.55+tangent[1]*radius*.33,
+                      head[2]+.035)
+                right=(head[0]+dx*radius*.55-tangent[0]*radius*.33,
+                       head[1]+dy*radius*.55-tangent[1]*radius*.33,
+                       head[2]+.035)
+                start=len(v)
+                v.extend((head,left,tip,right))
+                f.extend(((start,start+1,start+2),
+                          (start,start+2,start+3)))
+                shade=2+color_group if rng.random()<.8 else 2+rng.randrange(len(wildflower))
+                materials.extend((shade,shade))
+            base=len(v)
+            rad=radius*.19
+            v.append(head)
+            for k in range(7):
+                angle=TAU*k/7
+                v.append((head[0]+math.cos(angle)*rad,
+                          head[1]+math.sin(angle)*rad,
+                          head[2]+.027))
+            for k in range(7):
+                f.append((base,base+1+k,base+1+(k+1)%7))
+                materials.append(len(sources)-1)
+    obj=object_from_mesh("Wildflowers | individually sculpted petals",v,f,sources,materials)
+    for p in obj.data.polygons:p.use_smooth=False
+
 def river():
     v=[];f=[]
     for i in range(230):
@@ -376,6 +436,7 @@ print("Building botanical meshes...")
 number_of_trees=scatter_forest()
 scatter_rocks()
 meadow()
+flower_patches()
 river()
 studio()
 
