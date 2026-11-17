@@ -71,6 +71,10 @@ try{
       throw Error(scene.name+': cinematic atmosphere not complete '+JSON.stringify(state));
     if(state.portraitTrees<3||state.portraitTreesVisible!==(scene.width<700?state.portraitTrees:0))
       throw Error(scene.name+': mobile composition was not separated from desktop '+JSON.stringify(state));
+    const renderedAspect=state.renderWidth/Math.max(1,state.renderHeight);
+    const viewportAspect=scene.width/scene.height;
+    if(Math.abs(renderedAspect-viewportAspect)/viewportAspect>.02)
+      throw Error(scene.name+': WebGL portrait is distorted '+JSON.stringify({renderedAspect,viewportAspect}));
     if(errors.length)throw Error(scene.name+': browser shader errors '+errors.join(' | '));
   }
   await writeFile(OUT+'/report.json',JSON.stringify(report,null,2));
