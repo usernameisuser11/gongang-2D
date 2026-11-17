@@ -73,7 +73,7 @@ function buildMoon(){
     map:paintMoonTexture(false),transparent:true,depthWrite:false,
     depthTest:false,fog:false
   }));
-  const diskSize=portrait?3.0:4.1;
+  const diskSize=portrait?2.25:3.5;
   moon.scale.set(diskSize,diskSize,1);
   moon.renderOrder=-1;
   scene.add(moon);
@@ -253,15 +253,15 @@ function buildAtmosphere(){
         "return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}",
         "float fbm(vec2 p){float v=0.,w=.50;for(int i=0;i<4;i++){v+=w*n2(p);p*=2.04;w*=.51;}return v;}",
         "void main(){vec3 d=normalize(vRay);float alt=clamp(d.y*.92+.26,0.,1.);",
-        "vec3 night=mix(vec3(.13,.27,.31),vec3(.012,.022,.075),smoothstep(.06,.96,alt));",
-        "vec3 daylight=mix(vec3(.54,.73,.79),vec3(.13,.37,.70),smoothstep(.06,1.,alt));",
+        "vec3 night=mix(vec3(.048,.11,.16),vec3(.004,.008,.052),smoothstep(.06,.96,alt));",
+        "vec3 daylight=mix(vec3(.62,.75,.78),vec3(.24,.42,.71),smoothstep(.06,1.,alt));",
         "vec3 rose=vec3(.82,.39,.46)*exp(-pow((alt-.08)*8.0,2.));",
         "vec3 col=mix(night,daylight,uDay)+rose*uDusk*.62;",
         "vec2 p=vec2(atan(d.z,d.x)*3.1+uTime*.004,d.y*7.8);",
         "float c=fbm(p*1.35+vec2(4.0,15.0))*.72+fbm(p*2.3)*.28;",
         "float band=smoothstep(.47,.73,c)*smoothstep(.02,.30,alt)*(1.-smoothstep(.72,1.0,alt));",
         "col=mix(col,mix(vec3(.30,.39,.59),vec3(.94,.87,.77),uDay),",
-        "band*mix(.22,.50,uDay)*(1.-uRain*.35));",
+        "band*mix(.13,.32,uDay)*(1.-uRain*.35));",
         "vec2 gal=vec2(atan(d.z,d.x)*1.5,d.y);",
         "float bend=gal.x*.20+gal.y-.51+.065*sin(gal.x*3.7);",
         "bend+=(fbm(gal*9.1+vec2(3.,11.))-.47)*.16;",
@@ -270,7 +270,7 @@ function buildAtmosphere(){
         "float bands=.4+.6*smoothstep(.24,.75,grain);",
         "float dust=exp(-pow((bend+.065)*24.,2.))*smoothstep(.38,.67,fbm(gal*35.+vec2(8.,19.)));",
         "float galactic=core*bands*(1.-dust*.82)*smoothstep(.06,.38,alt);",
-        "col+=mix(vec3(.12,.22,.30),vec3(.41,.26,.48),grain)*galactic*(1.-uDay)*1.1;",
+        "col+=mix(vec3(.17,.22,.36),vec3(.53,.24,.58),grain)*galactic*(1.-uDay)*1.72;",
         "gl_FragColor=vec4(col,1.);}"
       ].join('\n')
     })
@@ -339,14 +339,16 @@ function updateLight(now){
   }
   const sunny=new THREE.Color('#fff5d5'),moonlightColor=new THREE.Color('#a1bfff');
   sun.color.copy(moonlightColor).lerp(sunny,daylight);
-  sun.intensity=mix(1.0,2.4,daylight)*(1-weather.cloud*.36);
+  sun.intensity=mix(.71,2.0,daylight)*(1-weather.cloud*.36);
   const a=(hour/24)*Math.PI*2;
   sun.position.set(70*Math.cos(a),30+70*Math.max(.12,Math.abs(altitude)),45*Math.sin(a));
   hemi.color.set('#e6f1ff').lerp(new THREE.Color('#ffe7d4'),daylight*.72);
   hemi.groundColor.set('#214856').lerp(new THREE.Color('#567263'),daylight*.8);
-  hemi.intensity=mix(1.92,2.3,daylight);
-  haze.color.set('#28455b').lerp(new THREE.Color('#a4bbc5'),daylight*.83);
-  haze.density=.0051+weather.cloud*.0018+weather.rain*.0015;
+  hemi.intensity=mix(.96,1.52,daylight);
+  haze.color.set('#202d4d').lerp(new THREE.Color('#b1c4c4'),daylight*.92);
+  haze.density=mix(.0036,.0029,daylight)+weather.cloud*.0010+weather.rain*.0012;
+  renderer.toneMappingExposure=mix(1.19,1.43,daylight);
+  rimLight.intensity=mix(.25,.48,daylight);
   root?.traverse(o=>{
     if(o.isMesh && o.material){
       const mats=Array.isArray(o.material)?o.material:[o.material];
@@ -421,7 +423,7 @@ async function prepare(){
     renderer.setClearColor('#09152a');
     renderer.outputColorSpace=THREE.SRGBColorSpace;
     renderer.toneMapping=THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure=1.36;
+    renderer.toneMappingExposure=1.19;
     scene=new THREE.Scene();
     haze=new THREE.FogExp2('#294b5e',.005);
     scene.fog=haze;
@@ -435,7 +437,7 @@ async function prepare(){
     // Mobile can keep high quality normals without a costly dynamic shadowmap.
     renderer.shadowMap.enabled=false;
     scene.add(sun);
-    rimLight=new THREE.DirectionalLight('#80bfc2',.53);
+    rimLight=new THREE.DirectionalLight('#81ada8',.27);
     rimLight.position.set(82,44,-66);
     scene.add(rimLight);
     buildAtmosphere();
@@ -493,7 +495,7 @@ function draw(ctx,t,now,{personal=false,scroll=0}={}){
     camera.top=worldHeight/2;
     camera.bottom=-worldHeight/2;
     camera.updateProjectionMatrix();
-    const horizontal=portrait?0:0;
+    const horizontal=0;
     const drift=clamp(scroll,-1,1)*(personal?3.2:2.1);
     camera.position.set(horizontal+drift,personal?17:(portrait?15:13),-42);
     camera.lookAt(horizontal+drift*.30,personal?9:(portrait?10.5:9.8),65);
