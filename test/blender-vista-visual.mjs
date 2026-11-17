@@ -65,7 +65,7 @@ try{
       throw Error(scene.name+': unexpectedly empty Blender model '+JSON.stringify(state));
     if(state.forestInstances<100||state.forestInstancedDraws<4)
       throw Error(scene.name+': forest was not GPU-instanced '+JSON.stringify(state));
-    if(!state.moonReady||state.mistLayers!==3||state.fireflyCount<100||state.windMaterials<2)
+    if(!state.moonReady||state.mistLayers!==3||state.fireflyCount<100||state.windMaterials<2||state.riverMaterials<1)
       throw Error(scene.name+': cinematic atmosphere not complete '+JSON.stringify(state));
     if(errors.length)throw Error(scene.name+': browser shader errors '+errors.join(' | '));
   }
