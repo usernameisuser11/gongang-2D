@@ -271,6 +271,10 @@ function buildAtmosphere(){
         "float dust=exp(-pow((bend+.065)*24.,2.))*smoothstep(.38,.67,fbm(gal*35.+vec2(8.,19.)));",
         "float galactic=core*bands*(1.-dust*.82)*smoothstep(.06,.38,alt);",
         "col+=mix(vec3(.17,.22,.36),vec3(.53,.24,.58),grain)*galactic*(1.-uDay)*1.72;",
+        "float under=1.-smoothstep(-.23,.035,d.y);",
+        "float earthy=fbm(vec2(d.x*15.,d.z*14.));",
+        "vec3 groundColor=mix(vec3(.024,.068,.082),vec3(.052,.105,.114),earthy);",
+        "col=mix(col,mix(groundColor,vec3(.21,.32,.33),uDay),under);",
         "gl_FragColor=vec4(col,1.);}"
       ].join('\n')
     })
@@ -428,7 +432,7 @@ async function prepare(){
     haze=new THREE.FogExp2('#294b5e',.005);
     scene.fog=haze;
     camera=new THREE.OrthographicCamera(-25,25,27.5,-27.5,.1,550);
-    camera.position.set(0,35,-42);
+    camera.position.set(0,17,-42);
     camera.lookAt(0,9.8,65);
     hemi=new THREE.HemisphereLight('#e9f4ff','#315347',1.7);
     scene.add(hemi);
@@ -500,7 +504,7 @@ function draw(ctx,t,now,{personal=false,scroll=0}={}){
     camera.updateProjectionMatrix();
     const horizontal=0;
     const drift=clamp(scroll,-1,1)*(personal?3.2:2.1);
-    camera.position.set(horizontal+drift,personal?41:(portrait?38:35),-42);
+    camera.position.set(horizontal+drift,personal?19:(portrait?18:17),-42);
     camera.lookAt(horizontal+drift*.30,personal?9:(portrait?10.5:9.8),65);
     skyClock.value=now*.001;
     windClock.value=now*.001;
