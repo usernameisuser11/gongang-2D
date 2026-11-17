@@ -124,9 +124,9 @@ function buildValleyMist(){
 }
 function buildFireflies(){
   const random=rng(2517),verts=[],phase=[];
-  for(let i=0;i<125;i++){
-    const x=(random()-.5)*86,z=-32+random()*60;
-    verts.push(x,-3.1+random()*3.0,z);
+  for(let i=0;i<205;i++){
+    const x=(random()-.5)*76,z=-37+random()*70;
+    verts.push(x,-2.7+random()*3.4,z);
     phase.push(random()*Math.PI*2);
   }
   const geo=new THREE.BufferGeometry();
@@ -140,14 +140,14 @@ function buildFireflies(){
       "void main(){vA=aPhase;vec3 p=position;",
       "p.x+=sin(uTime*.37+aPhase*3.)*.17;p.y+=sin(uTime*.52+aPhase)*.10;",
       "gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);",
-      "gl_PointSize=1.6+2.2*pow(.5+.5*sin(uTime*.9+aPhase*8.),3.);}"
+      "gl_PointSize=1.7+2.5*pow(.5+.5*sin(uTime*.9+aPhase*8.),3.);}"
     ].join('\n'),
     fragmentShader:[
       "precision highp float;uniform float uTime,uDay;varying float vA;",
       "void main(){float r=length(gl_PointCoord-.5);",
       "float halo=pow(max(0.,1.-r*2.),2.8);",
       "float glow=(.35+.65*pow(.5+.5*sin(uTime*.84+vA*7.),2.));",
-      "gl_FragColor=vec4(.78,.91,.74,halo*glow*(1.-uDay)*.42);}"
+      "gl_FragColor=vec4(.90,.88,.59,halo*glow*(1.-uDay)*.62);}"
     ].join('\n')
   }));
   fireflies.frustumCulled=false;
@@ -225,13 +225,13 @@ function enlivenBlenderSurface(){
         shader.fragmentShader=shader.fragmentShader.replace(
           '#include <color_fragment>',
           '#include <color_fragment>\n'+
-          'float waterFlow=sin(gongangRiverPos.y*2.1+sin(gongangRiverPos.x*.83+gongangRiverTime*.27)*.7-gongangRiverTime*.78);'+
-          'float glint=pow(max(0.,waterFlow),14.);'+
-          'float secondRipple=sin(gongangRiverPos.y*5.1+gongangRiverPos.x*1.7+gongangRiverTime*1.2);'+
-          'diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.10,.28,.36),.16);'+
-          'diffuseColor.rgb+=vec3(.10,.26,.32)*(glint*.19+secondRipple*.020);');
+          'float waterFlow=sin(gongangRiverPos.y*.55+sin(gongangRiverPos.x*.51+gongangRiverTime*.18)*.6-gongangRiverTime*.35);'+
+          'float glint=pow(max(0.,waterFlow),22.);'+
+          'float secondRipple=sin(gongangRiverPos.y*1.8+gongangRiverPos.x*.9+gongangRiverTime*.85);'+
+          'diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.045,.16,.20),.30);'+
+          'diffuseColor.rgb+=vec3(.10,.19,.20)*(glint*.065+secondRipple*.006);');
       };
-      mat.customProgramCacheKey=()=> 'gongang-moving-water-v1';
+      mat.customProgramCacheKey=()=> 'gongang-moving-water-v2';
       mat.needsUpdate=true;
       riverMaterials++;
     }
@@ -504,7 +504,7 @@ function draw(ctx,t,now,{personal=false,scroll=0}={}){
     camera.updateProjectionMatrix();
     const horizontal=0;
     const drift=clamp(scroll,-1,1)*(personal?3.2:2.1);
-    camera.position.set(horizontal+drift,personal?19:(portrait?18:17),-42);
+    camera.position.set(horizontal+drift,personal?17:(portrait?14.8:17),-42);
     camera.lookAt(horizontal+drift*.30,personal?9:(portrait?10.5:9.8),65);
     skyClock.value=now*.001;
     windClock.value=now*.001;
