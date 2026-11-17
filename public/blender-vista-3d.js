@@ -288,8 +288,8 @@ function updateLight(now){
     moon.material.opacity=opacity;
     moonGlow.material.opacity=opacity;
   }
-  const sunny=new THREE.Color('#fff5d5'),moon=new THREE.Color('#a1bfff');
-  sun.color.copy(moon).lerp(sunny,daylight);
+  const sunny=new THREE.Color('#fff5d5'),moonlightColor=new THREE.Color('#a1bfff');
+  sun.color.copy(moonlightColor).lerp(sunny,daylight);
   sun.intensity=mix(1.0,2.4,daylight)*(1-weather.cloud*.36);
   const a=(hour/24)*Math.PI*2;
   sun.position.set(70*Math.cos(a),30+70*Math.max(.12,Math.abs(altitude)),45*Math.sin(a));
