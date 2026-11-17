@@ -453,8 +453,13 @@ async function prepare(){
     });
     scene.add(root);
     let portraitTrees=0;
+    state.portraitNodeNames=[];
     root.traverse(o=>{
-      if(o.name?.startsWith('Portrait framing tree')){o.visible=portrait;portraitTrees++;}
+      if(/portrait/i.test(o.name||''))state.portraitNodeNames.push(o.name);
+      if(/portrait.*framing.*tree/i.test(o.name||'')){
+        o.visible=portrait;
+        portraitTrees++;
+      }
     });
     state.portraitTrees=portraitTrees;
     state.portraitTreesVisible=portrait?portraitTrees:0;
