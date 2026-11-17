@@ -481,9 +481,11 @@ async function prepare(){
 function draw(ctx,t,now,{personal=false,scroll=0}={}){
   if(!state.ready||!root)return false;
   try{
-    const factor=portrait?.83:.90;
-    const w=Math.max(256,Math.min(portrait?900:1360,Math.round(t.width*factor)));
-    const h=Math.max(256,Math.min(portrait?1220:900,Math.round(t.height*factor)));
+    // Preserve the exact canvas aspect ratio on tall phones: no squeezed moon or stretched hills.
+    const factor=portrait?.90:1.0;
+    const fit=Math.min(factor,(portrait?900:1600)/t.width,(portrait?1800:1100)/t.height);
+    const w=Math.max(256,Math.round(t.width*fit));
+    const h=Math.max(256,Math.round(t.height*fit));
     if(w!==state.renderWidth||h!==state.renderHeight){
       renderer.setSize(w,h,false);
       state.renderWidth=w;state.renderHeight=h;
