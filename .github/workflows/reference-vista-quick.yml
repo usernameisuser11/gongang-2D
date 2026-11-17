@@ -6,11 +6,6 @@ on:
     branches: [threejs-model-assets]
     paths:
       - 'public/reference-vista.js'
-      - 'public/index.html'
-      - 'test/reference-vista-quick.mjs'
-      - '.github/workflows/reference-vista-quick.yml'
-    paths:
-      - 'public/reference-vista.js'
       - 'public/stargaze.js'
       - 'public/index.html'
       - 'server.mjs'
