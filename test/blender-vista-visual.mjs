@@ -71,6 +71,8 @@ try{
       throw Error(scene.name+': cinematic atmosphere not complete '+JSON.stringify(state));
     if(state.portraitTrees<3||state.portraitTreesVisible!==(scene.width<700?state.portraitTrees:0))
       throw Error(scene.name+': mobile composition was not separated from desktop '+JSON.stringify(state));
+    if(scene.width<700 && state.renderHeight<1100)
+      throw Error(scene.name+': insufficient portrait canvas resolution '+JSON.stringify(state));
     const renderedAspect=state.renderWidth/Math.max(1,state.renderHeight);
     if(Math.abs(renderedAspect-state.sourceAspect)/state.sourceAspect>.02)
       throw Error(scene.name+': WebGL scenic rectangle is stretched '+JSON.stringify({renderedAspect,sourceAspect:state.sourceAspect}));
