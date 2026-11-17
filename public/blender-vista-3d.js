@@ -141,7 +141,7 @@ function buildFireflies(){
       "gl_PointSize=1.6+2.2*pow(.5+.5*sin(uTime*.9+aPhase*8.),3.);}"
     ].join('\n'),
     fragmentShader:[
-      "precision mediump float;uniform float uTime,uDay;varying float vA;",
+      "precision highp float;uniform float uTime,uDay;varying float vA;",
       "void main(){float r=length(gl_PointCoord-.5);",
       "float halo=pow(max(0.,1.-r*2.),2.8);",
       "float glow=(.35+.65*pow(.5+.5*sin(uTime*.84+vA*7.),2.));",
