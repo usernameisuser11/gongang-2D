@@ -259,18 +259,18 @@ function buildAtmosphere(){
         "vec3 col=mix(night,daylight,uDay)+rose*uDusk*.62;",
         "vec2 p=vec2(atan(d.z,d.x)*3.1+uTime*.004,d.y*7.8);",
         "float c=fbm(p*1.35+vec2(4.0,15.0))*.72+fbm(p*2.3)*.28;",
-        "float band=smoothstep(.54,.77,c)*smoothstep(.02,.30,alt)*(1.-smoothstep(.72,1.0,alt));",
+        "float band=smoothstep(.47,.73,c)*smoothstep(.02,.30,alt)*(1.-smoothstep(.72,1.0,alt));",
         "col=mix(col,mix(vec3(.30,.39,.59),vec3(.94,.87,.77),uDay),",
         "band*mix(.22,.50,uDay)*(1.-uRain*.35));",
         "vec2 gal=vec2(atan(d.z,d.x)*1.5,d.y);",
-        "float bend=gal.x*.33+gal.y-.12+.065*sin(gal.x*3.7);",
+        "float bend=gal.x*.20+gal.y-.51+.065*sin(gal.x*3.7);",
         "bend+=(fbm(gal*9.1+vec2(3.,11.))-.47)*.16;",
         "float core=exp(-pow(bend*5.4,2.));",
         "float grain=fbm(gal*21.2+vec2(71.,12.));",
         "float bands=.4+.6*smoothstep(.24,.75,grain);",
         "float dust=exp(-pow((bend+.065)*24.,2.))*smoothstep(.38,.67,fbm(gal*35.+vec2(8.,19.)));",
         "float galactic=core*bands*(1.-dust*.82)*smoothstep(.06,.38,alt);",
-        "col+=mix(vec3(.10,.17,.30),vec3(.38,.28,.43),grain)*galactic*(1.-uDay)*.87;",
+        "col+=mix(vec3(.12,.22,.30),vec3(.41,.26,.48),grain)*galactic*(1.-uDay)*1.1;",
         "gl_FragColor=vec4(col,1.);}"
       ].join('\n')
     })
@@ -344,7 +344,7 @@ function updateLight(now){
   sun.position.set(70*Math.cos(a),30+70*Math.max(.12,Math.abs(altitude)),45*Math.sin(a));
   hemi.color.set('#e6f1ff').lerp(new THREE.Color('#ffe7d4'),daylight*.72);
   hemi.groundColor.set('#214856').lerp(new THREE.Color('#567263'),daylight*.8);
-  hemi.intensity=mix(2.05,2.4,daylight);
+  hemi.intensity=mix(1.92,2.3,daylight);
   haze.color.set('#28455b').lerp(new THREE.Color('#a4bbc5'),daylight*.83);
   haze.density=.0051+weather.cloud*.0018+weather.rain*.0015;
   root?.traverse(o=>{
@@ -421,7 +421,7 @@ async function prepare(){
     renderer.setClearColor('#09152a');
     renderer.outputColorSpace=THREE.SRGBColorSpace;
     renderer.toneMapping=THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure=1.48;
+    renderer.toneMappingExposure=1.36;
     scene=new THREE.Scene();
     haze=new THREE.FogExp2('#294b5e',.005);
     scene.fog=haze;
@@ -435,7 +435,7 @@ async function prepare(){
     // Mobile can keep high quality normals without a costly dynamic shadowmap.
     renderer.shadowMap.enabled=false;
     scene.add(sun);
-    rimLight=new THREE.DirectionalLight('#80bfc2',.83);
+    rimLight=new THREE.DirectionalLight('#80bfc2',.53);
     rimLight.position.set(82,44,-66);
     scene.add(rimLight);
     buildAtmosphere();
@@ -482,7 +482,7 @@ function draw(ctx,t,now,{personal=false,scroll=0}={}){
     camera.top=worldHeight/2;
     camera.bottom=-worldHeight/2;
     camera.updateProjectionMatrix();
-    const horizontal=portrait?-4.8:0;
+    const horizontal=portrait?0:0;
     const drift=clamp(scroll,-1,1)*(personal?3.2:2.1);
     camera.position.set(horizontal+drift,personal?17:(portrait?15:13),-42);
     camera.lookAt(horizontal+drift*.30,personal?9:(portrait?10.5:9.8),65);

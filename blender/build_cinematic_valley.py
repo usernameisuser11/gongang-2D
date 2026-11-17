@@ -62,6 +62,9 @@ wildflower = [material("Wildflower petals %02d" % i, color) for i,color in enume
     (.45,.59,.78), (.55,.46,.71), (.73,.56,.72), (.66,.73,.78), (.35,.54,.62)
 ])]
 flower_core = material("Wildflower center | pale amber", (.69,.57,.29))
+fern_leaf = [material("Fern fronds %02d" % i, col) for i,col in enumerate([
+    (.09,.29,.26),(.14,.38,.31),(.19,.41,.37),(.23,.47,.39)
+])]
 
 def deterministic_hash(x, y, seed=0):
     k = int(x)*374761393 + int(y)*668265263 + seed*1442695041
@@ -307,7 +310,9 @@ def scatter_forest():
     # Distinct framing silhouettes to make the image read at phone size.
     for x,y,scale,master in [
         (-37,21,2.3,broad[0]),(42,20,2.4,broad[1]),
-        (-56,-9,1.75,masters[1]),(57,-14,1.85,masters[2])]:
+        (-56,-9,1.75,masters[1]),(57,-14,1.85,masters[2]),
+        (-18,22,1.16,broad[0]),(16,25,1.03,broad[1]),
+        (-23,-7,1.12,masters[0]),(24,-10,.98,masters[1])]:
         obj=bpy.data.objects.new("Foreground hero tree",master.data)
         world_collection.objects.link(obj)
         obj.location=(x,y,height(x,y)-.45)
@@ -343,7 +348,7 @@ def scatter_rocks():
 def meadow():
     rng=random.Random(34783)
     v=[];f=[];m=[]
-    for n in range(5200):
+    for n in range(2850):
         x=rng.uniform(-70,70);y=rng.uniform(-17,39)
         if abs(x)<18 and -5<y<23 and rng.random()<.76:continue
         z=height(x,y)+.07
@@ -361,6 +366,28 @@ def meadow():
             f.append((base,base+1,base+2));m.append(rng.randrange(4))
     obj=object_from_mesh("Meadow | individually rooted blades",v,f,grass,m)
     for p in obj.data.polygons:p.use_smooth=False
+
+def sculpt_fern_groves():
+    """Crescent-shaped, individually modeled fern sprays around the resting terrace."""
+    r=random.Random(886103)
+    v=[];f=[];m=[]
+    for group in range(126):
+        x=r.uniform(-37,37)
+        y=r.uniform(11,41)
+        if abs(x)<7 and y<30: continue
+        if abs(x)<19 and y<21 and r.random()<.46:continue
+        z=height(x,y)+.10
+        direction=r.uniform(0,TAU)
+        for k in range(12):
+            angle=direction+TAU*k/12+r.uniform(-.12,.12)
+            length=(.65+r.random()*1.4)*(1.3 if y>24 else 1)
+            direction3=(math.cos(angle),math.sin(angle),.48+r.random()*.28)
+            add_lance_leaf(v,f,m,(x+r.uniform(-.14,.14),
+                                  y+r.uniform(-.14,.14),z),
+                           direction3,length,.22+r.random()*.19,
+                           r.randrange(len(fern_leaf)),.12+r.random()*.19)
+    obj=object_from_mesh("Foreground ferns | swept leaf sculptures",v,f,fern_leaf,m)
+    for face in obj.data.polygons:face.use_smooth=True
 
 def flower_patches():
     """Small botanical accents, modeled as curved real petals and stems."""
@@ -481,6 +508,7 @@ print("Building botanical meshes...")
 number_of_trees=scatter_forest()
 scatter_rocks()
 meadow()
+sculpt_fern_groves()
 flower_patches()
 river()
 studio()
