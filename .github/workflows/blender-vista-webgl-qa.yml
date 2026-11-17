@@ -10,6 +10,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+concurrency:
+  group: blender-vista-qa-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   desktop-mobile:
     runs-on: ubuntu-24.04
@@ -24,6 +27,17 @@ jobs:
           npm install --no-audit --no-fund
           npm install --no-save --package-lock=false playwright@1.56.1 --no-audit --no-fund
           npx playwright install chromium
+      - name: Install Korean scene-preview font
+        run: |
+          mkdir -p ~/.local/share/fonts
+          font=~/.local/share/fonts/NotoSansKR.ttf
+          if curl --fail --location --retry 2 --max-time 35 \
+            'https://raw.githubusercontent.com/google/fonts/b38c5c93af322c45f633e17ac440ec1e6c94d489/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf' \
+            --output "$font"; then
+            fc-cache -f
+          else
+            echo 'Korean screenshot font unavailable; continuing visual QA'
+          fi
       - name: Validate the app, WebGL and mobile framing
         run: |
           npm run check

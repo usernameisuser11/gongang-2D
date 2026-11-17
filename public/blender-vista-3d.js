@@ -65,14 +65,16 @@ function buildMoon(){
     map:glowTexture,transparent:true,depthWrite:false,depthTest:false,
     blending:THREE.AdditiveBlending,fog:false
   }));
-  moonGlow.scale.set(45,45,1);
+  const haloSize=portrait?30:43;
+  moonGlow.scale.set(haloSize,haloSize,1);
   moonGlow.renderOrder=-2;
   scene.add(moonGlow);
   moon=new THREE.Sprite(new THREE.SpriteMaterial({
     map:paintMoonTexture(false),transparent:true,depthWrite:false,
     depthTest:false,fog:false
   }));
-  moon.scale.set(4.1,4.1,1);
+  const diskSize=portrait?3.0:4.1;
+  moon.scale.set(diskSize,diskSize,1);
   moon.renderOrder=-1;
   scene.add(moon);
   state.moonReady=true;
@@ -223,7 +225,7 @@ function enlivenBlenderSurface(){
           'float glint=pow(max(0.,waterFlow),14.);'+
           'float secondRipple=sin(gongangRiverPos.y*5.1+gongangRiverPos.x*1.7+gongangRiverTime*1.2);'+
           'diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.10,.28,.36),.16);'+
-          'diffuseColor.rgb+=vec3(.10,.28,.34)*(glint*.54+secondRipple*.05);');
+          'diffuseColor.rgb+=vec3(.10,.26,.32)*(glint*.19+secondRipple*.020);');
       };
       mat.customProgramCacheKey=()=> 'gongang-moving-water-v1';
       mat.needsUpdate=true;
@@ -324,7 +326,7 @@ function updateLight(now){
   if(moon&&moonGlow){
     const lunarArc=((hour-18.2)/12)*Math.PI;
     const moonPos=new THREE.Vector3(
-      12*Math.cos(lunarArc)-2,20+8*Math.max(0,Math.sin(lunarArc)),180);
+      12*Math.cos(lunarArc)-15,20+8*Math.max(0,Math.sin(lunarArc)),180);
     moon.position.copy(moonPos);
     moonGlow.position.copy(moonPos);
     const opacity=night*(1-weather.cloud*.63);
