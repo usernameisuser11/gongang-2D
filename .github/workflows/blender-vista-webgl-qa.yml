@@ -58,9 +58,11 @@ jobs:
           cp artifacts/blender-vista/mobile-portrait-night-scene.png docs/previews/blender-mobile-night.png
           cp artifacts/blender-vista/desktop-dusk-scene.png docs/previews/blender-desktop-dusk.png
           cp artifacts/blender-vista/mobile-portrait-day-scene.png docs/previews/blender-mobile-day.png
+          cp artifacts/blender-vista/desktop-night-scene.jpg docs/previews/blender-desktop-night.jpg
+          cp artifacts/blender-vista/desktop-dusk-scene.jpg docs/previews/blender-desktop-dusk.jpg
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/previews/blender-desktop-night.png docs/previews/blender-mobile-night.png docs/previews/blender-desktop-dusk.png docs/previews/blender-mobile-day.png
+          git add docs/previews/blender-desktop-night.png docs/previews/blender-mobile-night.png docs/previews/blender-desktop-dusk.png docs/previews/blender-mobile-day.png docs/previews/blender-desktop-night.jpg docs/previews/blender-desktop-dusk.jpg
           if ! git diff --cached --quiet; then
             git commit -m "art: store real-browser desktop and mobile Blender scene previews"
             git fetch origin feat/blender-organic-forest-20261117

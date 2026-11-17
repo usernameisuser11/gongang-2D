@@ -330,7 +330,7 @@ function updateLight(now){
   if(moon&&moonGlow){
     const lunarArc=((hour-18.2)/12)*Math.PI;
     const moonPos=new THREE.Vector3(
-      12*Math.cos(lunarArc)-15,20+8*Math.max(0,Math.sin(lunarArc)),180);
+      (portrait?12*Math.cos(lunarArc)-6:12*Math.cos(lunarArc)-15),20+8*Math.max(0,Math.sin(lunarArc)),180);
     moon.position.copy(moonPos);
     moonGlow.position.copy(moonPos);
     const opacity=night*(1-weather.cloud*.63);
@@ -452,6 +452,7 @@ async function prepare(){
       o.castShadow=false;o.receiveShadow=false;
     });
     scene.add(root);
+    root.traverse(o=>{if(o.name?.startsWith('Portrait framing tree'))o.visible=portrait;});
     instanceRepeatedForest(root);
     applyBotanicalWind();
     enlivenBlenderSurface();

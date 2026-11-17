@@ -318,6 +318,18 @@ def scatter_forest():
         obj.location=(x,y,height(x,y)-.45)
         obj.scale=(scale,scale,scale)
         obj.rotation_euler[2]=rng.random()*TAU
+    # The portrait camera needs distinct silhouettes near its narrow viewport.
+    # These are sculpted meshes, selectively shown only on mobile at runtime.
+    for n,(x,y,size,master) in enumerate([
+        (-10.5,21,1.56,broad[0]),
+        (11.0,28,1.36,masters[1]),
+        (-7.0,-31,.93,broad[1])
+    ]):
+        obj=bpy.data.objects.new("Portrait framing tree %02d"%n,master.data)
+        world_collection.objects.link(obj)
+        obj.location=(x,y,height(x,y)-.22)
+        obj.scale=(size,size,size)
+        obj.rotation_euler[2]=rng.uniform(-.3,.3)
     return count
 
 def scatter_rocks():

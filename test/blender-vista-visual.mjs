@@ -60,6 +60,7 @@ try{
     report.push({name:scene.name,state,errors});
     await page.screenshot({path:OUT+'/'+scene.name+'.png',fullPage:true});
     await page.locator('#game').screenshot({path:OUT+'/'+scene.name+'-scene.png'});
+    await page.locator('#game').screenshot({path:OUT+'/'+scene.name+'-scene.jpg',type:'jpeg',quality:84});
     await page.close();
     if(!state.ready||state.failed)throw Error(scene.name+': '+state.error);
     if(state.meshCount<50||state.triangles<2000)
