@@ -207,9 +207,15 @@ function buildAtmosphere(){
         "float band=smoothstep(.54,.77,c)*smoothstep(.02,.30,alt)*(1.-smoothstep(.72,1.0,alt));",
         "col=mix(col,mix(vec3(.30,.39,.59),vec3(.94,.87,.77),uDay),",
         "band*mix(.22,.50,uDay)*(1.-uRain*.35));",
-        "float milky=fbm(vec2(atan(d.z,d.x)*7.,d.y*11.)+vec2(10.,-4.));",
-        "milky=pow(max(0.,milky-.38),2.4)*2.1*smoothstep(.0,.45,alt);",
-        "col+=vec3(.19,.18,.29)*milky*(1.-uDay)*.32;",
+        "vec2 gal=vec2(atan(d.z,d.x)*1.5,d.y);",
+        "float bend=gal.x*.33+gal.y-.12+.065*sin(gal.x*3.7);",
+        "bend+=(fbm(gal*9.1+vec2(3.,11.))-.47)*.16;",
+        "float core=exp(-pow(bend*5.4,2.));",
+        "float grain=fbm(gal*21.2+vec2(71.,12.));",
+        "float bands=.4+.6*smoothstep(.24,.75,grain);",
+        "float dust=exp(-pow((bend+.065)*24.,2.))*smoothstep(.38,.67,fbm(gal*35.+vec2(8.,19.)));",
+        "float galactic=core*bands*(1.-dust*.82)*smoothstep(.06,.38,alt);",
+        "col+=mix(vec3(.10,.17,.30),vec3(.38,.28,.43),grain)*galactic*(1.-uDay)*.87;",
         "gl_FragColor=vec4(col,1.);}"
       ].join('\n')
     })
@@ -237,6 +243,9 @@ function buildAtmosphere(){
   stars.frustumCulled=false;
   stars.renderOrder=-99;
   scene.add(stars);
+  buildMoon();
+  buildValleyMist();
+  buildFireflies();
 }
 function hourInSeoul(time){
   // QA override only. Ordinary visitors always see the actual Seoul time.
@@ -261,7 +270,18 @@ function updateLight(now){
   skyDusk.value=dusk;
   skyClock.value=now*.001;
   skyRain.value=weather.rain;
+  cloudiness.value=weather.cloud;
   const night=1-daylight;
+  if(moon&&moonGlow){
+    const lunarArc=((hour-18.2)/12)*Math.PI;
+    const moonPos=new THREE.Vector3(
+      70*Math.cos(lunarArc),23+29*Math.max(0,Math.sin(lunarArc)),235);
+    moon.position.copy(moonPos);
+    moonGlow.position.copy(moonPos);
+    const opacity=night*(1-weather.cloud*.63);
+    moon.material.opacity=opacity;
+    moonGlow.material.opacity=opacity;
+  }
   const sunny=new THREE.Color('#fff5d5'),moon=new THREE.Color('#a1bfff');
   sun.color.copy(moon).lerp(sunny,daylight);
   sun.intensity=mix(1.0,2.4,daylight)*(1-weather.cloud*.36);
@@ -375,6 +395,7 @@ async function prepare(){
     });
     scene.add(root);
     instanceRepeatedForest(root);
+    applyBotanicalWind();
     state.ready=true;
     state.loading=false;
     await getWeather();
@@ -396,7 +417,7 @@ function draw(ctx,t,now,{personal=false,scroll=0}={}){
       state.renderWidth=w;state.renderHeight=h;
     }
     const aspect=w/h;
-    const worldHeight=personal?46:55;
+    const worldHeight=personal?46:(portrait?61:55);
     camera.left=-worldHeight*aspect/2;
     camera.right=worldHeight*aspect/2;
     camera.top=worldHeight/2;
@@ -404,9 +425,11 @@ function draw(ctx,t,now,{personal=false,scroll=0}={}){
     camera.updateProjectionMatrix();
     const horizontal=portrait?-4.8:0;
     const drift=clamp(scroll,-1,1)*(personal?3.2:2.1);
-    camera.position.set(horizontal+drift,personal?17:13,-42);
-    camera.lookAt(horizontal+drift*.30,personal?9:5.5,65);
+    camera.position.set(horizontal+drift,personal?17:(portrait?15:13),-42);
+    camera.lookAt(horizontal+drift*.30,personal?9:(portrait?10.5:5.5),65);
     skyClock.value=now*.001;
+    windClock.value=now*.001;
+    windPower.value=reduced?0:clamp(.30+weather.wind*.30,.24,1.1);
     if((state.frames%30)===0){updateLight(now);getWeather();}
     if(!reduced){
       // Only the sky and clouds are moved: real trees stay rooted in 3D soil.
