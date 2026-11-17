@@ -46,16 +46,16 @@ earth = material("Sculpted earth | shadow sea-green", (.18, .31, .27))
 bark = material("Pine bark | deep sienna", (.10, .095, .115))
 bark_lit = material("Pine bark | moonlit edges", (.16, .17, .19))
 needle = [material("Conifer needles %02d" % i, c) for i, c in enumerate([
-    (.065, .24, .22), (.09, .32, .27), (.15, .40, .34), (.22, .49, .40), (.12, .28, .36)
+    (.045, .16, .17), (.08, .23, .22), (.12, .29, .25), (.16, .34, .27), (.11, .20, .30)
 ])]
 leaf = [material("Broadleaf velvet %02d" % i, c) for i, c in enumerate([
-    (.10, .26, .25), (.14, .36, .30), (.24, .46, .34), (.31, .50, .39)
+    (.07, .19, .21), (.11, .27, .24), (.16, .33, .24), (.22, .37, .31)
 ])]
 stone = [material("Wet layered stone %02d" % i, c) for i,c in enumerate([
     (.14,.20,.245),(.21,.27,.29),(.31,.35,.36),(.11,.18,.23)
 ])]
 grass = [material("Grass blade %02d" % i, c) for i,c in enumerate([
-    (.12,.27,.23),(.19,.37,.29),(.28,.44,.35),(.40,.48,.37)
+    (.08,.20,.18),(.13,.27,.21),(.18,.30,.24),(.23,.35,.26)
 ])]
 water = material("Silent mirror | cold deep lake", (.055,.18,.24), .18, .16)
 wildflower = [material("Wildflower petals %02d" % i, color) for i,color in enumerate([
@@ -63,7 +63,7 @@ wildflower = [material("Wildflower petals %02d" % i, color) for i,color in enume
 ])]
 flower_core = material("Wildflower center | pale amber", (.69,.57,.29))
 fern_leaf = [material("Fern fronds %02d" % i, col) for i,col in enumerate([
-    (.09,.29,.26),(.14,.38,.31),(.19,.41,.37),(.23,.47,.39)
+    (.07,.19,.20),(.10,.26,.24),(.14,.31,.29),(.18,.34,.28)
 ])]
 
 def deterministic_hash(x, y, seed=0):
@@ -276,8 +276,8 @@ def create_broadleaf(variant):
                                  r.uniform(-.22,.22),
                                  r.uniform(-.28,.28)))
                 add_lance_leaf(v,f,m,origin,vec,
-                               .65+r.random()*.72,
-                               .28+r.random()*.24,
+                               .52+r.random()*.63,
+                               .20+r.random()*.19,
                                2+r.randrange(len(leaf)),
                                r.uniform(.02,.16))
     obj=object_from_mesh("BROADLEAF_MASTER_%d"%variant,v,f,
@@ -321,9 +321,9 @@ def scatter_forest():
     # The portrait camera needs distinct silhouettes near its narrow viewport.
     # These are sculpted meshes, selectively shown only on mobile at runtime.
     for n,(x,y,size,master) in enumerate([
-        (-10.5,21,1.56,broad[0]),
-        (11.0,28,1.36,masters[1]),
-        (-7.0,-31,.93,broad[1])
+        (-8.2,30,2.04,broad[0]),
+        (8.8,34,1.66,broad[1]),
+        (-6.5,11,1.03,masters[0])
     ]):
         obj=bpy.data.objects.new("Portrait framing tree %02d"%n,master.data)
         world_collection.objects.link(obj)
@@ -360,11 +360,11 @@ def scatter_rocks():
 def meadow():
     rng=random.Random(34783)
     v=[];f=[];m=[]
-    for n in range(2850):
+    for n in range(2150):
         x=rng.uniform(-70,70);y=rng.uniform(-17,39)
         if abs(x)<18 and -5<y<23 and rng.random()<.76:continue
         z=height(x,y)+.07
-        ht=.32+rng.random()*1.05
+        ht=.29+rng.random()*.78
         direction=rng.random()*TAU
         for k in range(3):
             ang=direction+k*TAU/3+rng.uniform(-.22,.22)
