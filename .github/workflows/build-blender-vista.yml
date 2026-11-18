@@ -25,8 +25,8 @@ jobs:
           blender --version
       - name: Verify Blender script syntax
         run: python3 -m py_compile blender/build_cinematic_valley.py
-      - name: Generate editable .blend, realtime .glb, preview PNG
-        run: blender --background --python blender/build_cinematic_valley.py -- --render
+      - name: Generate editable .blend and realtime .glb
+        run: blender --background --python blender/build_cinematic_valley.py
       - name: Validate browser and server JavaScript
         run: |
           node --check server.mjs
@@ -36,14 +36,12 @@ jobs:
         run: |
           test -s blender/output/gongang-cinematic-valley.blend
           test -s public/assets/models/blender-cinematic-valley.glb
-          test -s blender/output/cinematic-valley-night.png
-          ls -lh blender/output/gongang-cinematic-valley.blend public/assets/models/blender-cinematic-valley.glb blender/output/cinematic-valley-night.png
+          ls -lh blender/output/gongang-cinematic-valley.blend public/assets/models/blender-cinematic-valley.glb
       - name: Publish preview and editable scene as artifact
         uses: actions/upload-artifact@v4
         with:
           name: gongang-original-blender-art
           path: |
-            blender/output/*.png
             blender/output/*.blend
             public/assets/models/blender-cinematic-valley.glb
           retention-days: 30
@@ -51,7 +49,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add blender/output/gongang-cinematic-valley.blend blender/output/cinematic-valley-night.png public/assets/models/blender-cinematic-valley.glb
+          git add blender/output/gongang-cinematic-valley.blend public/assets/models/blender-cinematic-valley.glb
           if ! git diff --cached --quiet; then
             git commit -m "art: generate editable Blender scene, glb and preview"
             git fetch origin "$GITHUB_REF_NAME"
