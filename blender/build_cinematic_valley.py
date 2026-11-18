@@ -59,6 +59,7 @@ grass = [material("Grass blade %02d" % i, c) for i,c in enumerate([
     (.08,.20,.18),(.13,.27,.21),(.18,.30,.24),(.23,.35,.26)
 ])]
 water = material("Silent mirror | cold deep lake", (.055,.18,.24), .18, .16)
+wet_silt = material("Riverbank | wet alluvial silt", (.105,.165,.158), .96)
 wildflower = [material("Wildflower petals %02d" % i, color) for i,color in enumerate([
     (.45,.59,.78), (.55,.46,.71), (.73,.56,.72), (.66,.73,.78), (.35,.54,.62)
 ])]
@@ -516,6 +517,33 @@ def river():
     obj=object_from_mesh("River | true sculpted winding ribbon",v,f,[water])
     for p in obj.data.polygons:p.use_smooth=True
 
+def riverbank():
+    # Model the damp shoreline directly on the same heightfield as the river.
+    vertices=[];faces=[]
+    sections=288
+    bands=5
+    for side in (-1,1):
+        origin=len(vertices)
+        for i in range(sections):
+            y=-248+i*235/(sections-1)
+            d=max(0,-y)
+            center=river_center(d)
+            half=river_half_width(d)
+            variation=.12*math.sin(d*.19+side*1.8)+.09*noise(d*.12,side*2.0,213)
+            for k in range(bands):
+                u=k/(bands-1)
+                distance=half+.18+u*(1.65+variation+.42*math.sin(d*.027+side))
+                x=center+side*distance
+                z=height(x,y)+.027+.009*math.sin(d*.43+u*8.0+side)
+                vertices.append((x,y,z))
+            if i:
+                prior=origin+(i-1)*bands
+                current=origin+i*bands
+                for k in range(bands-1):
+                    faces.append((prior+k,prior+k+1,current+k+1,current+k))
+    obj=object_from_mesh("Riverbank | sculpted damp sediment",vertices,faces,[wet_silt])
+    for polygon in obj.data.polygons:polygon.use_smooth=True
+
 def add_light(kind,name,location,energy,color,size):
     bpy.ops.object.light_add(type=kind,location=location)
     obj=bpy.context.object;obj.name=name
@@ -566,6 +594,7 @@ meadow()
 sculpt_fern_groves()
 flower_patches()
 river()
+riverbank()
 studio()
 
 # Save with models reusable and lights/camera editable in Blender.
