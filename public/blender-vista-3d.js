@@ -257,8 +257,8 @@ function enlivenBlenderSurface(){
         terrainMaterials++;
       }
       if(!/Silent mirror/i.test(mat.name)||!mat.isMeshStandardMaterial)continue;
-      mat.roughness=.19;
-      mat.metalness=.20;
+      mat.roughness=.29;
+      mat.metalness=.09;
       mat.onBeforeCompile=shader=>{
         shader.uniforms.gongangRiverTime=windClock;
         shader.vertexShader=shader.vertexShader.replace(
@@ -267,7 +267,7 @@ function enlivenBlenderSurface(){
         shader.vertexShader=shader.vertexShader.replace(
           '#include <begin_vertex>',
           '#include <begin_vertex>\ngongangRiverPos=position.xz;'+
-          'transformed.y+=(sin(position.z*1.61-gongangRiverTime*.76)+sin(position.x*3.1+position.z*.6+gongangRiverTime*1.14))*.009;');
+          'transformed.y+=(sin(position.z*.51-gongangRiverTime*.48)+sin(position.x*1.9+position.z*.35+gongangRiverTime*.67))*.006;');
         shader.fragmentShader=shader.fragmentShader.replace(
           '#include <common>',
           '#include <common>\nuniform float gongangRiverTime;\nvarying vec2 gongangRiverPos;'+
@@ -283,24 +283,24 @@ function enlivenBlenderSurface(){
           'float halfWidth=(.75+depth*.0075)*(1.+.07*sin(-depth*.074));'+
           'float bank=abs(gongangRiverPos.x-center)/max(.35,halfWidth);'+
           'vec2 wpos=gongangRiverPos;'+
-          'float localNoise=rwNoise(wpos*vec2(.92,.23)+vec2(gongangRiverTime*.13,-gongangRiverTime*.06));'+
-          'float wavA=sin(wpos.y*2.75+localNoise*4.1-gongangRiverTime*1.13);'+
-          'float wavB=sin(wpos.y*5.75+wpos.x*1.7+localNoise*3.8-gongangRiverTime*1.54);'+
-          'float ribbons=pow(max(0.,.5+.5*wavA),9.)*.58+pow(max(0.,.5+.5*wavB),15.)*.27;'+
+          'float localNoise=rwNoise(wpos*vec2(.48,.14)+vec2(gongangRiverTime*.032,-gongangRiverTime*.025));'+
+          'float wavA=sin(wpos.y*.24+localNoise*2.3-gongangRiverTime*.36);'+
+          'float wavB=sin(wpos.x*3.8+wpos.y*.31+localNoise*4.5-gongangRiverTime*.62);'+
+          'float ribbons=pow(max(0.,.5+.5*wavB),18.)*.19;'+
           'float darkPool=rwNoise(wpos*vec2(.12,.18)+vec2(7.,11.));'+
-          'float current=.24+.38*darkPool+.16*wavA;'+
-          'vec3 base=mix(vec3(.018,.074,.099),vec3(.081,.24,.273),clamp(current,0.,1.));'+
-          'float glimmer=ribbons*(.46+.54*rwNoise(wpos*.83));'+
-          'vec3 silver=vec3(.29,.47,.54)*glimmer*.49;'+
-          'float edge=smoothstep(.77,.94,bank)*(1.-smoothstep(1.0,1.06,bank));'+
-          'float breakup=.48+.52*rwNoise(vec2(wpos.y*1.12+gongangRiverTime*.28,bank*10.));'+
-          'float foam=edge*breakup*(.45+.55*pow(.5+.5*wavB,2.));'+
+          'float current=.30+.25*darkPool+.065*wavA;'+
+          'vec3 base=mix(vec3(.023,.088,.111),vec3(.084,.205,.222),clamp(current,0.,1.));'+
+          'float glimmer=ribbons*(.26+.74*rwNoise(wpos*.34));'+
+          'vec3 silver=vec3(.24,.37,.39)*glimmer*.24;'+
+          'float edge=smoothstep(.83,.98,bank)*(1.-smoothstep(1.0,1.08,bank));'+
+          'float breakup=.16+.58*rwNoise(vec2(wpos.y*.34+gongangRiverTime*.09,bank*3.));'+
+          'float foam=edge*breakup*(.34+.32*rwNoise(wpos*.18));'+
           'float midstream=exp(-pow(bank*1.7,2.));'+
-          'float moonThread=midstream*pow(max(0.,.5+.5*sin(wpos.y*1.03+localNoise*6.-gongangRiverTime*.72)),17.);'+
-          'diffuseColor.rgb=base+silver+vec3(.19,.27,.30)*moonThread*.21;'+
-          'diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.57,.78,.81),foam*.60);');
+          'float moonThread=midstream*pow(max(0.,.5+.5*sin(wpos.x*2.7+wpos.y*.11+localNoise*4.-gongangRiverTime*.36)),22.);'+
+          'diffuseColor.rgb=base+silver+vec3(.16,.26,.29)*moonThread*.11;'+
+          'diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.34,.56,.59),foam*.35);');
       };
-      mat.customProgramCacheKey=()=> 'gongang-winding-water-shoreline-v3';
+      mat.customProgramCacheKey=()=> 'gongang-winding-water-shoreline-v4';
       mat.needsUpdate=true;
       riverMaterials++;
     }
