@@ -288,34 +288,41 @@ def create_broadleaf(variant):
     top=(lean[0],lean[1],h)
     add_tapered_segment(v,f,m,base,bend,.47,.31,0,10)
     add_tapered_segment(v,f,m,bend,top,.31,.12,0,9)
-    for limb in range(17):
-        angle=TAU*(limb+.65*r.random())/17
+    limb_count=19+variant*2
+    crown_bias=r.uniform(-.32,.32)
+    for limb in range(limb_count):
+        # Avoid the spoke-wheel silhouette: each bough has a different
+        # azimuth, origin height and silhouette radius.
+        angle=TAU*(limb+r.uniform(-.38,.38))/limb_count
         ux,uy=math.cos(angle),math.sin(angle)
-        length=(1.55+r.random()*2.95)*(1.0 if limb%4 else .73)
-        z=h*(.43+r.random()*.52)
-        root=Vector((lean[0]*.48,lean[1]*.43,z-.72))
-        elbow=Vector((lean[0]+ux*length*.48,lean[1]+uy*length*.52,
-                      z+r.uniform(-.27,.49)))
+        length=r.uniform(1.75,4.40)*(1.0+.14*math.sin(angle*3.1+crown_bias))
+        z=h*r.uniform(.40,.91)
+        root=Vector((lean[0]*.48,lean[1]*.43,z-.55))
+        elbow=Vector((lean[0]+ux*length*.41,lean[1]+uy*length*.38,
+                      z+r.uniform(-.38,.64)))
         tip=Vector((lean[0]+ux*length,lean[1]+uy*length,
-                    z+r.uniform(-.48,2.18)))
+                    z+r.uniform(-.62,1.52)))
         add_tapered_segment(v,f,m,root,elbow,.12,.063,0,6)
         add_tapered_segment(v,f,m,elbow,tip,.063,.012,0,5)
-        for cluster in range(12):
-            q=(cluster+.65)/13
+        cluster_count=r.randint(12,17)
+        for cluster in range(cluster_count):
+            q=.23+.75*(cluster+r.uniform(.15,.85))/cluster_count
             p=elbow.lerp(tip,q)
-            for leaf_id in range(7):
-                angle2=TAU*(leaf_id+r.random()*.35)/7
-                vec=Vector((math.cos(angle2)*.82+ux*.23,
-                            math.sin(angle2)*.82+uy*.23,
-                            r.uniform(-.56,.65)))
-                origin=p+Vector((r.uniform(-.24,.24),
-                                 r.uniform(-.24,.24),
-                                 r.uniform(-.32,.32)))
+            offset=Vector((r.uniform(-.42,.42),r.uniform(-.42,.42),
+                           r.uniform(-.41,.41)))
+            for leaf_id in range(r.randint(7,10)):
+                angle2=r.uniform(0,TAU)
+                vec=Vector((math.cos(angle2)*.75+ux*.24,
+                            math.sin(angle2)*.75+uy*.24,
+                            r.uniform(-.62,.72)))
+                origin=p+offset+Vector((r.uniform(-.23,.23),
+                                        r.uniform(-.23,.23),
+                                        r.uniform(-.20,.20)))
                 add_lance_leaf(v,f,m,origin,vec,
-                               .43+r.random()*.53,
-                               .16+r.random()*.14,
+                               .34+r.random()*.41,
+                               .15+r.random()*.12,
                                2+r.randrange(len(leaf)),
-                               r.uniform(.05,.19))
+                               r.uniform(.06,.25))
     obj=object_from_mesh("BROADLEAF_MASTER_%d"%variant,v,f,
                          [bark,bark_lit]+leaf,m,library_collection)
     obj.hide_render=True
