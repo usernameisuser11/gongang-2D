@@ -87,7 +87,24 @@ def fbm(x,y,seed=0):
     return v
 
 def river_center(depth):
-    return 5.1*math.sin(depth*.037+.4)+2.2*math.sin(depth*.089+1.3)
+    return (5.1*math.sin(depth*.037+.4)
+            +2.2*math.sin(depth*.089+1.3)
+            +.62*math.sin(depth*.147+.6))
+
+def river_half_width(depth):
+    # A gently widening watercourse, with the same center and banks at every
+    # depth. Keep these dimensions shared by the terrain and the water mesh.
+    return ((1.05+depth*.0095)
+            *(1+.06*math.sin(depth*.058)+.032*math.sin(depth*.17+.8)))
+
+def river_level(depth):
+    # A river has a slowly descending water surface, not the jagged elevation
+    # of the noisy hills it passes through. Depth increases upstream here.
+    return -4.32+.033*depth+.16*math.sin(depth*.015)
+
+def smoothstep(edge0,edge1,value):
+    t=max(0.0,min(1.0,(value-edge0)/(edge1-edge0)))
+    return t*t*(3-2*t)
 
 def height(x, y):
     depth = max(0, -y)
@@ -107,10 +124,20 @@ def height(x, y):
     # Keep the shared multiplayer resting terrace open and almost level.
     clearing = max(0.0,1-abs(x)/24)**2 * max(0.0,1-abs(y-4)/31)**2
     high = high*(1-.97*clearing)+shelf*.97*clearing
-    # Meandering deep river is recessed rather than pasted on the terrain.
-    channel = math.exp(-(left_right/(1.4+depth*.015))**2)
-    high -= channel*(.34+min(1.1,depth*.005))
-    return high
+    # Sculpt a real, continuous riverbed. The previous stream was attached to
+    # high-frequency terrain noise, so the surface climbed over rocks, then
+    # disappeared into the next polygon. Give the bed an extra margin beyond
+    # either water edge: terrain triangulation cannot intersect the water.
+    half=river_half_width(depth)
+    bed_half=half+2.25
+    bank_extent=4.8+depth*.021
+    bed=river_level(depth)-.54+.055*(left_right/bed_half)**2
+    bank_top=max(high,river_level(depth)+.18)
+    channel_blend=smoothstep(bed_half,bed_half+bank_extent,left_right)
+    sculpted=bed*(1-channel_blend)+bank_top*channel_blend
+    # The river belongs behind the shared resting terrace, not through it.
+    upstream_reveal=smoothstep(0,10,depth)
+    return high*(1-upstream_reveal)+sculpted*upstream_reveal
 
 def object_from_mesh(name, vertices, faces, mats, face_mats=None, collection=world_collection):
     me = bpy.data.meshes.new(name + " mesh")
@@ -126,8 +153,8 @@ def object_from_mesh(name, vertices, faces, mats, face_mats=None, collection=wor
     return obj
 
 def build_land():
-    # A continuous terrain sculpt; no disjoint V-shaped polygon walls.
-    nx,ny = 193,153
+    # A continuous terrain sculpt; denser bank geometry avoids diagonal cuts.
+    nx,ny = 225,221
     vx, faces, col = [], [], []
     for j in range(ny):
         y = 98.0 - j*360.0/(ny-1)
@@ -136,7 +163,7 @@ def build_land():
             vx.append((x,y,height(x,y)))
     for j in range(ny-1):
         for i in range(nx-1):
-            a=j*nx+i; faces.append((a,a+1,a+nx+1,a+nx))
+            a=j*nx+i; faces.append((a,a+nx,a+nx+1,a+1))
     obj=object_from_mesh("Terrain | one uninterrupted sculpt",vx,faces,[earth])
     colors=obj.data.vertex_colors.new(name="Color")
     for poly in obj.data.polygons:
@@ -466,20 +493,21 @@ def flower_patches():
     for p in obj.data.polygons:p.use_smooth=False
 
 def river():
-    # Track the actual terrain so the stream cannot disappear below a ridge.
-    # Subdivisions provide finer specular movement without shoreline tearing.
+    # One gently sloping watercourse. Water must NOT track the terrain height:
+    # doing so produces cascading ribbons and visible breaks at every hill.
+    # Its banks are excavated in height() using this exact profile instead.
     v=[];f=[]
-    sections=284
-    across=5
+    sections=384
+    across=9
     for i in range(sections):
-        y=-249+i*.84
+        y=-250+i*239/(sections-1)
         d=max(0,-y)
         cx=river_center(d)
-        half=(.75+d*.0075)*(1+.07*math.sin(y*.074))
+        half=river_half_width(d)
         for k in range(across):
             t=k/(across-1)*2-1
             x=cx+t*half
-            z=height(x,y)+.18+.009*math.sin(y*.25+t*7.1)
+            z=river_level(d)+.012*math.sin(d*.17+t*4.0)
             v.append((x,y,z))
         if i>0:
             a=(i-1)*across

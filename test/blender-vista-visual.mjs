@@ -24,6 +24,7 @@ try{
   if(!running)throw Error('Gongang server did not start: '+output.slice(-800));
   browser=await chromium.launch({
     headless:true,
+    executablePath:process.env.CHROMIUM_EXECUTABLE||undefined,
     args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader',
       '--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']
   });

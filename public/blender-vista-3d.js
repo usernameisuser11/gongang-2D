@@ -279,8 +279,8 @@ function enlivenBlenderSurface(){
           '#include <color_fragment>',
           '#include <color_fragment>\n'+
           'float depth=max(0.,gongangRiverPos.y);'+
-          'float center=5.1*sin(depth*.037+.4)+2.2*sin(depth*.089+1.3);'+
-          'float halfWidth=(.75+depth*.0075)*(1.+.07*sin(-depth*.074));'+
+          'float center=5.1*sin(depth*.037+.4)+2.2*sin(depth*.089+1.3)+.62*sin(depth*.147+.6);'+
+          'float halfWidth=(1.05+depth*.0095)*(1.+.06*sin(depth*.058)+.032*sin(depth*.17+.8));'+
           'float bank=abs(gongangRiverPos.x-center)/max(.35,halfWidth);'+
           'vec2 wpos=gongangRiverPos;'+
           'float localNoise=rwNoise(wpos*vec2(.48,.14)+vec2(gongangRiverTime*.032,-gongangRiverTime*.025));'+
@@ -300,7 +300,7 @@ function enlivenBlenderSurface(){
           'diffuseColor.rgb=base+silver+vec3(.16,.26,.29)*moonThread*.11;'+
           'diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.34,.56,.59),foam*.35);');
       };
-      mat.customProgramCacheKey=()=> 'gongang-winding-water-shoreline-v4';
+      mat.customProgramCacheKey=()=> 'gongang-winding-water-shoreline-v5';
       mat.needsUpdate=true;
       riverMaterials++;
     }
