@@ -542,7 +542,9 @@ def add_light(kind,name,location,energy,color,size):
     return obj
 
 def studio():
-    bpy.ops.object.camera_add(location=(0,42,13))
+    # A raised overlook sees into the carved channel instead of letting each
+    # near ridge hide the next river bend. Match the site's camera elevation.
+    bpy.ops.object.camera_add(location=(0,42,22))
     camera=bpy.context.object;camera.name="Editorial camera | landscape"
     target=Vector((0,-65,5.5))
     camera.rotation_euler=(target-camera.location).to_track_quat("-Z","Y").to_euler()
