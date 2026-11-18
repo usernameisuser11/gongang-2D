@@ -224,13 +224,13 @@ function enlivenBlenderSurface(){
         mat.onBeforeCompile=shader=>{
           shader.vertexShader=shader.vertexShader.replace(
             '#include <common>',
-            '#include <common>\nvarying vec3 gongangTerrainPosition;');
+            '#include <common>\nvarying vec3 gongangTerrainPosition;\nvarying float gongangTerrainSlope;');
           shader.vertexShader=shader.vertexShader.replace(
             '#include <begin_vertex>',
-            '#include <begin_vertex>\ngongangTerrainPosition=position;');
+            '#include <begin_vertex>\ngongangTerrainPosition=position;\ngongangTerrainSlope=1.-abs(normal.y);');
           shader.fragmentShader=shader.fragmentShader.replace(
             '#include <common>',
-            '#include <common>\nvarying vec3 gongangTerrainPosition;\n'+
+            '#include <common>\nvarying vec3 gongangTerrainPosition;\nvarying float gongangTerrainSlope;\n'+
             'float tgHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\n'+
             'float tgNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);'+
             'return mix(mix(tgHash(i),tgHash(i+vec2(1.,0.)),f.x),'+
@@ -245,36 +245,62 @@ function enlivenBlenderSurface(){
             'float brokenRock=smoothstep(.52,.79,large*.63+pebble*.37);'+
             'float textureAmount=.86+large*.23+pebble*.11+moss*.035;'+
             'diffuseColor.rgb*=textureAmount;'+
-            'diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(.76,.83,.93),brokenRock*.37);');
+            'diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(.76,.83,.93),brokenRock*.37);'+
+            'float highland=smoothstep(1.0,14.,gongangTerrainPosition.y);'+
+            'float cliff=smoothstep(.20,.68,gongangTerrainSlope)*(.35+.65*highland);'+
+            'float strata=tgNoise(terrainUv*.19+vec2(gongangTerrainPosition.y*.27,0.));'+
+            'float exposed=cliff*smoothstep(.35,.72,large*.48+strata*.52);'+
+            'diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.17,.235,.263)*(.72+pebble*.54),exposed*.47);');
         };
-        mat.customProgramCacheKey=()=> 'gongang-sculpt-terrain-microtexture-v1';
+        mat.customProgramCacheKey=()=> 'gongang-sculpt-terrain-strata-v2';
         mat.needsUpdate=true;
         terrainMaterials++;
       }
       if(!/Silent mirror/i.test(mat.name)||!mat.isMeshStandardMaterial)continue;
-      mat.roughness=.27;
-      mat.metalness=.15;
+      mat.roughness=.19;
+      mat.metalness=.20;
       mat.onBeforeCompile=shader=>{
         shader.uniforms.gongangRiverTime=windClock;
         shader.vertexShader=shader.vertexShader.replace(
           '#include <common>',
-          '#include <common>\nvarying vec2 gongangRiverPos;');
+          '#include <common>\nuniform float gongangRiverTime;\nvarying vec2 gongangRiverPos;');
         shader.vertexShader=shader.vertexShader.replace(
           '#include <begin_vertex>',
-          '#include <begin_vertex>\ngongangRiverPos=position.xz;');
+          '#include <begin_vertex>\ngongangRiverPos=position.xz;'+
+          'transformed.y+=(sin(position.z*1.61-gongangRiverTime*.76)+sin(position.x*3.1+position.z*.6+gongangRiverTime*1.14))*.009;');
         shader.fragmentShader=shader.fragmentShader.replace(
           '#include <common>',
-          '#include <common>\nuniform float gongangRiverTime;\nvarying vec2 gongangRiverPos;');
+          '#include <common>\nuniform float gongangRiverTime;\nvarying vec2 gongangRiverPos;'+
+          'float rwHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}'+
+          'float rwNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);'+
+          'return mix(mix(rwHash(i),rwHash(i+vec2(1.,0.)),f.x),'+
+          'mix(rwHash(i+vec2(0.,1.)),rwHash(i+vec2(1.,1.)),f.x),f.y);}');
         shader.fragmentShader=shader.fragmentShader.replace(
           '#include <color_fragment>',
           '#include <color_fragment>\n'+
-          'float waterFlow=sin(gongangRiverPos.y*.55+sin(gongangRiverPos.x*.51+gongangRiverTime*.18)*.6-gongangRiverTime*.35);'+
-          'float glint=pow(max(0.,waterFlow),22.);'+
-          'float secondRipple=sin(gongangRiverPos.y*1.8+gongangRiverPos.x*.9+gongangRiverTime*.85);'+
-          'diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.045,.16,.20),.30);'+
-          'diffuseColor.rgb+=vec3(.10,.19,.20)*(glint*.065+secondRipple*.006);');
+          'float depth=max(0.,gongangRiverPos.y);'+
+          'float center=5.1*sin(depth*.037+.4)+2.2*sin(depth*.089+1.3);'+
+          'float halfWidth=(.75+depth*.0075)*(1.+.07*sin(-depth*.074));'+
+          'float bank=abs(gongangRiverPos.x-center)/max(.35,halfWidth);'+
+          'vec2 wpos=gongangRiverPos;'+
+          'float localNoise=rwNoise(wpos*vec2(.92,.23)+vec2(gongangRiverTime*.13,-gongangRiverTime*.06));'+
+          'float wavA=sin(wpos.y*2.75+localNoise*4.1-gongangRiverTime*1.13);'+
+          'float wavB=sin(wpos.y*5.75+wpos.x*1.7+localNoise*3.8-gongangRiverTime*1.54);'+
+          'float ribbons=pow(max(0.,.5+.5*wavA),9.)*.58+pow(max(0.,.5+.5*wavB),15.)*.27;'+
+          'float darkPool=rwNoise(wpos*vec2(.12,.18)+vec2(7.,11.));'+
+          'float current=.24+.38*darkPool+.16*wavA;'+
+          'vec3 base=mix(vec3(.018,.074,.099),vec3(.081,.24,.273),clamp(current,0.,1.));'+
+          'float glimmer=ribbons*(.46+.54*rwNoise(wpos*.83));'+
+          'vec3 silver=vec3(.29,.47,.54)*glimmer*.49;'+
+          'float edge=smoothstep(.77,.94,bank)*(1.-smoothstep(1.0,1.06,bank));'+
+          'float breakup=.48+.52*rwNoise(vec2(wpos.y*1.12+gongangRiverTime*.28,bank*10.));'+
+          'float foam=edge*breakup*(.45+.55*pow(.5+.5*wavB,2.));'+
+          'float midstream=exp(-pow(bank*1.7,2.));'+
+          'float moonThread=midstream*pow(max(0.,.5+.5*sin(wpos.y*1.03+localNoise*6.-gongangRiverTime*.72)),17.);'+
+          'diffuseColor.rgb=base+silver+vec3(.19,.27,.30)*moonThread*.21;'+
+          'diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.57,.78,.81),foam*.60);');
       };
-      mat.customProgramCacheKey=()=> 'gongang-moving-water-v2';
+      mat.customProgramCacheKey=()=> 'gongang-winding-water-shoreline-v3';
       mat.needsUpdate=true;
       riverMaterials++;
     }
