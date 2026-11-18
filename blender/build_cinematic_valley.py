@@ -119,9 +119,17 @@ def height(x, y):
     hillside = 11.5*(1-math.exp(-bank*bank*.63))
     far_rise = 8.7*min(1.0,depth/215)**.9
     ridge = 3.7*fbm(x*.062,y*.041,8)+1.5*fbm(x*.15,y*.09,73)
+    # Directional, irregular runoff scars. They follow downhill rather than
+    # drawing equally spaced horizontal bands across the mountainsides.
+    runoff_x=x+.9*math.sin(depth*.035+x*.044)+3.1*fbm(x*.025,y*.031,126)
+    runoff=abs(math.sin(runoff_x*.27+depth*.014))
+    gullies=(1-smoothstep(.06,.41,runoff))**2
+    erosion=-1.35*gullies*(.35+.65*min(1.0,depth/145))
+    erosion+=.24*fbm(x*.53,y*.42,319)
     spires = (max(0.0,noise(x*.052,y*.038,130))**2.8)*4.5
     split = 1.1*math.sin(x*.083+depth*.019)+1.8*math.sin(x*.031-depth*.054)
     high = shelf + hillside + far_rise + ridge*(.3+.7*(1-near)) + spires*(1-near) + split*(1-near)
+    high+=erosion*(1-near)*smoothstep(3.0,18.0,abs(x-center))
     # Keep the shared multiplayer resting terrace open and almost level.
     clearing = max(0.0,1-abs(x)/24)**2 * max(0.0,1-abs(y-4)/31)**2
     high = high*(1-.97*clearing)+shelf*.97*clearing
