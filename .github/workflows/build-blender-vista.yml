@@ -1,7 +1,7 @@
 name: Blender-authored Gongang Vista
 on:
   push:
-    branches: [feat/blender-forest-river-light-20261117]
+    branches: [feat/cinematic-river-and-depth-20261118]
     paths:
       - "blender/build_cinematic_valley.py"
       - ".github/workflows/build-blender-vista.yml"
@@ -54,7 +54,7 @@ jobs:
           git add blender/output/gongang-cinematic-valley.blend blender/output/cinematic-valley-night.png public/assets/models/blender-cinematic-valley.glb
           if ! git diff --cached --quiet; then
             git commit -m "art: generate editable Blender scene, glb and preview"
-            git fetch origin feat/blender-forest-river-light-20261117
-            git rebase origin/feat/blender-forest-river-light-20261117
-            git push origin HEAD:feat/blender-forest-river-light-20261117
+            git fetch origin "$GITHUB_REF_NAME"
+            git rebase "origin/$GITHUB_REF_NAME"
+            git push origin "HEAD:$GITHUB_REF_NAME"
           fi
