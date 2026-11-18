@@ -193,20 +193,63 @@ function applyBotanicalWind(){
 }
 function enlivenBlenderSurface(){
   const visited=new Set();
-  let riverMaterials=0;
+  let riverMaterials=0,terrainMaterials=0,moonlitFoliageMaterials=0;
   scene.traverse(node=>{
     if(!node.isMesh||!node.material)return;
     const mats=Array.isArray(node.material)?node.material:[node.material];
     for(const mat of mats){
       if(visited.has(mat))continue;
       visited.add(mat);
+      if(/Broadleaf velvet|Conifer needles/i.test(mat.name) && mat.isMeshStandardMaterial){
+        // The leaves remain physical meshes, with a restrained cool rim instead
+        // of a uniform neon glow. The original author-painted colors survive.
+        mat.roughness=.88;
+        mat.emissive=new THREE.Color('#17363c');
+        mat.emissiveIntensity=.09;
+        moonlitFoliageMaterials++;
+      }
       if(/Wildflower petals/i.test(mat.name) && mat.isMeshStandardMaterial){
-        mat.emissive=new THREE.Color('#484c79');
-        mat.emissiveIntensity=.62;
+        mat.emissive=new THREE.Color('#536b87');
+        mat.emissiveIntensity=.82;
       }
       if(/Wildflower center/i.test(mat.name)&&mat.isMeshStandardMaterial){
         mat.emissive=new THREE.Color('#dba96e');
         mat.emissiveIntensity=.70;
+      }
+      if(/Sculpted earth/i.test(mat.name)&&mat.isMeshStandardMaterial){
+        // The distant slopes previously looked like large, flat polygons.
+        // Albedo micro-variation is evaluated directly on their sculpted 3D
+        // coordinates; there is no photographic or panorama texture involved.
+        mat.roughness=.96;
+        mat.onBeforeCompile=shader=>{
+          shader.vertexShader=shader.vertexShader.replace(
+            '#include <common>',
+            '#include <common>\nvarying vec3 gongangTerrainPosition;');
+          shader.vertexShader=shader.vertexShader.replace(
+            '#include <begin_vertex>',
+            '#include <begin_vertex>\ngongangTerrainPosition=position;');
+          shader.fragmentShader=shader.fragmentShader.replace(
+            '#include <common>',
+            '#include <common>\nvarying vec3 gongangTerrainPosition;\n'+
+            'float tgHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\n'+
+            'float tgNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);'+
+            'return mix(mix(tgHash(i),tgHash(i+vec2(1.,0.)),f.x),'+
+            'mix(tgHash(i+vec2(0.,1.)),tgHash(i+vec2(1.,1.)),f.x),f.y);}\n');
+          shader.fragmentShader=shader.fragmentShader.replace(
+            '#include <color_fragment>',
+            '#include <color_fragment>\n'+
+            'vec2 terrainUv=gongangTerrainPosition.xz;'+
+            'float large=tgNoise(terrainUv*.065);'+
+            'float pebble=tgNoise(terrainUv*.44);'+
+            'float moss=tgNoise(terrainUv*1.28);'+
+            'float brokenRock=smoothstep(.52,.79,large*.63+pebble*.37);'+
+            'float textureAmount=.86+large*.23+pebble*.11+moss*.035;'+
+            'diffuseColor.rgb*=textureAmount;'+
+            'diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(.76,.83,.93),brokenRock*.37);');
+        };
+        mat.customProgramCacheKey=()=> 'gongang-sculpt-terrain-microtexture-v1';
+        mat.needsUpdate=true;
+        terrainMaterials++;
       }
       if(!/Silent mirror/i.test(mat.name)||!mat.isMeshStandardMaterial)continue;
       mat.roughness=.27;
@@ -237,6 +280,8 @@ function enlivenBlenderSurface(){
     }
   });
   state.riverMaterials=riverMaterials;
+  state.terrainMaterials=terrainMaterials;
+  state.moonlitFoliageMaterials=moonlitFoliageMaterials;
 }
 function buildAtmosphere(){
   const sky=new THREE.Mesh(
@@ -269,8 +314,14 @@ function buildAtmosphere(){
         "float grain=fbm(gal*21.2+vec2(71.,12.));",
         "float bands=.4+.6*smoothstep(.24,.75,grain);",
         "float dust=exp(-pow((bend+.065)*24.,2.))*smoothstep(.38,.67,fbm(gal*35.+vec2(8.,19.)));",
-        "float galactic=core*bands*(1.-dust*.82)*smoothstep(.06,.38,alt);",
-        "col+=mix(vec3(.17,.22,.36),vec3(.53,.24,.58),grain)*galactic*(1.-uDay)*1.72;",
+        "float galactic=core*bands*(1.-dust*.91)*smoothstep(.06,.38,alt);",
+        "float spiral=fbm(gal*16.2+vec2(24.,-7.));",
+        "float copper=exp(-pow((bend-.047)*15.,2.))*smoothstep(.45,.74,spiral);",
+        "vec3 galaxyColor=mix(vec3(.15,.24,.42),vec3(.46,.28,.51),grain);",
+        "col+=galaxyColor*galactic*(1.-uDay)*.83;",
+        "col+=vec3(.38,.28,.27)*copper*(1.-uDay)*.10;",
+        "float darkLane=exp(-pow((bend+.035)*19.,2.))*smoothstep(.46,.68,fbm(gal*31.+vec2(11.,3.)));",
+        "col*=1.-darkLane*(1.-uDay)*.18;",
         "float under=1.-smoothstep(-.23,.035,d.y);",
         "float earthy=fbm(vec2(d.x*15.,d.z*14.));",
         "vec3 groundColor=mix(vec3(.024,.068,.082),vec3(.052,.105,.114),earthy);",
@@ -282,22 +333,27 @@ function buildAtmosphere(){
   sky.frustumCulled=false;
   sky.renderOrder=-100;
   scene.add(sky);
-  const random=rng(7719),points=[],brightness=[];
+  const random=rng(7719),points=[],brightness=[],starTone=[];
   for(let i=0;i<36000;i++){
     const theta=random()*Math.PI*2;
     const elev=.02+random()*.96;
     const rad=Math.sqrt(Math.max(0,1-elev*elev));
     points.push(Math.cos(theta)*rad*295,elev*295,Math.sin(theta)*rad*295);
-    brightness.push(.2+Math.pow(random(),6)*.8);
+    const deviation=theta*1.5*.20+elev-.51+.065*Math.sin(theta*1.5*3.7);
+    const richness=Math.exp(-Math.pow(deviation*4.7,2));
+    const v=random();
+    brightness.push(clamp(.30+Math.pow(v,4)*.66+richness*.16,.20,1));
+    starTone.push(random());
   }
   const geometry=new THREE.BufferGeometry();
   geometry.setAttribute('position',new THREE.Float32BufferAttribute(points,3));
   geometry.setAttribute('aBright',new THREE.Float32BufferAttribute(brightness,1));
+  geometry.setAttribute('aTone',new THREE.Float32BufferAttribute(starTone,1));
   stars=new THREE.Points(geometry,new THREE.ShaderMaterial({
     transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
     uniforms:{uDay:skyDay,uTime:skyClock},
-    vertexShader:"attribute float aBright;varying float vBright;void main(){vBright=aBright;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_PointSize=1.65+aBright*2.3;}",
-    fragmentShader:"precision mediump float;uniform float uDay,uTime;varying float vBright;void main(){float r=length(gl_PointCoord-.5);float a=pow(max(0.,1.-r*2.),1.7)*(.24+.76*vBright)*(1.-uDay)*(.88+.12*sin(uTime+vBright*52.));gl_FragColor=vec4(.78,.88,1.,a);}"
+    vertexShader:"attribute float aBright,aTone;varying float vBright,vTone;void main(){vBright=aBright;vTone=aTone;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_PointSize=1.6+pow(aBright,3.)*2.9;}",
+    fragmentShader:"precision mediump float;uniform float uDay,uTime;varying float vBright,vTone;void main(){float r=length(gl_PointCoord-.5);float core=pow(max(0.,1.-r*2.),2.1);float a=core*(.31+.69*vBright)*(1.-uDay)*(.93+.07*sin(uTime*.52+vBright*31.));vec3 cold=vec3(.66,.79,1.);vec3 warm=vec3(1.,.92,.77);vec3 tint=mix(cold,warm,smoothstep(.30,.88,vTone));gl_FragColor=vec4(tint,a);}"
   }));
   stars.frustumCulled=false;
   stars.renderOrder=-99;
@@ -486,7 +542,7 @@ function draw(ctx,t,now,{personal=false,scroll=0}={}){
   if(!state.ready||!root)return false;
   try{
     // Preserve the exact canvas aspect ratio on tall phones: no squeezed moon or stretched hills.
-    const factor=portrait?.90:1.0;
+    const factor=portrait?1.065:1.0;
     const fit=Math.min(factor,(portrait?1152:1600)/t.width,(portrait?1800:1100)/t.height);
     const w=Math.max(256,Math.round(t.width*fit));
     const h=Math.max(256,Math.round(t.height*fit));
