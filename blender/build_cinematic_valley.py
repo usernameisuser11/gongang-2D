@@ -89,6 +89,18 @@ def fbm(x,y,seed=0):
 def river_center(depth):
     return 5.1*math.sin(depth*.037+.4)+2.2*math.sin(depth*.089+1.3)
 
+def river_profile(depth):
+    """A gently falling waterline, independent of the craggy hills on either bank.
+
+    Previously the water followed every high-frequency hill bump, causing a
+    sequence of unrelated blue patches when viewed from the lookout.  Keeping
+    the stream's centerline continuous creates a plausible downhill flow.
+    """
+    depth=max(0.0,depth)
+    t=min(1.0,depth/240.0)
+    return (-3.8+8.55*t**.92+.10*math.sin(depth*.024+.5)
+            +.08*math.sin(depth*.047+1.3))
+
 def height(x, y):
     depth = max(0, -y)
     center = river_center(depth)
@@ -107,10 +119,18 @@ def height(x, y):
     # Keep the shared multiplayer resting terrace open and almost level.
     clearing = max(0.0,1-abs(x)/24)**2 * max(0.0,1-abs(y-4)/31)**2
     high = high*(1-.97*clearing)+shelf*.97*clearing
-    # Meandering deep river is recessed rather than pasted on the terrain.
-    channel = math.exp(-(left_right/(1.4+depth*.015))**2)
-    high -= channel*(.34+min(1.1,depth*.005))
-    return high
+    # Shape the entire gully around one monotonic waterline, not just a thin
+    # trench through unrelated noise-driven hill peaks.  The bank slopes still
+    # inherit the original ridge sculpt outside this asymmetric corridor.
+    corridor_width=4.8+depth*.026
+    corridor=math.exp(-(left_right/corridor_width)**2)
+    bank_terrace=river_profile(depth)+.058*left_right
+    high=high*(1.-corridor*.94)+bank_terrace*(corridor*.94)
+    # The riverbed sits *below* the separate water mesh.  The old version used
+    # the exact bed height for its surface, so coarse terrain triangles often
+    # poked through and visually severed the river into disconnected strips.
+    bed=math.exp(-(left_right/(2.2+depth*.016))**2)*1.38
+    return high-bed
 
 def object_from_mesh(name, vertices, faces, mats, face_mats=None, collection=world_collection):
     me = bpy.data.meshes.new(name + " mesh")
@@ -127,7 +147,7 @@ def object_from_mesh(name, vertices, faces, mats, face_mats=None, collection=wor
 
 def build_land():
     # A continuous terrain sculpt; no disjoint V-shaped polygon walls.
-    nx,ny = 193,153
+    nx,ny = 225,193
     vx, faces, col = [], [], []
     for j in range(ny):
         y = 98.0 - j*360.0/(ny-1)
@@ -343,11 +363,18 @@ def scatter_forest():
 def scatter_rocks():
     rng=random.Random(7123)
     v=[];f=[];m=[]
-    for i in range(86):
-        x=rng.uniform(-114,114);y=rng.uniform(-202,30)
+    for i in range(86+165):
+        if i<86:
+            x=rng.uniform(-114,114);y=rng.uniform(-202,30)
+        else:
+            y=rng.uniform(-243,-18)
+            d=max(0,-y)
+            side=-1 if rng.random()<.5 else 1
+            bank_width=.75+d*.0075
+            x=river_center(d)+side*(bank_width+.6+rng.random()*3.8)
         if -18<y<26 and abs(x)<22:continue
         z=height(x,y)
-        radius=(.24+rng.random()*.68)*(1+.40*(y>0))
+        radius=((.20+rng.random()*.47) if i>=86 else (.24+rng.random()*.68))*(1+.40*(y>0))
         bx=len(v)
         # Asymmetric low-poly strata, buried below terrain for natural contact.
         sides=8
@@ -368,11 +395,17 @@ def scatter_rocks():
 def meadow():
     rng=random.Random(34783)
     v=[];f=[];m=[]
-    for n in range(2150):
-        x=rng.uniform(-70,70);y=rng.uniform(-17,73)
+    for n in range(2150+1700):
+        if n<2150:
+            x=rng.uniform(-70,70);y=rng.uniform(-17,73)
+        else:
+            y=rng.uniform(-248,-14)
+            d=max(0,-y)
+            side=-1 if rng.random()<.5 else 1
+            x=river_center(d)+side*(.75+d*.0075+.7+rng.random()*5.2)
         if abs(x)<18 and -5<y<23 and rng.random()<.76:continue
         z=height(x,y)+.07
-        ht=.29+rng.random()*.78
+        ht=(.24+rng.random()*.63) if n>=2150 else (.29+rng.random()*.78)
         direction=rng.random()*TAU
         for k in range(3):
             ang=direction+k*TAU/3+rng.uniform(-.22,.22)
@@ -466,20 +499,22 @@ def flower_patches():
     for p in obj.data.polygons:p.use_smooth=False
 
 def river():
-    # Track the actual terrain so the stream cannot disappear below a ridge.
-    # Subdivisions provide finer specular movement without shoreline tearing.
+    # A carved waterway with a common smooth, down-valley water level. The
+    # underlying soil drops away from the water; no terrain triangles poke
+    # through the strip as they did in the old ground-following construction.
     v=[];f=[]
-    sections=284
-    across=5
+    sections=320
+    across=7
     for i in range(sections):
-        y=-249+i*.84
+        y=-249+i*238.0/(sections-1)
         d=max(0,-y)
         cx=river_center(d)
         half=(.75+d*.0075)*(1+.07*math.sin(y*.074))
         for k in range(across):
             t=k/(across-1)*2-1
             x=cx+t*half
-            z=height(x,y)+.18+.009*math.sin(y*.25+t*7.1)
+            z=(river_profile(d)-.35-.13*t*t
+               +.018*math.sin(y*.15+t*2.1))
             v.append((x,y,z))
         if i>0:
             a=(i-1)*across
@@ -487,6 +522,15 @@ def river():
                 f.append((a+k,a+k+1,a+k+1+across,a+k+across))
     obj=object_from_mesh("River | true sculpted winding ribbon",v,f,[water])
     for p in obj.data.polygons:p.use_smooth=True
+
+    # Reject the exact failure that produced discontinuous river patches.
+    for d in range(12,245,7):
+        cx=river_center(d)
+        waterline=river_profile(d)-.35
+        clearance=waterline-height(cx,-d)
+        assert clearance>.40, ("riverbed pokes through the water",d,clearance)
+    assert all(river_profile(d+1)>river_profile(d)
+               for d in range(11,248)), "water flows uphill"
 
 def add_light(kind,name,location,energy,color,size):
     bpy.ops.object.light_add(type=kind,location=location)
