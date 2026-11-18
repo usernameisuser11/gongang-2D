@@ -6,7 +6,8 @@
   // the authored multi-layer scene, wind, fog, multiplayer and photography.
   // The former geometric mountain simulator remains available explicitly.
   const sceneQuery=new URLSearchParams(location.search);
-  const requestedRenderer=sceneQuery.get('renderer');
+  // Blender-authored scenery is the default; use ?renderer=reference for the old view.
+  const requestedRenderer=sceneQuery.get('renderer') || 'blender';
   const artFirst=!['procedural','25d','3d','live3d'].includes(requestedRenderer);
   // Dedicated Blender-generated 3D scene. Existing reference art is the safe fallback.
   if(requestedRenderer==='blender'){
@@ -705,7 +706,7 @@
     // Coordinate-matched redraw: not the reference bitmap, not the old
     // generative terrain. Keep the multiplayer/camera/photo canvas intact.
     const referenceVista=window.GongangReferenceVista;
-    if((!requestedRenderer || requestedRenderer==='reference') && referenceVista?.ready){
+    if((requestedRenderer==='blender' || requestedRenderer==='reference') && referenceVista?.ready){
       const relative=clamp((state.x-1600)/1600,-1,1);
       if(referenceVista.draw(c,personal?t:viewT,now,{
         personal,scroll:relative,
