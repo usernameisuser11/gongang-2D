@@ -44,13 +44,14 @@ def material(name, color, roughness=0.9, metallic=0.0):
 
 earth = material("Sculpted earth | shadow sea-green", (.18, .31, .27))
 bark = material("Pine bark | deep sienna", (.10, .095, .115))
-bark_lit = material("Pine bark | moonlit edges", (.16, .17, .19))
+bark_lit = material("Pine bark | moonlit edges", (.16, .14, .12))
 needle = [material("Conifer needles %02d" % i, c) for i, c in enumerate([
-    (.045, .16, .17), (.08, .23, .22), (.12, .29, .25), (.16, .34, .27), (.11, .20, .30)
+    (.035, .12, .105), (.065, .19, .135), (.10, .24, .175),
+    (.14, .29, .20), (.075, .17, .155)
 ])]
 leaf = [material("Broadleaf velvet %02d" % i, c) for i, c in enumerate([
-    (.065, .19, .20), (.11, .26, .23), (.17, .33, .24),
-    (.22, .37, .30), (.27, .31, .20)
+    (.07, .19, .14), (.12, .27, .17), (.18, .33, .20),
+    (.25, .37, .23), (.17, .28, .17)
 ])]
 stone = [material("Wet layered stone %02d" % i, c) for i,c in enumerate([
     (.14,.20,.245),(.21,.27,.29),(.31,.35,.36),(.11,.18,.23)
@@ -237,56 +238,95 @@ def add_lance_leaf(v,f,mids,origin,direction,length,width,mat_idx,curl=0.0):
               (first+2,first+3,first+4),(first+2,first+4,first+5)))
     mids.extend((mat_idx,mat_idx,mat_idx,mat_idx))
 
+def add_ovate_leaf(v,f,mids,origin,direction,length,width,mat_idx,fold=0.0):
+    """Sculpted broadleaf with an uneven outline and a raised central vein.
+
+    The leaf is a small bent surface rather than a flat diamond or alpha card.
+    It reads as a soft clustered crown at viewing distance, and its silhouette
+    remains distinct from the narrow fir needles.
+    """
+    base=Vector(origin)
+    d=Vector(direction).normalized()
+    lateral=d.cross(Vector((0,0,1)))
+    if lateral.length<.08:lateral=d.cross(Vector((0,1,0)))
+    lateral.normalize()
+    normal=lateral.cross(d).normalized()
+    p1=base+d*(length*.31)+normal*(fold*.35)
+    p2=base+d*(length*.66)+normal*fold
+    tip=base+d*length+normal*(fold*.70)
+    offset=len(v)
+    v.extend(tuple(p) for p in (
+        base,
+        p1+lateral*width*.36,
+        p1+normal*width*.09,
+        p1-lateral*width*.31,
+        p2+lateral*width*.48,
+        p2+normal*width*.12,
+        p2-lateral*width*.39,
+        tip,
+    ))
+    f.extend(tuple(offset+j for j in face) for face in (
+        (0,1,2),(0,2,3),
+        (1,4,5),(1,5,2),
+        (2,5,6),(2,6,3),
+        (4,7,5),(5,7,6),
+    ))
+    mids.extend((mat_idx,)*8)
+
 def create_pine(variant):
-    """Botanical fir: individually shaped trailing sprays instead of balloon tiers."""
+    """Irregular fir crowns: staggered boughs, drooping sprays, open pockets."""
     r=random.Random(2100+variant*71)
     v=[];f=[];m=[]
     h=7.7+variant*.8
     lean=(r.uniform(-.30,.30),r.uniform(-.27,.27))
-    add_tapered_segment(v,f,m,(0,0,0),(lean[0],lean[1],h),.30,.052,0,9)
-    tiers=17+variant
+    mid=(lean[0]*.32,lean[1]*.36,h*.57)
+    add_tapered_segment(v,f,m,(0,0,0),mid,.34,.19,0,9)
+    add_tapered_segment(v,f,m,mid,(lean[0],lean[1],h),.19,.032,0,7)
+    tiers=18+variant*2
+    crown_twist=r.uniform(-.26,.26)
     for tier in range(tiers):
-        t=tier/tiers
-        z=.78+t*(h-.85)
-        radius=(1.0-t)**1.08*(2.65+.14*variant)
-        arms=8+(tier%3)
+        t=max(0,min(.98,(tier+r.uniform(-.23,.23))/tiers))
+        z=.64+t*(h-.75)
+        radius=(1.0-t)**(.92+variant*.06)*(2.55+.16*variant)
+        arms=6+r.randrange(4)
+        azimuth=tier*2.3999632297+crown_twist
         for k in range(arms):
-            angle=TAU*(k+(tier%2)*.41)/arms+r.uniform(-.11,.11)
+            if r.random()<.075 and t>.18:continue
+            angle=azimuth+TAU*k/arms+r.uniform(-.19,.19)
             ux,uy=math.cos(angle),math.sin(angle)
-            length=radius*r.uniform(.76,1.17)
-            tip=(lean[0]*t+ux*length,lean[1]*t+uy*length,
-                 z-.34*(1-t)+.10*length)
-            add_tapered_segment(v,f,m,(lean[0]*t,lean[1]*t,z),tip,
-                                .075*(1-t)+.025,.009,0,5)
+            length=radius*r.uniform(.72,1.20)
+            root=Vector((lean[0]*t,lean[1]*t,z))
+            elbow=root+Vector((ux*length*.53,uy*length*.53,-.18*(1-t)))
+            tip=root+Vector((ux*length,uy*length,-.52*(1-t)+.12*t))
+            add_tapered_segment(v,f,m,root,elbow,.07*(1-t)+.024,.032,0,5)
+            add_tapered_segment(v,f,m,elbow,tip,.032,.006,0,5)
             lateral=(-uy,ux)
-            for j in range(3):
-                q=(j+.55)/3.5
-                base=Vector((lean[0]*t+ux*length*q,
-                             lean[1]*t+uy*length*q,
-                             z+q*(tip[2]-z)))
-                for leaf_id in range(6):
-                    side=(leaf_id-2.5)/2.5
-                    sweep=(.37+.42*(1-t))*(1-.35*q)
-                    direction=Vector((ux*(.68+.18*r.random())+
-                                      lateral[0]*side*.65,
-                                      uy*(.68+.18*r.random())+
-                                      lateral[1]*side*.65,
-                                      r.uniform(-.47,.30)+(t*.22)))
+            for j in range(4):
+                q=(j+.68)/4.35
+                base=root.lerp(tip,q)
+                for leaf_id in range(5):
+                    side=(leaf_id-2)/2
+                    sweep=(.37+.31*(1-t))*(1-.28*q)
+                    direction=Vector((ux*(.53+.21*r.random())+
+                                      lateral[0]*side*.75,
+                                      uy*(.53+.21*r.random())+
+                                      lateral[1]*side*.75,
+                                      r.uniform(-.32,.34)+t*.14))
                     offset=Vector((lateral[0]*side*sweep,
                                    lateral[1]*side*sweep,
-                                   r.uniform(-.13,.16)))
-                    blade_len=(.52+.31*r.random())*(.56+.44*(1-t))
+                                   r.uniform(-.14,.11)))
+                    blade_len=(.53+.26*r.random())*(.64+.36*(1-t))
                     add_lance_leaf(v,f,m,base+offset,direction,
-                                   blade_len,.13+.10*r.random(),
+                                   blade_len,.18+.12*r.random(),
                                    2+r.randrange(len(needle)),
-                                   .035+r.random()*.075)
+                                   .015+r.random()*.045)
     obj=object_from_mesh("PINE_MASTER_%d"%variant,v,f,
                          [bark,bark_lit]+needle,m,library_collection)
     obj.hide_render=True
     return obj
 
 def create_broadleaf(variant):
-    """Asymmetric layered crowns: variable-height boughs, smaller individual leaves."""
+    """Layered, uneven broadleaf crowns with veined leaves and sheltered cores."""
     r=random.Random(459+variant)
     v=[];f=[];m=[]
     h=7.2+variant*.85
@@ -294,43 +334,58 @@ def create_broadleaf(variant):
     base=(0,0,0)
     bend=(lean[0]*.42,lean[1]*.35,h*.52)
     top=(lean[0],lean[1],h)
-    add_tapered_segment(v,f,m,base,bend,.47,.31,0,10)
-    add_tapered_segment(v,f,m,bend,top,.31,.12,0,9)
-    limb_count=19+variant*2
+    add_tapered_segment(v,f,m,base,bend,.39,.27,0,10)
+    add_tapered_segment(v,f,m,bend,top,.27,.08,0,9)
+    limb_count=17+variant*2
     crown_bias=r.uniform(-.32,.32)
     for limb in range(limb_count):
-        # Avoid the spoke-wheel silhouette: each bough has a different
-        # azimuth, origin height and silhouette radius.
+        # The branch bends twice. Separate bough heights and distances give
+        # overlapping leaf islands instead of evenly spaced radial spokes.
         angle=TAU*(limb+r.uniform(-.38,.38))/limb_count
         ux,uy=math.cos(angle),math.sin(angle)
-        length=r.uniform(1.75,4.40)*(1.0+.14*math.sin(angle*3.1+crown_bias))
-        z=h*r.uniform(.40,.91)
-        root=Vector((lean[0]*.48,lean[1]*.43,z-.55))
-        elbow=Vector((lean[0]+ux*length*.41,lean[1]+uy*length*.38,
-                      z+r.uniform(-.38,.64)))
+        length=r.uniform(2.05,4.20)*(1.0+.18*math.sin(angle*3.1+crown_bias))
+        z=h*r.uniform(.38,.86)
+        root=Vector((lean[0]*.48,lean[1]*.43,z-.35))
+        elbow=Vector((lean[0]+ux*length*.42,lean[1]+uy*length*.33,
+                      z+r.uniform(-.26,.74)))
         tip=Vector((lean[0]+ux*length,lean[1]+uy*length,
-                    z+r.uniform(-.62,1.52)))
-        add_tapered_segment(v,f,m,root,elbow,.12,.063,0,6)
-        add_tapered_segment(v,f,m,elbow,tip,.063,.012,0,5)
-        cluster_count=r.randint(12,17)
+                    z+r.uniform(-.36,1.16)))
+        add_tapered_segment(v,f,m,root,elbow,.105,.042,0,6)
+        add_tapered_segment(v,f,m,elbow,tip,.042,.008,0,5)
+        cluster_count=r.randint(11,16)
         for cluster in range(cluster_count):
-            q=.23+.75*(cluster+r.uniform(.15,.85))/cluster_count
-            p=elbow.lerp(tip,q)
-            offset=Vector((r.uniform(-.42,.42),r.uniform(-.42,.42),
-                           r.uniform(-.41,.41)))
-            for leaf_id in range(r.randint(7,10)):
-                angle2=r.uniform(0,TAU)
-                vec=Vector((math.cos(angle2)*.75+ux*.24,
-                            math.sin(angle2)*.75+uy*.24,
-                            r.uniform(-.62,.72)))
-                origin=p+offset+Vector((r.uniform(-.23,.23),
-                                        r.uniform(-.23,.23),
-                                        r.uniform(-.20,.20)))
-                add_lance_leaf(v,f,m,origin,vec,
-                               .34+r.random()*.41,
-                               .15+r.random()*.12,
+            q=.17+.81*(cluster+r.random()*.7)/cluster_count
+            p=(root*(1-q)**2+elbow*(2*q*(1-q))+tip*q*q)
+            twig=p+Vector((r.uniform(-.40,.40),r.uniform(-.40,.40),
+                           r.uniform(-.22,.45)))
+            if cluster%3==0:
+                add_tapered_segment(v,f,m,p,twig,.025,.004,0,4)
+            for leaf_id in range(r.randint(9,13)):
+                theta=r.uniform(0,TAU)
+                vec=Vector((math.cos(theta)*.66+ux*.38,
+                            math.sin(theta)*.66+uy*.38,
+                            r.uniform(-.48,.67)))
+                origin=twig+Vector((r.uniform(-.29,.29),
+                                    r.uniform(-.29,.29),
+                                    r.uniform(-.22,.28)))
+                add_ovate_leaf(v,f,m,origin,vec,
+                               .55+r.random()*.37,
+                               .29+r.random()*.20,
                                2+r.randrange(len(leaf)),
-                               r.uniform(.06,.25))
+                               r.uniform(-.08,.15))
+    # Mid-crown foliage encloses inner branches; no bare umbrella skeleton.
+    for cluster in range(22):
+        z=h*r.uniform(.51,.94)
+        theta=r.uniform(0,TAU)
+        radius=r.uniform(.45,1.78)
+        center=Vector((lean[0]+radius*math.cos(theta),
+                       lean[1]+radius*math.sin(theta),z))
+        for leaf_id in range(r.randint(9,14)):
+            outward=Vector((r.uniform(-1,1),r.uniform(-1,1),r.uniform(-.45,.70)))
+            start=center+Vector((r.uniform(-.30,.30),r.uniform(-.30,.30),r.uniform(-.28,.28)))
+            add_ovate_leaf(v,f,m,start,outward,
+                           r.uniform(.53,.83),r.uniform(.28,.44),
+                           2+r.randrange(len(leaf)),r.uniform(-.06,.14))
     obj=object_from_mesh("BROADLEAF_MASTER_%d"%variant,v,f,
                          [bark,bark_lit]+leaf,m,library_collection)
     obj.hide_render=True
@@ -348,7 +403,7 @@ def scatter_forest():
         if abs(x-river_center(d))<10+d*.105:continue
         if -19<y<28 and abs(x)<24:continue
         if rng.random() < max(0,1-abs(x)/100)*.19:continue
-        master=(broad[rng.randrange(len(broad))] if rng.random()<.10
+        master=(broad[rng.randrange(len(broad))] if rng.random()<.17
                 else masters[rng.randrange(len(masters))])
         obj=bpy.data.objects.new("Forest | linked tree %03d"%i, master.data)
         world_collection.objects.link(obj)
@@ -533,7 +588,8 @@ def river():
     for p in obj.data.polygons:p.use_smooth=True
 
 def riverbank():
-    # Model the damp shoreline directly on the same heightfield as the river.
+    # Low, uneven banks are modeled on the same sculpted heightfield as the
+    # watercourse. This is actual ground geometry, not a painted shoreline.
     vertices=[];faces=[]
     sections=288
     bands=5
