@@ -325,7 +325,7 @@ function buildAtmosphere(){
         "float fbm(vec2 p){float v=0.,w=.50;for(int i=0;i<4;i++){v+=w*n2(p);p*=2.04;w*=.51;}return v;}",
         "void main(){vec3 d=normalize(vRay);float alt=clamp(d.y*.92+.26,0.,1.);",
         "vec3 night=mix(vec3(.048,.11,.16),vec3(.004,.008,.052),smoothstep(.06,.96,alt));",
-        "vec3 daylight=mix(vec3(.62,.75,.78),vec3(.24,.42,.71),smoothstep(.06,1.,alt));",
+        "vec3 daylight=mix(vec3(.57,.75,.82),vec3(.20,.43,.70),smoothstep(.06,1.,alt));",
         "vec3 rose=vec3(.82,.39,.46)*exp(-pow((alt-.08)*8.0,2.));",
         "vec3 col=mix(night,daylight,uDay)+rose*uDusk*.62;",
         "vec2 p=vec2(atan(d.z,d.x)*3.1+uTime*.004,d.y*7.8);",
@@ -425,15 +425,15 @@ function updateLight(now){
   }
   const sunny=new THREE.Color('#fff5d5'),moonlightColor=new THREE.Color('#a1bfff');
   sun.color.copy(moonlightColor).lerp(sunny,daylight);
-  sun.intensity=mix(.71,2.0,daylight)*(1-weather.cloud*.36);
+  sun.intensity=mix(.71,2.12,daylight)*(1-weather.cloud*.36);
   const a=(hour/24)*Math.PI*2;
   sun.position.set(70*Math.cos(a),30+70*Math.max(.12,Math.abs(altitude)),45*Math.sin(a));
   hemi.color.set('#e6f1ff').lerp(new THREE.Color('#ffe7d4'),daylight*.72);
   hemi.groundColor.set('#214856').lerp(new THREE.Color('#567263'),daylight*.8);
-  hemi.intensity=mix(.96,1.52,daylight);
-  haze.color.set('#202d4d').lerp(new THREE.Color('#b1c4c4'),daylight*.92);
-  haze.density=mix(.0036,.0029,daylight)+weather.cloud*.0010+weather.rain*.0012;
-  renderer.toneMappingExposure=mix(1.19,1.43,daylight);
+  hemi.intensity=mix(.96,1.23,daylight);
+  haze.color.set('#202d4d').lerp(new THREE.Color('#90aebc'),daylight*.88);
+  haze.density=mix(.0036,.00205,daylight)+weather.cloud*.00085+weather.rain*.0012;
+  renderer.toneMappingExposure=mix(1.19,1.24,daylight);
   rimLight.intensity=mix(.25,.48,daylight);
   root?.traverse(o=>{
     if(o.isMesh && o.material){
