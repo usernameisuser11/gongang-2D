@@ -396,23 +396,76 @@ def scatter_forest():
     broad=[create_broadleaf(i) for i in range(2)]
     count=0
     rng=random.Random(20261117)
-    for i in range(224):
-        y=rng.uniform(-240,16)
-        x=rng.uniform(-121,121)
+    # The valley grows in irregular groves, with pockets of quiet ground between
+    # them. Independent uniform positions used to resemble a tree plantation.
+    # Each center also carries a slightly different local species mix.
+    groves=[
+        (-57,-15,18,25,.20), (61,-24,20,23,.27),
+        (-39,-58,19,32,.27), (42,-69,25,28,.21),
+        (-82,-100,25,37,.12), (79,-107,27,34,.14),
+        (-41,-129,26,32,.21), (39,-146,24,34,.14),
+        (-86,-182,30,36,.11), (83,-192,29,39,.13),
+        (-46,-218,27,29,.15), (47,-231,26,32,.10),
+    ]
+    placed=[]
+    for i in range(1600):
+        grove=None
+        if rng.random()<.89:
+            grove=groves[rng.randrange(len(groves))]
+            cx,cy,rx,ry,_=grove
+            x=rng.gauss(cx,rx*.74)
+            y=rng.gauss(cy,ry*.79)
+        else:
+            x=rng.uniform(-124,124)
+            y=rng.uniform(-241,-7)
+        if not (-128<x<128 and -244<y<17):continue
         d=max(0,-y)
-        if abs(x-river_center(d))<10+d*.105:continue
-        if -19<y<28 and abs(x)<24:continue
-        if rng.random() < max(0,1-abs(x)/100)*.19:continue
-        master=(broad[rng.randrange(len(broad))] if rng.random()<.17
+        # Keep water, two natural light-catching openings, and the actual
+        # multiplayer terrace free of trunks or overhanging heavy crowns.
+        if abs(x-river_center(d))<12+d*.105:continue
+        if -25<y<28 and abs(x)<27:continue
+        if y>-12 and abs(x)<51:continue
+        if ((x+61)/18)**2+((y+109)/27)**2<1:continue
+        if ((x-48)/17)**2+((y+169)/23)**2<1:continue
+        # Subtle coherent empty patches interrupt even the densest groves.
+        undergrowth=fbm(x*.043,y*.039,531)
+        if undergrowth<-.19 and rng.random()<.72:continue
+        if rng.random()<.045:continue
+
+        maturity=rng.random()
+        if maturity<.20:
+            size=rng.uniform(.47,.73)  # saplings within mature woodland
+        elif maturity<.70:
+            size=rng.uniform(.81,1.22)
+        elif maturity<.93:
+            size=rng.uniform(1.22,1.60)
+        else:
+            size=rng.uniform(1.60,1.92)  # a few canopy landmarks
+        size*=1.17 if y>-77 else (.94 if y<-169 else 1.0)
+        # Repel trunks in proportion to their actual crowns. This still permits
+        # close understory saplings and overlapping canopies, not regular rows.
+        spacing=4.6+2.5*size
+        if any((x-px)**2+(y-py)**2 <
+               (max(spacing,4.6+2.5*ps)*.83)**2
+               for px,py,ps in placed):continue
+        leaf_chance=(grove[4] if grove else .14)
+        leaf_chance+=.065*max(0,1-abs(x-river_center(d))/52)
+        leaf_chance+=.10*fbm(x*.032,y*.041,709)
+        master=(broad[rng.randrange(len(broad))]
+                if rng.random()<leaf_chance
                 else masters[rng.randrange(len(masters))])
-        obj=bpy.data.objects.new("Forest | linked tree %03d"%i, master.data)
+        if master in broad:size*=1.07
+        obj=bpy.data.objects.new("Forest | linked grove tree %03d"%count,master.data)
         world_collection.objects.link(obj)
-        size=(.75+rng.random()*.85)*(1.0 if y< -80 else 1.30)
-        if master in broad: size*=1.10
-        obj.location=(x,y,height(x,y)-.15)
-        obj.scale=(size,size,size*(.89+rng.random()*.3))
-        obj.rotation_euler=(rng.uniform(-.045,.045),0,rng.random()*TAU)
+        obj.location=(x,y,height(x,y)-.20)
+        obj.scale=(size*rng.uniform(.91,1.09),
+                   size*rng.uniform(.91,1.09),
+                   size*rng.uniform(.86,1.23))
+        obj.rotation_euler=(rng.uniform(-.055,.055),
+                            rng.uniform(-.035,.035),rng.random()*TAU)
+        placed.append((x,y,size))
         count+=1
+        if count>=184:break
     # Distinct framing silhouettes to make the image read at phone size.
     for x,y,scale,master in [
         (-37,21,2.3,broad[0]),(42,20,2.4,broad[1]),
