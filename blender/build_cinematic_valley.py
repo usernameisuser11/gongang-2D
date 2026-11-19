@@ -43,15 +43,15 @@ def material(name, color, roughness=0.9, metallic=0.0):
     return m
 
 earth = material("Sculpted earth | shadow sea-green", (.18, .31, .27))
-bark = material("Pine bark | deep sienna", (.10, .095, .115))
-bark_lit = material("Pine bark | moonlit edges", (.16, .14, .12))
+bark = material("Pine bark | deep sienna", (.125, .105, .095))
+bark_lit = material("Pine bark | moonlit edges", (.19, .155, .125))
 needle = [material("Conifer needles %02d" % i, c) for i, c in enumerate([
     (.035, .12, .105), (.065, .19, .135), (.10, .24, .175),
     (.14, .29, .20), (.075, .17, .155)
 ])]
 leaf = [material("Broadleaf velvet %02d" % i, c) for i, c in enumerate([
-    (.07, .19, .14), (.12, .27, .17), (.18, .33, .20),
-    (.25, .37, .23), (.17, .28, .17)
+    (.085, .21, .15), (.14, .30, .19), (.20, .37, .23),
+    (.28, .41, .27), (.18, .32, .20)
 ])]
 stone = [material("Wet layered stone %02d" % i, c) for i,c in enumerate([
     (.14,.20,.245),(.21,.27,.29),(.31,.35,.36),(.11,.18,.23)
@@ -239,39 +239,36 @@ def add_lance_leaf(v,f,mids,origin,direction,length,width,mat_idx,curl=0.0):
     mids.extend((mat_idx,mat_idx,mat_idx,mat_idx))
 
 def add_ovate_leaf(v,f,mids,origin,direction,length,width,mat_idx,fold=0.0):
-    """Sculpted broadleaf with an uneven outline and a raised central vein.
-
-    The leaf is a small bent surface rather than a flat diamond or alpha card.
-    It reads as a soft clustered crown at viewing distance, and its silhouette
-    remains distinct from the narrow fir needles.
-    """
+    """Curved, slender ovate lamina with softened shoulders and a central vein."""
     base=Vector(origin)
     d=Vector(direction).normalized()
     lateral=d.cross(Vector((0,0,1)))
     if lateral.length<.08:lateral=d.cross(Vector((0,1,0)))
     lateral.normalize()
     normal=lateral.cross(d).normalized()
-    p1=base+d*(length*.31)+normal*(fold*.35)
-    p2=base+d*(length*.66)+normal*fold
-    tip=base+d*length+normal*(fold*.70)
     offset=len(v)
-    v.extend(tuple(p) for p in (
-        base,
-        p1+lateral*width*.36,
-        p1+normal*width*.09,
-        p1-lateral*width*.31,
-        p2+lateral*width*.48,
-        p2+normal*width*.12,
-        p2-lateral*width*.39,
-        tip,
-    ))
-    f.extend(tuple(offset+j for j in face) for face in (
-        (0,1,2),(0,2,3),
-        (1,4,5),(1,5,2),
-        (2,5,6),(2,6,3),
-        (4,7,5),(5,7,6),
-    ))
-    mids.extend((mat_idx,)*8)
+    # Five cross sections keep the leaf's perimeter supple when seen against
+    # the sky. The center line rises subtly above its two outer edges.
+    sections=((.16,.32),(.40,.86),(.65,1.0),(.87,.43))
+    v.append(tuple(base))
+    for t,w in sections:
+        center=base+d*(length*t)+normal*(fold*math.sin(t*math.pi)+width*.09)
+        left=center+lateral*(width*w*.52)-normal*(width*.08*w)
+        right=center-lateral*(width*w*.43)-normal*(width*.08*w)
+        v.extend((tuple(left),tuple(center),tuple(right)))
+    tip=base+d*length+normal*(fold*.55)+lateral*(width*.025)
+    v.append(tuple(tip))
+    f.extend(((offset,offset+1,offset+2),
+              (offset,offset+2,offset+3)))
+    for section in range(len(sections)-1):
+        a=offset+1+3*section
+        b=a+3
+        f.extend(((a,b,b+1),(a,b+1,a+1),
+                  (a+1,b+1,b+2),(a+1,b+2,a+2)))
+    a=offset+1+3*(len(sections)-1)
+    tip_index=offset+1+3*len(sections)
+    f.extend(((a,tip_index,a+1),(a+1,tip_index,a+2)))
+    mids.extend((mat_idx,)*(4*len(sections)))
 
 def create_pine(variant):
     """Irregular fir crowns: staggered boughs, drooping sprays, open pockets."""
@@ -326,66 +323,90 @@ def create_pine(variant):
     return obj
 
 def create_broadleaf(variant):
-    """Layered, uneven broadleaf crowns with veined leaves and sheltered cores."""
-    r=random.Random(459+variant)
+    """Crooked botanical crowns made of overlapping, airy, asymmetric sprays.
+
+    Structural limbs arc out of the trunk at changing heights; leaf fans occupy
+    the *ends* of their forks. There is deliberately no spherical fill cloud,
+    radial umbrella, or set of rounded clumps that reads as a broccoli tree.
+    """
+    r=random.Random(459+variant*47)
     v=[];f=[];m=[]
-    h=7.2+variant*.85
-    lean=(r.uniform(-.66,.66),r.uniform(-.48,.48))
-    base=(0,0,0)
-    bend=(lean[0]*.42,lean[1]*.35,h*.52)
-    top=(lean[0],lean[1],h)
-    add_tapered_segment(v,f,m,base,bend,.39,.27,0,10)
-    add_tapered_segment(v,f,m,bend,top,.27,.08,0,9)
-    limb_count=17+variant*2
-    crown_bias=r.uniform(-.32,.32)
+    h=7.75+variant*.58
+    lean=Vector((r.uniform(-.76,.76),r.uniform(-.58,.58),0))
+    knot=Vector((lean.x*.27,lean.y*.31,h*.36))
+    upper=Vector((lean.x*.82,lean.y*.76,h*.73))
+    crown=Vector((lean.x*1.18,lean.y*1.05,h))
+    add_tapered_segment(v,f,m,(0,0,0),knot,.41,.29,0,10)
+    add_tapered_segment(v,f,m,knot,upper,.29,.17,0,9)
+    add_tapered_segment(v,f,m,upper,crown,.17,.046,0,7)
+    spread=1.09 if variant==0 else .92
+    lift=.18 if variant==0 else .58
+    crown_bias=r.uniform(-.9,.9)
+
+    limb_count=11 if variant==0 else 10
     for limb in range(limb_count):
-        # The branch bends twice. Separate bough heights and distances give
-        # overlapping leaf islands instead of evenly spaced radial spokes.
-        angle=TAU*(limb+r.uniform(-.38,.38))/limb_count
+        # Golden-angle stagger and different lengths prevent a radial umbrella.
+        t=(limb+r.uniform(-.25,.25))/limb_count
+        z=h*(.38+.45*t)
+        angle=limb*2.3999632297+crown_bias+r.uniform(-.24,.24)
         ux,uy=math.cos(angle),math.sin(angle)
-        length=r.uniform(2.05,4.20)*(1.0+.18*math.sin(angle*3.1+crown_bias))
-        z=h*r.uniform(.38,.86)
-        root=Vector((lean[0]*.48,lean[1]*.43,z-.35))
-        elbow=Vector((lean[0]+ux*length*.42,lean[1]+uy*length*.33,
-                      z+r.uniform(-.26,.74)))
-        tip=Vector((lean[0]+ux*length,lean[1]+uy*length,
-                    z+r.uniform(-.36,1.16)))
-        add_tapered_segment(v,f,m,root,elbow,.105,.042,0,6)
-        add_tapered_segment(v,f,m,elbow,tip,.042,.008,0,5)
-        cluster_count=r.randint(11,16)
-        for cluster in range(cluster_count):
-            q=.17+.81*(cluster+r.random()*.7)/cluster_count
-            p=(root*(1-q)**2+elbow*(2*q*(1-q))+tip*q*q)
-            twig=p+Vector((r.uniform(-.40,.40),r.uniform(-.40,.40),
-                           r.uniform(-.22,.45)))
-            if cluster%3==0:
-                add_tapered_segment(v,f,m,p,twig,.025,.004,0,4)
-            for leaf_id in range(r.randint(9,13)):
-                theta=r.uniform(0,TAU)
-                vec=Vector((math.cos(theta)*.66+ux*.38,
-                            math.sin(theta)*.66+uy*.38,
-                            r.uniform(-.48,.67)))
-                origin=twig+Vector((r.uniform(-.29,.29),
-                                    r.uniform(-.29,.29),
-                                    r.uniform(-.22,.28)))
-                add_ovate_leaf(v,f,m,origin,vec,
-                               .55+r.random()*.37,
-                               .29+r.random()*.20,
-                               2+r.randrange(len(leaf)),
-                               r.uniform(-.08,.15))
-    # Mid-crown foliage encloses inner branches; no bare umbrella skeleton.
-    for cluster in range(22):
-        z=h*r.uniform(.51,.94)
-        theta=r.uniform(0,TAU)
-        radius=r.uniform(.45,1.78)
-        center=Vector((lean[0]+radius*math.cos(theta),
-                       lean[1]+radius*math.sin(theta),z))
-        for leaf_id in range(r.randint(9,14)):
-            outward=Vector((r.uniform(-1,1),r.uniform(-1,1),r.uniform(-.45,.70)))
-            start=center+Vector((r.uniform(-.30,.30),r.uniform(-.30,.30),r.uniform(-.28,.28)))
+        lateral=Vector((-uy,ux,0))
+        length=(3.65-1.02*t)*spread*r.uniform(.72,1.29)
+        length*=.85+.20*math.sin(angle*1.7+crown_bias)
+        root=Vector((lean.x*(z/h)*.74,lean.y*(z/h)*.75,z))
+        elbow=root+Vector((ux*length*.47,uy*length*.47,
+                           r.uniform(.18,.73)+lift*.27))
+        elbow+=lateral*r.uniform(-.42,.42)
+        tip=root+Vector((ux*length,uy*length,
+                         r.uniform(-.75,.58)*(1-t)+lift*(.3+t)))
+        tip+=lateral*r.uniform(-.65,.65)
+        add_tapered_segment(v,f,m,root,elbow,.13*(1-t)+.055,.061,0,7)
+        add_tapered_segment(v,f,m,elbow,tip,.061,.011,0,6)
+
+        # Fine trailing twigs hold loosely connected clusters, not a single
+        # opaque crown mass. Some gaps stay visible all the way to the hills.
+        sprig_count=r.randint(9,13)
+        for sprig in range(sprig_count):
+            q=.24+.74*(sprig+r.random()*.6)/sprig_count
+            p=root*(1-q)**2+elbow*(2*q*(1-q))+tip*q*q
+            side=r.choice((-1,1))*r.uniform(.24,.84)
+            twig=p+lateral*side+Vector((ux*r.uniform(.08,.41),
+                                        uy*r.uniform(.08,.41),
+                                        r.uniform(-.46,.55)))
+            if sprig%2==0:
+                add_tapered_segment(v,f,m,p,twig,.028,.004,
+                                    1 if sprig%5==0 else 0,5)
+            fan=r.randint(9,14)
+            for index in range(fan):
+                theta=r.random()*TAU
+                fan_width=r.uniform(.15,.48)
+                offset=Vector((math.cos(theta)*fan_width,
+                               math.sin(theta)*fan_width,
+                               r.uniform(-.25,.36)))
+                direction=Vector((math.cos(theta)*r.uniform(.32,.95)+ux*.34,
+                                  math.sin(theta)*r.uniform(.32,.95)+uy*.34,
+                                  r.uniform(-.40,.54)+lift*.16))
+                # Broadleaf blades have veins and different rotations. Short
+                # inner leaves and long perimeter leaves break the silhouette.
+                length_leaf=r.uniform(.43,.80)*(1.10 if q>.78 else .93)
+                add_ovate_leaf(v,f,m,twig+offset,direction,
+                               length_leaf,r.uniform(.19,.37),
+                               2+r.randrange(len(leaf)),r.uniform(-.10,.19))
+
+    # A few restrained interior leaf fans conceal the thickest joins without
+    # filling every negative space with the same silhouette.
+    for cluster in range(11):
+        theta=r.random()*TAU
+        radius=r.uniform(.4,1.48)
+        z=h*r.uniform(.54,.91)
+        center=Vector((lean.x+radius*math.cos(theta),
+                       lean.y+radius*math.sin(theta),z))
+        for _ in range(r.randint(8,12)):
+            outward=Vector((r.uniform(-.9,.9),r.uniform(-.9,.9),r.uniform(-.36,.63)))
+            start=center+Vector((r.uniform(-.34,.34),r.uniform(-.34,.34),r.uniform(-.29,.29)))
             add_ovate_leaf(v,f,m,start,outward,
-                           r.uniform(.53,.83),r.uniform(.28,.44),
-                           2+r.randrange(len(leaf)),r.uniform(-.06,.14))
+                           r.uniform(.53,.84),r.uniform(.24,.40),
+                           2+r.randrange(len(leaf)),r.uniform(-.08,.17))
     obj=object_from_mesh("BROADLEAF_MASTER_%d"%variant,v,f,
                          [bark,bark_lit]+leaf,m,library_collection)
     obj.hide_render=True
