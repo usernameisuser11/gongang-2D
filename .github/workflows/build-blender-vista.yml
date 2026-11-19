@@ -22,7 +22,9 @@ jobs:
         run: |
           # Keep automated asset delivery bounded if an Ubuntu mirror stalls.
           sudo timeout 180 env DEBIAN_FRONTEND=noninteractive apt-get update -qq -o Acquire::Retries=2
-          sudo timeout 240 env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends blender python3-numpy
+          # Ubuntu security mirrors can briefly return HTTP 503 for Blender's
+          # dependencies; retry those package downloads before failing CI.
+          sudo timeout 300 env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends -o Acquire::Retries=6 -o Acquire::http::Timeout=25 blender python3-numpy
           blender --version
       - name: Verify Blender script syntax
         run: python3 -m py_compile blender/build_cinematic_valley.py
