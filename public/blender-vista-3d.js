@@ -163,10 +163,12 @@ function applyBotanicalWind(){
     for(const mat of mats){
       if(visited.has(mat))continue;
       visited.add(mat);
+      const isLeaf=/Conifer needles|Broadleaf velvet/i.test(mat.name);
+      const isWood=/Pine bark/i.test(mat.name);
       if(/Conifer needles|Broadleaf velvet|Wildflower petals|Grass blade/i.test(mat.name)){
         mat.side=THREE.DoubleSide;
       }
-      if(!/Conifer needles|Broadleaf velvet/i.test(mat.name))continue;
+      if(!isLeaf&&!isWood)continue;
       mat.onBeforeCompile=shader=>{
         shader.uniforms.gongangWindTime=windClock;
         shader.uniforms.gongangWindPower=windPower;
@@ -176,15 +178,23 @@ function applyBotanicalWind(){
         shader.vertexShader=shader.vertexShader.replace(
           '#include <begin_vertex>',
           '#include <begin_vertex>\n'+
-          'float gw= smoothstep(.65,6.8,position.y);'+
-          'float gp=position.x*.28+position.z*.34;\n'+
+          'float gw=smoothstep(.25,7.6,position.y);\n'+
+          'float gp=modelMatrix[3].x*.13+modelMatrix[3].z*.17;\n'+
           '#ifdef USE_INSTANCING\n'+
-          'gp+=instanceMatrix[3].x*.092+instanceMatrix[3].z*.064;\n'+
+          'gp+=instanceMatrix[3].x*.13+instanceMatrix[3].z*.17;\n'+
           '#endif\n'+
-          'transformed.x+=sin(gongangWindTime*.73+gp+position.y*.27)*.13*gw*gongangWindPower;'+
-          'transformed.z+=cos(gongangWindTime*.56+gp*1.31)*.067*gw*gongangWindPower;');
+          'float gust=sin(gongangWindTime*.47+gp)*.76+'+
+          'sin(gongangWindTime*.83+gp*1.49)*.24;\n'+
+          'float treeFlex=gw*gw*gongangWindPower;\n'+
+          'transformed.x+=gust*.21*treeFlex;\n'+
+          'transformed.z+=cos(gongangWindTime*.39+gp*1.33)*.095*treeFlex;\n'+
+          (isLeaf
+            ?'float branchPhase=position.x*.67+position.z*.53+position.y*.23;\n'+
+             'transformed.x+=sin(gongangWindTime*1.58+branchPhase+gp)*.055*gw*gongangWindPower;\n'+
+             'transformed.z+=cos(gongangWindTime*1.29+branchPhase*.93+gp)*.042*gw*gongangWindPower;\n'
+            :''));
       };
-      mat.customProgramCacheKey=()=> 'gongang-leaf-wind-v2';
+      mat.customProgramCacheKey=()=> isLeaf?'gongang-botanical-wind-v3-leaves':'gongang-botanical-wind-v3-wood';
       mat.needsUpdate=true;
       count++;
     }
@@ -483,6 +493,8 @@ function instanceRepeatedForest(group){
     buckets.get(key).push(node);
   });
   let merged=0,instances=0;
+  const tint=new THREE.Color();
+  const location=new THREE.Vector3();
   for(const nodes of buckets.values()){
     if(nodes.length<2)continue;
     const original=nodes[0];
@@ -495,8 +507,22 @@ function instanceRepeatedForest(group){
       node.updateWorldMatrix(true,false);
       matrix.copy(node.matrixWorld);
       gpu.setMatrixAt(i,matrix);
+      // Every tree keeps its own restrained leaf/bark warmth, despite sharing
+      // a single Blender master mesh. Distance adds a faint blue-grey cast,
+      // while the scene fog still provides the main atmospheric perspective.
+      location.setFromMatrixPosition(matrix);
+      const seed=Math.sin(location.x*.428+location.z*.319)*43758.5453;
+      const n=seed-Math.floor(seed);
+      const warm=Math.sin(location.x*.19-location.z*.14);
+      const far=clamp((location.z-42)/195,0,1);
+      const shade=.90+n*.17;
+      tint.setRGB(shade*(1+.027*warm+.035*far),
+                  shade*(1+.037*warm-.012*far),
+                  shade*(1-.033*warm+.045*far));
+      gpu.setColorAt(i,tint);
     });
     gpu.instanceMatrix.needsUpdate=true;
+    if(gpu.instanceColor)gpu.instanceColor.needsUpdate=true;
     for(const node of nodes)node.parent?.remove(node);
     scene.add(gpu);
     merged++;
