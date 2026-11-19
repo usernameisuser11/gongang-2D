@@ -495,6 +495,8 @@ function instanceRepeatedForest(group){
   let merged=0,instances=0;
   const tint=new THREE.Color();
   const location=new THREE.Vector3();
+  const shadowRoots=[];
+  const shadowSeen=new Set();
   for(const nodes of buckets.values()){
     if(nodes.length<2)continue;
     const original=nodes[0];
@@ -520,6 +522,18 @@ function instanceRepeatedForest(group){
                   shade*(1+.037*warm-.012*far),
                   shade*(1-.033*warm+.045*far));
       gpu.setColorAt(i,tint);
+      if(matsAreBotanical(node.material)){
+        // A GLB tree can contain several material primitives at the same
+        // position. One footprint per actual tree, not per mesh primitive.
+        const key=location.x.toFixed(2)+'/'+location.z.toFixed(2);
+        if(!shadowSeen.has(key)){
+          shadowSeen.add(key);
+          const buried=/foreground hero tree/i.test(node.name)? .45:
+                       /portrait framing tree/i.test(node.name)? .22:.15;
+          shadowRoots.push({x:location.x,y:location.y+buried+.055,z:location.z,
+            size:clamp(matrix.getMaxScaleOnAxis(),.5,2.8),angle:n*6.2831853});
+        }
+      }
     });
     gpu.instanceMatrix.needsUpdate=true;
     if(gpu.instanceColor)gpu.instanceColor.needsUpdate=true;
@@ -530,6 +544,59 @@ function instanceRepeatedForest(group){
   }
   state.forestInstancedDraws=merged;
   state.forestInstances=instances;
+  addTreeContactShadows(shadowRoots);
+}
+function matsAreBotanical(material){
+  const mats=Array.isArray(material)?material:[material];
+  return mats.some(m=>/Conifer needles|Broadleaf velvet|Pine bark/i.test(m?.name||''));
+}
+function addTreeContactShadows(roots){
+  if(!roots.length)return;
+  // Soft contact occlusion, not an expensive dynamic shadowmap. This grounds
+  // the trunks on the hillside even on mobile devices. The discs are true
+  // world-space geometry with radial shader falloff, never image overlays.
+  const geometry=new THREE.PlaneGeometry(1,1);
+  geometry.rotateX(-Math.PI/2);
+  const material=new THREE.ShaderMaterial({
+    uniforms:{uDay:skyDay,uRain:skyRain},
+    transparent:true,depthWrite:false,depthTest:true,
+    polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1,
+    vertexShader:[
+      'varying vec2 vUv;varying float vDepth;',
+      'void main(){vUv=uv;vec4 local=vec4(position,1.);',
+      '#ifdef USE_INSTANCING',
+      'local=instanceMatrix*local;',
+      '#endif',
+      'vec4 eye=modelViewMatrix*local;',
+      'vDepth=length(eye.xyz);gl_Position=projectionMatrix*eye;}'
+    ].join('\n'),
+    fragmentShader:[
+      'precision highp float;uniform float uDay,uRain;',
+      'varying vec2 vUv;varying float vDepth;',
+      'void main(){vec2 p=(vUv-.5)*2.;float r=length(p);',
+      'float falloff=1.-smoothstep(.10,.99,r);falloff*=falloff;',
+      'float distanceFade=1.-smoothstep(90.,240.,vDepth);',
+      'float opacity=falloff*distanceFade*mix(.18,.30,uDay)*(1.-uRain*.24);',
+      'gl_FragColor=vec4(.020,.043,.034,opacity);}'
+    ].join('\n')
+  });
+  const shadows=new THREE.InstancedMesh(geometry,material,roots.length);
+  shadows.name='Forest | soft contact shadows at roots';
+  shadows.frustumCulled=false;
+  shadows.renderOrder=1;
+  const position=new THREE.Vector3(),rotation=new THREE.Quaternion();
+  const scale=new THREE.Vector3(),matrix=new THREE.Matrix4();
+  for(let i=0;i<roots.length;i++){
+    const tree=roots[i];
+    position.set(tree.x,tree.y,tree.z);
+    rotation.setFromAxisAngle(new THREE.Vector3(0,1,0),tree.angle);
+    scale.set(tree.size*2.9,1,tree.size*1.9);
+    matrix.compose(position,rotation,scale);
+    shadows.setMatrixAt(i,matrix);
+  }
+  shadows.instanceMatrix.needsUpdate=true;
+  scene.add(shadows);
+  state.contactShadowInstances=roots.length;
 }
 async function prepare(){
   try{
