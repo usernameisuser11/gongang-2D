@@ -257,10 +257,11 @@ function enlivenBlenderSurface(){
         terrainMaterials++;
       }
       if(!/Silent mirror/i.test(mat.name)||!mat.isMeshStandardMaterial)continue;
-      mat.roughness=.29;
+      mat.roughness=.23;
       mat.metalness=.09;
       mat.onBeforeCompile=shader=>{
         shader.uniforms.gongangRiverTime=windClock;
+        shader.uniforms.gongangRiverDay=skyDay;
         shader.vertexShader=shader.vertexShader.replace(
           '#include <common>',
           '#include <common>\nuniform float gongangRiverTime;\nvarying vec2 gongangRiverPos;');
@@ -270,7 +271,7 @@ function enlivenBlenderSurface(){
           'transformed.y+=(sin(position.z*.51-gongangRiverTime*.48)+sin(position.x*1.9+position.z*.35+gongangRiverTime*.67))*.006;');
         shader.fragmentShader=shader.fragmentShader.replace(
           '#include <common>',
-          '#include <common>\nuniform float gongangRiverTime;\nvarying vec2 gongangRiverPos;'+
+          '#include <common>\nuniform float gongangRiverTime;\nuniform float gongangRiverDay;\nvarying vec2 gongangRiverPos;'+
           'float rwHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}'+
           'float rwNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);'+
           'return mix(mix(rwHash(i),rwHash(i+vec2(1.,0.)),f.x),'+
@@ -286,21 +287,27 @@ function enlivenBlenderSurface(){
           'float localNoise=rwNoise(wpos*vec2(.48,.14)+vec2(gongangRiverTime*.032,-gongangRiverTime*.025));'+
           'float wavA=sin(wpos.y*.24+localNoise*2.3-gongangRiverTime*.36);'+
           'float wavB=sin(wpos.x*3.8+wpos.y*.31+localNoise*4.5-gongangRiverTime*.62);'+
-          'float ribbons=pow(max(0.,.5+.5*wavB),18.)*.19;'+
+          'float ribbons=pow(max(0.,.5+.5*wavB),24.)*.16;'+
           'float darkPool=rwNoise(wpos*vec2(.12,.18)+vec2(7.,11.));'+
           'float current=.30+.25*darkPool+.065*wavA;'+
-          'vec3 base=mix(vec3(.023,.088,.111),vec3(.084,.205,.222),clamp(current,0.,1.));'+
+          'float shallows=smoothstep(.62,1.0,bank);'+
+          'vec3 deep=mix(vec3(.018,.070,.087),vec3(.046,.135,.148),clamp(current,0.,1.));'+
+          'vec3 shallow=vec3(.103,.186,.174)*(.88+.12*darkPool);'+
+          'vec3 base=mix(deep,shallow,shallows*.63);'+
           'float glimmer=ribbons*(.26+.74*rwNoise(wpos*.34));'+
-          'vec3 silver=vec3(.24,.37,.39)*glimmer*.24;'+
+          'float ripple=rwNoise(wpos*vec2(.94,.27)+vec2(gongangRiverTime*.06,-gongangRiverTime*.10));'+
+          'float spark=pow(max(0.,.5+.5*sin(wpos.y*.84+wpos.x*2.9-gongangRiverTime*.43+ripple*5.)),36.);'+
+          'vec3 silver=vec3(.28,.43,.45)*(glimmer*.20+spark*.014);'+
           'float edge=smoothstep(.83,.98,bank)*(1.-smoothstep(1.0,1.08,bank));'+
           'float breakup=.16+.58*rwNoise(vec2(wpos.y*.34+gongangRiverTime*.09,bank*3.));'+
           'float foam=edge*breakup*(.34+.32*rwNoise(wpos*.18));'+
           'float midstream=exp(-pow(bank*1.7,2.));'+
           'float moonThread=midstream*pow(max(0.,.5+.5*sin(wpos.x*2.7+wpos.y*.11+localNoise*4.-gongangRiverTime*.36)),22.);'+
-          'diffuseColor.rgb=base+silver+vec3(.16,.26,.29)*moonThread*.11;'+
-          'diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.34,.56,.59),foam*.35);');
+          'diffuseColor.rgb=base+silver+vec3(.16,.26,.29)*moonThread*.10;'+
+          'diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.29,.46,.47),foam*.23);'+
+          'diffuseColor.rgb*=mix(.88,.73,gongangRiverDay);');
       };
-      mat.customProgramCacheKey=()=> 'gongang-winding-water-shoreline-v5';
+      mat.customProgramCacheKey=()=> 'gongang-winding-water-shoreline-v6';
       mat.needsUpdate=true;
       riverMaterials++;
     }
