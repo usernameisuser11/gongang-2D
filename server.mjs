@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,6 +44,9 @@ const painterlyClouds = await readFile(join(ROOT, 'public', 'painterly-clouds-3d
 // must not stop the rest of the public site from loading.
 const blenderVistaScript = await readFile(join(ROOT, 'public', 'blender-vista-3d.js'));
 const blenderVistaGLB = await readFile(join(ROOT, 'public', 'assets', 'models', 'blender-cinematic-valley.glb')).catch(() => null);
+const blenderVistaETag = blenderVistaGLB
+  ? '"' + createHash('sha256').update(blenderVistaGLB).digest('base64url') + '"'
+  : null;
 // Three.js example modules refer to the bare 'three' specifier and relative
 // utils. Rewrite only those import specifiers to the already served local copy.
 const localThreeImport = source => Buffer.from(source.toString()
@@ -191,10 +194,15 @@ const server = createServer((req, res) => {
       res.end(req.method === 'HEAD' ? undefined : 'Blender asset not generated yet');
       return;
     }
+    res.setHeader('Cache-Control', 'public, no-cache');
+    res.setHeader('ETag', blenderVistaETag);
+    if (req.headers['if-none-match'] === blenderVistaETag) {
+      res.writeHead(304).end();
+      return;
+    }
     res.writeHead(200, {
       'Content-Type': 'model/gltf-binary',
-      'Content-Length': blenderVistaGLB.byteLength,
-      'Cache-Control': 'public, max-age=86400'
+      'Content-Length': blenderVistaGLB.byteLength
     });
     res.end(req.method === 'HEAD' ? undefined : blenderVistaGLB);
     return;

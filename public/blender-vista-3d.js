@@ -172,13 +172,15 @@ function applyBotanicalWind(){
       mat.onBeforeCompile=shader=>{
         shader.uniforms.gongangWindTime=windClock;
         shader.uniforms.gongangWindPower=windPower;
+        const crownVarying='\nvarying vec3 gongangCrownPosition;';
         shader.vertexShader=shader.vertexShader.replace(
           '#include <common>',
-          '#include <common>\nuniform float gongangWindTime;\nuniform float gongangWindPower;');
+          '#include <common>\nuniform float gongangWindTime;\nuniform float gongangWindPower;'+
+          (isLeaf?crownVarying:''));
         shader.vertexShader=shader.vertexShader.replace(
           '#include <begin_vertex>',
           '#include <begin_vertex>\n'+
-          'float gw=smoothstep(.25,7.6,position.y);\n'+
+          'float gw=smoothstep(.25,8.2,position.y);\n'+
           'float gp=modelMatrix[3].x*.13+modelMatrix[3].z*.17;\n'+
           '#ifdef USE_INSTANCING\n'+
           'gp+=instanceMatrix[3].x*.13+instanceMatrix[3].z*.17;\n'+
@@ -189,12 +191,25 @@ function applyBotanicalWind(){
           'transformed.x+=gust*.21*treeFlex;\n'+
           'transformed.z+=cos(gongangWindTime*.39+gp*1.33)*.095*treeFlex;\n'+
           (isLeaf
-            ?'float branchPhase=position.x*.67+position.z*.53+position.y*.23;\n'+
-             'transformed.x+=sin(gongangWindTime*1.58+branchPhase+gp)*.055*gw*gongangWindPower;\n'+
-             'transformed.z+=cos(gongangWindTime*1.29+branchPhase*.93+gp)*.042*gw*gongangWindPower;\n'
+            ?'gongangCrownPosition=position;\n'+
+             'float branchPhase=position.x*.67+position.z*.53+position.y*.23;\n'+
+             'float branchFlex=gw*smoothstep(.20,2.45,length(position.xz));\n'+
+             'transformed.x+=sin(gongangWindTime*1.58+branchPhase+gp)*.072*branchFlex*gongangWindPower;\n'+
+             'transformed.z+=cos(gongangWindTime*1.29+branchPhase*.93+gp)*.053*branchFlex*gongangWindPower;\n'
             :''));
+        if(isLeaf){
+          shader.fragmentShader=shader.fragmentShader.replace(
+            '#include <common>','#include <common>'+crownVarying);
+          shader.fragmentShader=shader.fragmentShader.replace(
+            '#include <color_fragment>',
+            '#include <color_fragment>\n'+
+            'float crownHeight=smoothstep(2.2,7.9,gongangCrownPosition.y);'+
+            'float crownEdge=smoothstep(.60,3.0,length(gongangCrownPosition.xz));'+
+            'float lightness=crownHeight*.66+crownEdge*.34;'+
+            'diffuseColor.rgb*=mix(vec3(.69,.79,.85),vec3(1.15,1.10,1.00),lightness);');
+        }
       };
-      mat.customProgramCacheKey=()=> isLeaf?'gongang-botanical-wind-v3-leaves':'gongang-botanical-wind-v3-wood';
+      mat.customProgramCacheKey=()=> isLeaf?'gongang-crown-light-and-wind-leaves':'gongang-crown-wind-wood';
       mat.needsUpdate=true;
       count++;
     }
@@ -214,8 +229,8 @@ function enlivenBlenderSurface(){
         // The leaves remain physical meshes, with a restrained cool rim instead
         // of a uniform neon glow. The original author-painted colors survive.
         mat.roughness=.88;
-        mat.emissive=new THREE.Color('#17363c');
-        mat.emissiveIntensity=.09;
+        mat.emissive=new THREE.Color('#112931');
+        mat.emissiveIntensity=.05;
         moonlitFoliageMaterials++;
       }
       if(/Wildflower petals/i.test(mat.name) && mat.isMeshStandardMaterial){
@@ -482,37 +497,40 @@ function instanceRepeatedForest(group){
   // imported instances into a handful of GPU draw calls on portrait phones.
   group.updateMatrixWorld(true);
   const buckets=new Map();
-  group.traverse(node=>{
-    if(!node.isMesh||!node.geometry||!node.material)return;
-    // Only the botanicals reuse the same geometry many times; terrain,
-    // grass and river have unique geometry and are left in place.
-    // Avoid matching Blender object names, which glTF may sanitize.
+  const shadowRoots=new Map();
+  const location=new THREE.Vector3();
+  // A hidden portrait tree's child meshes must stay out of desktop batches.
+  group.traverseVisible(node=>{
+    if(!node.isMesh||!node.geometry||!matsAreBotanical(node.material))return;
     const mats=Array.isArray(node.material)?node.material:[node.material];
     const key=node.geometry.uuid+'/'+mats.map(m=>m.uuid).join(',');
     if(!buckets.has(key))buckets.set(key,[]);
     buckets.get(key).push(node);
+
+    location.setFromMatrixPosition(node.matrixWorld);
+    const rootKey=location.x.toFixed(2)+'/'+location.z.toFixed(2);
+    if(shadowRoots.has(rootKey))return;
+    const name=node.name+' '+(node.parent?.name??'');
+    const buried=/foreground.*hero.*tree/i.test(name) ? .45 :
+                 /portrait.*framing.*tree/i.test(name) ? .22 : .20;
+    shadowRoots.set(rootKey,{x:location.x,y:location.y+buried+.055,z:location.z,
+      size:clamp(node.matrixWorld.getMaxScaleOnAxis(),.5,2.8),
+      angle:location.x*.57+location.z*.44});
   });
   let merged=0,instances=0;
   const tint=new THREE.Color();
-  const location=new THREE.Vector3();
-  const shadowRoots=[];
-  const shadowSeen=new Set();
   for(const nodes of buckets.values()){
     if(nodes.length<2)continue;
     const original=nodes[0];
     const gpu=new THREE.InstancedMesh(original.geometry,original.material,nodes.length);
     gpu.name='Blender forest | GPU instanced '+original.name;
-    gpu.frustumCulled=false;
     gpu.castShadow=false;gpu.receiveShadow=false;
-    const matrix=new THREE.Matrix4();
     nodes.forEach((node,i)=>{
-      node.updateWorldMatrix(true,false);
-      matrix.copy(node.matrixWorld);
-      gpu.setMatrixAt(i,matrix);
+      gpu.setMatrixAt(i,node.matrixWorld);
       // Every tree keeps its own restrained leaf/bark warmth, despite sharing
       // a single Blender master mesh. Distance adds a faint blue-grey cast,
       // while the scene fog still provides the main atmospheric perspective.
-      location.setFromMatrixPosition(matrix);
+      location.setFromMatrixPosition(node.matrixWorld);
       const seed=Math.sin(location.x*.428+location.z*.319)*43758.5453;
       const n=seed-Math.floor(seed);
       const warm=Math.sin(location.x*.19-location.z*.14);
@@ -522,19 +540,9 @@ function instanceRepeatedForest(group){
                   shade*(1+.037*warm-.012*far),
                   shade*(1-.033*warm+.045*far));
       gpu.setColorAt(i,tint);
-      if(matsAreBotanical(node.material)){
-        // A GLB tree can contain several material primitives at the same
-        // position. One footprint per actual tree, not per mesh primitive.
-        const key=location.x.toFixed(2)+'/'+location.z.toFixed(2);
-        if(!shadowSeen.has(key)){
-          shadowSeen.add(key);
-          const buried=/foreground hero tree/i.test(node.name)? .45:
-                       /portrait framing tree/i.test(node.name)? .22:.15;
-          shadowRoots.push({x:location.x,y:location.y+buried+.055,z:location.z,
-            size:clamp(matrix.getMaxScaleOnAxis(),.5,2.8),angle:n*6.2831853});
-        }
-      }
     });
+    gpu.computeBoundingSphere();
+    gpu.boundingSphere.radius+=.65;
     gpu.instanceMatrix.needsUpdate=true;
     if(gpu.instanceColor)gpu.instanceColor.needsUpdate=true;
     for(const node of nodes)node.parent?.remove(node);
@@ -544,7 +552,7 @@ function instanceRepeatedForest(group){
   }
   state.forestInstancedDraws=merged;
   state.forestInstances=instances;
-  addTreeContactShadows(shadowRoots);
+  addTreeContactShadows([...shadowRoots.values()]);
 }
 function matsAreBotanical(material){
   const mats=Array.isArray(material)?material:[material];
@@ -627,7 +635,11 @@ async function prepare(){
     rimLight.position.set(82,44,-66);
     scene.add(rimLight);
     buildAtmosphere();
-    const gltf=await new GLTFLoader().loadAsync('/assets/models/blender-cinematic-valley.glb');
+    const modelUrl=new URL('/assets/models/blender-cinematic-valley.glb',location.href);
+    const modelResponse=await fetch(modelUrl,{cache:'no-cache'});
+    if(!modelResponse.ok)throw Error('Blender model HTTP '+modelResponse.status);
+    const gltf=await new GLTFLoader().parseAsync(
+      await modelResponse.arrayBuffer(),new URL('.',modelUrl).href);
     root=gltf.scene;
     root.name='Gongang | Blender sculpt / original geometric assets';
     root.traverse(o=>{
