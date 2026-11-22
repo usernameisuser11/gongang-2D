@@ -690,7 +690,7 @@ function draw(ctx,t,now,{personal=false,scroll=0}={}){
     }
     const aspect=w/h;
     state.sourceAspect=t.width/t.height;
-    const worldHeight=personal?46:(portrait?61:61);
+    const worldHeight=personal?46:(portrait?66:61);
     camera.left=-worldHeight*aspect/2;
     camera.right=worldHeight*aspect/2;
     camera.top=worldHeight/2;

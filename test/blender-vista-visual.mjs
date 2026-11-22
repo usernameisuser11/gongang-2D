@@ -79,6 +79,11 @@ try{
       throw Error(scene.name+': WebGL scenic rectangle is stretched '+JSON.stringify({renderedAspect,sourceAspect:state.sourceAspect}));
     if(errors.length)throw Error(scene.name+': browser shader errors '+errors.join(' | '));
   }
+  const desktop = report.find(entry => entry.name === 'desktop-night').state;
+  const portrait = report.find(entry => entry.name === 'mobile-portrait-night').state;
+  if (portrait.contactShadowInstances - desktop.contactShadowInstances !== portrait.portraitTrees) {
+    throw Error('Portrait-only trees leaked into desktop forest instances');
+  }
   await writeFile(OUT+'/report.json',JSON.stringify(report,null,2));
   process.stdout.write(JSON.stringify(report,null,2)+'\n');
 }finally{

@@ -316,7 +316,7 @@ def create_pine(variant, distant=False):
             twigs = 3 if distant else r.randint(4, 5)
             for twig in range(twigs):
                 progress = .16 + .84*twig/(twigs-1)
-                anchor = elbow.lerp(tip, progress)
+                anchor = root.lerp(elbow, .68) if twig == 0 else elbow.lerp(tip, progress)
                 fork_sign = -1 if twig % 2 else 1
                 spray = (forward*r.uniform(.42, .68) + side*fork_sign*r.uniform(.45, .89)
                          + up*r.uniform(-.12, .29)).normalized()
@@ -325,6 +325,16 @@ def create_pine(variant, distant=False):
                 if not distant:
                     add_bent_branch(v, f, m, (anchor, end), (.019, .005), sides=4)
                 shade = r.choice((1, 2, 2, 3, 4))
+                # Connected sprays give the bough a filled silhouette at a
+                # distance. The smaller needles still break up its perimeter.
+                fan_length = (.56+.25*length)*(.82+.18*(1-t))
+                for layer, side_sign in enumerate((-1, 1)):
+                    fan_direction = spray + side*(side_sign*.40) + up*(layer*.22-.13)
+                    add_ovate_leaf(
+                        v, f, m, anchor.lerp(end, .12+layer*.23), fan_direction,
+                        fan_length*(.92+.20*layer), fan_length*(.56-.08*layer),
+                        2+max(0, shade-layer), .11*fan_length,
+                    )
                 blades = 7 if distant else r.randint(8, 11)
                 for blade in range(blades):
                     q = (blade+.6)/blades
